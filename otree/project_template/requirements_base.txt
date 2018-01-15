@@ -1,1 +1,1 @@
-otree>=1.5.0b1
+otree-core>=1.5.0b1

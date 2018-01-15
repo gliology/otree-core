@@ -1,9 +1,10 @@
-{% load static %}
+{% load staticfiles %}
 {% load i18n %}
 
 <div class="otree-timer alert alert-warning">
     <p>{{ timer_text }}
         <span style="font-weight: bold">
+            <img src='{% static "glyphicons/time.png" %}'>
             <span class="otree-timer__time-left"></span>
         </span>
     </p>
