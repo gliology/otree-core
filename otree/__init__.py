@@ -1,0 +1,1 @@
+__version__ = 'this is the otree package'
