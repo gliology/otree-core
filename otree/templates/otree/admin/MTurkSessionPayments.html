@@ -93,9 +93,9 @@
                             <td>
                                 <div class="checkbox-inline">
                                     <label>
-                                        <input name="workers"
+                                        <input type="checkbox"
+                                               name="workers"
                                                data-value="{{ p.payoff_plus_participation_fee|json }}"
-                                               type="checkbox"
                                                value="{{ p.mturk_worker_id }}">
                                     </label>
                                 </div>
@@ -173,13 +173,32 @@
                 </div>
                 </form>
 
-                <script type="text/javascript" charset="utf-8">
+                <script>
                     $(document).ready(function () {
                     /*
                      "checkAll" checkbox
                      in the table header
                      */
                         checkFunction('workers', 'checkAll');
+
+                        $('input[name=workers]').change(function () {
+                            var sum = 0.00;
+                            var numChecked = 0;
+                            var $payButton = $('#pay');
+                            var $rejectButton = $('#reject');
+                            $('input[name=workers]:checked').each(function (index, element) {
+                                sum += parseFloat($(this).data('value'));
+                                numChecked += 1;
+                            });
+                            if (numChecked > 0) {
+                                $payButton.attr('disabled', false).text('Pay via MTurk ($' + sum.toFixed(2) + ')');
+                                $rejectButton.attr('disabled', false);
+                            }
+                            else {
+                                $payButton.attr('disabled', true).text('Pay via MTurk');
+                                $rejectButton.attr('disabled', true);
+                            }
+                        })
                     });
 
                     function checkFunction(checkName, checkAllName) {
@@ -193,29 +212,6 @@
                             $("input[name=" + checkAllName + "]").prop('checked', check);
                         })
                     }
-                    /*
-                     ****************************
-                     ****************************
-                     Smart Pay Button
-                     ****************************
-                     ****************************
-                     */
-                    $(function () {
-                        $('input[name=workers]').change(function () {
-                            var sum = 0.00;
-                            $('input[name=workers]:checked:enabled').each(function (index, element) {
-                                sum += parseFloat($(this).data('value'));
-                            });
-                            if (sum > 0.00) {
-                                $('#pay').attr('disabled', false).text('Pay via MTurk ($' + sum.toFixed(2) + ')');
-                                $('#reject').attr('disabled', false);
-                            }
-                            else {
-                                $('#pay').attr('disabled', true).text('Pay via MTurk');
-                                $('#reject').attr('disabled', true);
-                            }
-                        })
-                    });
                 </script>
             {% endif %}
 
