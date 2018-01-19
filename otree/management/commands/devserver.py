@@ -86,10 +86,10 @@ class Command(runserver.Command):
                 self.print_error_and_exit(ADVICE_DELETE_TMP)
 
         makemigrations_output = new_stdout.read()
-        self.stdout.write(makemigrations_output)
 
         # only migrate if DB schema changed
         if 'No changes detected' not in makemigrations_output:
+            self.stdout.write(makemigrations_output)
 
             # migrate imports some modules that were created on the fly,
             # so according to the docs for import_module, we need to call

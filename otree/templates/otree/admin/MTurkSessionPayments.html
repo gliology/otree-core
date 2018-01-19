@@ -4,33 +4,14 @@
 {% block internal_scripts %}
     {{ block.super }}
     <script type="text/javascript" charset="utf-8">
-        /*
-         Modal window to confirm MTurk
-         payment
-         */
         $(document).ready(function () {
-            $('#pay').click(function () {
-                $('#mturk-payment').modal({
-                    show: 'true'
-                });
-                return false;
-            })
-        });
-        $(document).ready(function () {
-            $('#reject').click(function () {
-                $('#mturk-reject').modal({
-                    show: 'true'
-                });
-                return false;
-            })
-        });
         /*
-         Code for "checkAll" checkbox
-         in the header
+         "checkAll" checkbox
+         in the table header
          */
-        $(function () {
             checkFunction('workers', 'checkAll');
         });
+
         function checkFunction(checkName, checkAllName) {
             // code for "checkAll" checkbox
             $('input[name=' + checkAllName + ']').click(function () {
@@ -38,7 +19,7 @@
             });
             // if all checkboxes are selected check also "checkAll" checkbox
             $('input[name=' + checkName + ']').change(function () {
-                var check = ($("input[name=" + checkName + "]:checked").length == $("input[name=" + checkName + "]").length);
+                var check = ($("input[name=" + checkName + "]:checked").length === $("input[name=" + checkName + "]").length);
                 $("input[name=" + checkAllName + "]").prop('checked', check);
             })
         }
@@ -164,15 +145,23 @@
                         {% endfor %}
                     </table>
                     <div class="btn-group" style="float: right;">
-                        <button class="btn btn-primary" id="pay" disabled>Pay
-                            via
-                            MTurk
+                        <button class="btn btn-primary"
+                                data-toggle="modal"
+                                data-target="#mturk-pay"
+                                id="pay"
+                                disabled>
+                            Pay via MTurk
                         </button>
-                        <button class="btn btn-primary" id="reject" disabled>
+                        <button class="btn btn-primary"
+                                data-toggle="modal"
+                                data-target="#mturk-reject"
+                                id="reject"
+                                disabled>
                             Reject
                         </button>
                     </div>
                 {% endif %}
+
                 {% if participants_approved %}
                     <h3>Approved assignments</h3>
                     <table class="table table-striped">
@@ -244,15 +233,13 @@
             </div>
         {% endif %}
 
-        <!--Modal window to confirm payment for assignments-->
+        <!--Modal windows to confirm payment/rejection -->
         <!-- Removed fade because the delay seemed to be interfering with PhantomJS -->
-        <div class="modal" id="mturk-payment" tabindex="-1" role="dialog">
+        <div class="modal" id="mturk-pay" tabindex="-1" role="dialog">
             <div class="modal-dialog">
                 <div class="modal-content bg-warning">
-                    <div class="modal-header card-header">
-                        <button type="button" class="close"
-                                data-dismiss="modal"><span>&times;</span></button>
-                        <h4 class="modal-title" id="exampleModalLabel">Please
+                    <div class="modal-header">
+                        <h4 class="modal-title">Please
                             confirm</h4>
                     </div>
                     <div class="modal-body">
@@ -273,21 +260,15 @@
                 </div>
             </div>
         </div>
-        <!--Modal window to confirm rejection of assignments-->
-        <!-- Removed fade because the delay seemed to be interfering with PhantomJS -->
+
         <div class="modal" id="mturk-reject" tabindex="-1" role="dialog">
             <div class="modal-dialog">
                 <div class="modal-content bg-warning">
-                    <div class="modal-header card-header">
-                        <button type="button" class="close"
-                                data-dismiss="modal"><span>&times;</span></button>
-                        <h4 class="modal-title" id="exampleModalLabel">Reject
+                    <div class="modal-header">
+                        <h4 class="modal-title">Reject
                             assignments?</h4>
                     </div>
                     <div class="modal-body">
-                        <p>
-                            Reject the selected assignments.
-                        </p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary"
