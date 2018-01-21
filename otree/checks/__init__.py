@@ -280,7 +280,21 @@ def template_valid(template_name: str, helper: AppCheckHelper):
 
     try:
         with io.open(template_name, 'r', encoding='utf8') as f:
-            compiled_template = Template(f.read())
+
+            # when we upgraded to Django 1.11, we got an error
+            # if someone used "{% include %}" with a relative
+            # path (like ../Foo.html):
+            # File "c:\otree\ve_dj11\lib\site-packages\django\template\loader_tags.py", line 278, in construct_relative_path
+            #  posixpath.dirname(current_template_name.lstrip('/')),
+            # AttributeError: 'NoneType' object has no attribute 'lstrip'
+            # can fix this by passing a dummy 'Origin' param.
+            # i tried also with Engin.get_default().from_string(template_name),
+            # but got the same error.
+            class Origin:
+                name = ''
+                template_name = ''
+
+            compiled_template = Template(f.read(), origin=Origin)
     except (IOError, OSError, TemplateSyntaxError):
         # When we used Django 1.8
         # we used to show the line from the source that caused the error,
