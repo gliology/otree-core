@@ -335,6 +335,7 @@ def print_colored_traceback_and_exit(exc):
             filename = highlight(filename)
             line = highlight(line)
         new_frames.append([filename, lineno, name, line])
+    # taken from django source?
     lines = ['Traceback (most recent call last):\n']
     lines += traceback.format_list(new_frames)
     final_lines = traceback.format_exception_only(type(exc), exc)
@@ -345,3 +346,7 @@ def print_colored_traceback_and_exit(exc):
     for line in lines:
         sys.stdout.write(line)
     sys.exit(-1)
+
+
+class ResponseForException(Exception):
+    pass

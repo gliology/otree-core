@@ -1,18 +1,21 @@
+from django.core import signals
+from django.core.exceptions import (
+    PermissionDenied, SuspiciousOperation,
+)
+from django.http.multipartparser import MultiPartParserError
+from django.urls import get_resolver, get_urlconf
 
 import contextlib
 import importlib
 import json
 import logging
 import time
-import warnings
 
 import channels
-import django.db
 import otree.channels.utils as channel_utils
 import redis_lock
 import vanilla
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import resolve
 from django.db.models import Max
 from django.http import HttpResponseRedirect, Http404, HttpResponse
@@ -22,9 +25,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _, ugettext_lazy
 from django.views.decorators.cache import never_cache, cache_control
 import idmap
-
 import otree.common_internal
-from otree import common_internal
 import otree.constants_internal as constants
 import otree.db.idmap
 import otree.forms
@@ -34,7 +35,7 @@ from otree.bots.bot import bot_prettify_post_data
 import otree.bots.browser as browser_bots
 from otree.common_internal import (
     get_app_label_from_import_path, get_dotted_name, get_admin_secret_code,
-    DebugTable, BotError, wait_page_thread_lock
+    DebugTable, BotError, wait_page_thread_lock, ResponseForException
 )
 from otree.models import (
     Participant, Session, BasePlayer, BaseGroup, BaseSubsession)
@@ -43,11 +44,37 @@ from otree.models_concrete import (
     CompletedGroupWaitPage, PageTimeout, UndefinedFormModel,
     ParticipantLockModel,
 )
-from django.core.handlers.exception import response_for_exception
+from django.core.handlers.exception import handle_uncaught_exception
 
-# Get an instance of a logger
+
 logger = logging.getLogger(__name__)
 
+
+UNHANDLED_EXCEPTIONS = (
+    Http404, PermissionDenied, MultiPartParserError,
+    SuspiciousOperation, SystemExit
+)
+
+def response_for_exception(request, exc):
+    '''simplified from Django 1.11 source.
+    The difference is that we use the exception that was passed in,
+    rather than referencing sys.exc_info(), which gives us the ResponseForException
+    the original exception was wrapped in, which we don't want to show to users.
+        '''
+    if isinstance(exc, UNHANDLED_EXCEPTIONS):
+        '''copied from Django 1.11 source, but i don't think these
+        exceptions will actually occur.'''
+        raise exc
+    signals.got_request_exception.send(sender=None, request=request)
+    exc_info = (type(exc), exc, exc.__traceback__)
+    response = handle_uncaught_exception(
+        request, get_resolver(get_urlconf()), exc_info)
+
+    # Force a TemplateResponse to be rendered.
+    if not getattr(response, 'is_rendered', True) and callable(getattr(response, 'render', None)):
+        response = response.render()
+
+    return response
 
 NO_PARTICIPANTS_LEFT_MSG = (
     "The maximum number of participants for this session has been exceeded.")
@@ -207,7 +234,13 @@ class FormPageOrInGameWaitPage(vanilla.View):
                 # player/group/etc.
                 if hasattr(response, 'render'):
                     response.render()
+            except ResponseForException as exc:
+                response = response_for_exception(
+                    self.request, exc.__cause__ or exc.__context__
+                )
             except Exception as exc:
+                # this is still necessary, e.g. if an attribute on the page
+                # is invalid, like form_fields, form_model, etc.
                 response = response_for_exception(self.request, exc)
 
             otree.db.idmap.save_objects()
@@ -247,7 +280,12 @@ class FormPageOrInGameWaitPage(vanilla.View):
         if hasattr(views_module, 'vars_for_all_templates'):
             vars_for_template.update(views_module.vars_for_all_templates(self) or {})
 
-        vars_for_template.update(self.vars_for_template() or {})
+        try:
+            user_vars = self.vars_for_template()
+        except:
+            raise ResponseForException
+        
+        vars_for_template.update(user_vars or {})
 
         context.update(vars_for_template)
 
@@ -304,6 +342,11 @@ class FormPageOrInGameWaitPage(vanilla.View):
             'group', 'subsession', 'session'
         ).get(pk=self._player_pk)
 
+    def _is_displayed(self):
+        try:
+            return self.is_displayed()
+        except:
+            raise ResponseForException
 
     @property
     def player(self) -> BasePlayer:
@@ -405,7 +448,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
             page = Page()
 
             page.set_attributes(self.participant, lazy=True)
-            if page.is_displayed():
+            if page._is_displayed():
                 break
 
             # if it's a wait page, record that they visited
@@ -481,21 +524,18 @@ class Page(FormPageOrInGameWaitPage):
         return self.get()
 
     def get(self):
-        try:
-            if not self.is_displayed():
-                self._increment_index_in_pages()
-                return self._redirect_to_page_the_user_should_be_on()
+        if not self._is_displayed():
+            self._increment_index_in_pages()
+            return self._redirect_to_page_the_user_should_be_on()
 
-            # this needs to be set AFTER scheduling submit_expired_url,
-            # to prevent race conditions.
-            # see that function for an explanation.
-            self.participant._current_form_page_url = self.request.path
-            self.object = self.get_object()
-            form = self.get_form(instance=self.object)
-            context = self.get_context_data(form=form)
-            return self.render_to_response(context)
-        except Exception as exc:
-            return response_for_exception(self.request, exc)
+        # this needs to be set AFTER scheduling submit_expired_url,
+        # to prevent race conditions.
+        # see that function for an explanation.
+        self.participant._current_form_page_url = self.request.path
+        self.object = self.get_object()
+        form = self.get_form(instance=self.object)
+        context = self.get_context_data(form=form)
+        return self.render_to_response(context)
 
     def get_template_names(self):
         if self.template_name is not None:
@@ -521,7 +561,10 @@ class Page(FormPageOrInGameWaitPage):
         return form_model
 
     def get_form_class(self):
-        fields = self.get_form_fields()
+        try:
+            fields = self.get_form_fields()
+        except:
+            raise ResponseForException
         form_model = self._get_form_model()
         if form_model is UndefinedFormModel and fields:
             raise Exception(
@@ -759,7 +802,11 @@ class Page(FormPageOrInGameWaitPage):
         if self._remaining_timeout_seconds is not 'unset':
             return self._remaining_timeout_seconds
 
-        timeout_seconds = self.get_timeout_seconds()
+        try:
+            timeout_seconds = self.get_timeout_seconds()
+        except:
+            raise ResponseForException
+
         if timeout_seconds is None:
             # don't hit the DB at all
             pass
@@ -935,7 +982,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         ## EARLY EXITS
         if self._was_completed():
             return self._save_and_flush_and_response_when_ready()
-        is_displayed = self.is_displayed()
+        is_displayed = self._is_displayed()
 
         if self.group_by_arrival_time and not is_displayed:
             # in GBAT, either all players should skip a page, or none should.
@@ -1038,7 +1085,10 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                     else:
                         wp._group_access_forbidden = None
                         wp._group_for_aapa = self.group
-                    wp.after_all_players_arrive()
+                    try:
+                        wp.after_all_players_arrive()
+                    except:
+                        raise ResponseForException
                     # need to save to the results of after_all_players_arrive
                     # to the DB, before sending the completion message to other players
                     # this was causing a race condition on 2016-11-04
@@ -1069,7 +1119,10 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             participant___last_request_timestamp__gte=time.time()-STALE_THRESHOLD_SECONDS
         ))
 
-        players_for_group = self.get_players_for_group(waiting_players)
+        try:
+            players_for_group = self.get_players_for_group(waiting_players)
+        except:
+            raise ResponseForException
 
         if not players_for_group:
             return False
