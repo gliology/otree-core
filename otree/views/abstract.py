@@ -284,7 +284,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
             user_vars = self.vars_for_template()
         except:
             raise ResponseForException
-        
+
         vars_for_template.update(user_vars or {})
 
         context.update(vars_for_template)

@@ -349,4 +349,8 @@ def print_colored_traceback_and_exit(exc):
 
 
 class ResponseForException(Exception):
+    '''
+    allows us to show a much simplified traceback without
+    framework code.
+    '''
     pass

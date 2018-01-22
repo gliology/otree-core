@@ -125,7 +125,7 @@ def _get_table_fields(Model, for_export=False):
         return ['round_number'] + subclass_fields
 
 
-def sanitize_for_csv(value):
+def sanitize_for_csv(value) -> str:
     if value is None:
         return ''
     if value is True:
@@ -146,8 +146,11 @@ def sanitize_for_csv(value):
 def sanitize_for_live_update(value):
     # force_text is necessary e.g. for CountryField, which is otherwise
     # not Json serializable
-    return sanitize_for_csv(value)
-
+    value = str(sanitize_for_csv(value))
+    MAX_LENGTH = 30
+    if len(value) > MAX_LENGTH:
+        return value[:MAX_LENGTH] + '...'
+    return value
 
 def get_payoff_plus_participation_fee(session, participant_values_dict):
     payoff = Currency(participant_values_dict['payoff'])

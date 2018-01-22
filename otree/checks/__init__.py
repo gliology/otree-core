@@ -269,7 +269,7 @@ def pages_function(helper: AppCheckHelper, **kwargs):
                 helper.add_error(msg, numeric_id=26)
 
 
-def template_valid(template_name: str, helper: AppCheckHelper):
+def template_content_is_in_blocks(template_name: str, helper: AppCheckHelper):
     from otree.checks.templates import get_unreachable_content
     from otree.checks.templates import has_valid_encoding
     from otree.checks.templates import format_source_snippet
@@ -309,9 +309,14 @@ def template_valid(template_name: str, helper: AppCheckHelper):
         return '\n'.join(lines)
 
     contents = get_unreachable_content(compiled_template)
+
     content_bits = '\n\n'.join(
         format_content(bit)
         for bit in contents)
+    # note: this seems to not detect unreachable content
+    # if the template has a relative include,
+    # like {% include "../Foo.html" %}
+    # not sure why, but that's not common usage.
     if contents:
         helper.add_error(
             'Template contains the following text outside of a '
@@ -324,7 +329,7 @@ def template_valid(template_name: str, helper: AppCheckHelper):
 
 def templates_valid(helper: AppCheckHelper, **kwargs):
     for template_name in helper.get_template_names():
-        template_valid(template_name, helper)
+        template_content_is_in_blocks(template_name, helper)
 
 def unique_sessions_names(helper: AppCheckHelper, **kwargs):
     already_seen = set()

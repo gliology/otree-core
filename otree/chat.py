@@ -27,12 +27,11 @@ def chat_template_tag(context, *args, **kwargs):
             "Value given was: {}".format(unprefixed_channel))
 
     # prefix the channel name with session code and app name
-    channel = '{}-{}-{}-{}'.format(
+    channel = '{}-{}-{}'.format(
         context['session'].id,
-        # name_in_url could be very long, so take the first chars
-        # and combine with a hash to ensure uniqueness
-        Constants.name_in_url[:50],
-        hash(Constants.name_in_url),
+        Constants.name_in_url,
+        # previously used a hash() here to ensure name_in_url is the same,
+        # but hash() is non-reproducible across processes
         kwargs['channel']
     )
 
