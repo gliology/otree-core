@@ -88,22 +88,23 @@ class Command(runserver.Command):
         makemigrations_output = new_stdout.read()
 
         # only migrate if DB schema changed
+        # it's a bit of extra code, but helps to make the output less noisy
         if 'No changes detected' not in makemigrations_output:
             self.stdout.write(makemigrations_output)
 
-            # migrate imports some modules that were created on the fly,
-            # so according to the docs for import_module, we need to call
-            # invalidate_cache.
-            # the following line is necessary to avoid a crash I experienced
-            # on Mac, because makemigrations tries some imports which cause ImportErrors,
-            # messes up the cache on some systems.
-            importlib.invalidate_caches()
+        # migrate imports some modules that were created on the fly,
+        # so according to the docs for import_module, we need to call
+        # invalidate_cache.
+        # the following line is necessary to avoid a crash I experienced
+        # on Mac, because makemigrations tries some imports which cause ImportErrors,
+        # messes up the cache on some systems.
+        importlib.invalidate_caches()
 
-            try:
-                # call_command does not add much overhead (0.1 seconds typical)
-                call_command('migrate', '--noinput')
-            except (OperationalError, migrations_excs.InconsistentMigrationHistory):
-                self.print_error_and_exit(ADVICE_DELETE_DB)
+        try:
+            # call_command does not add much overhead (0.1 seconds typical)
+            call_command('migrate', '--noinput')
+        except (OperationalError, migrations_excs.InconsistentMigrationHistory):
+            self.print_error_and_exit(ADVICE_DELETE_DB)
 
         total_time = round(time.time() - start, 1)
         if total_time > 5:
