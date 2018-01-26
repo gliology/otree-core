@@ -1,17 +1,20 @@
-from . import runserver
-from django.core.management import call_command
-from django.conf import settings
-import time
-import pathlib
-import os.path
-from django.db.utils import OperationalError
-from django.db.migrations import exceptions as migrations_excs
-import sys
-import traceback
-import termcolor
 import importlib
-from io import StringIO
-import contextlib
+import os
+import os.path
+import pathlib
+import sys
+import termcolor
+import time
+import traceback
+from django.conf import settings
+from django.core.management import call_command
+from django.db.migrations import exceptions as migrations_excs
+from django.db.utils import OperationalError
+from pathlib import Path
+
+from otree.common_internal import capture_stdout
+
+from . import runserver
 
 TMP_MIGRATIONS_DIR = '__temp_migrations'
 
@@ -32,18 +35,6 @@ if is_sqlite:
 else:
     ADVICE_DELETE_DB = 'ADVICE: Try deleting your database.'
 
-
-@contextlib.contextmanager
-def capture_stdout(target=None):
-    original = sys.stdout
-    if target is None:
-        target = StringIO()
-    sys.stdout = target
-    try:
-        yield target
-        target.seek(0)
-    finally:
-        sys.stdout = original
 
 class Command(runserver.Command):
 
@@ -77,20 +68,20 @@ class Command(runserver.Command):
         init_file_path = os.path.join(migrations_dir_path, '__init__.py')
         pathlib.Path(init_file_path).touch(exist_ok=True)
 
+        self.perf_check()
+
         start = time.time()
 
-        with capture_stdout() as new_stdout:
-            try:
+        try:
+            # makemigrations rarely sends any interesting info to stdout.
+            # if there is an error, it will go to stdout,
+            # or raise CommandError.
+            # if someone needs to see the details of makemigrations,
+            # they can do "otree makemigrations".
+            with capture_stdout():
                 call_command('makemigrations', '--noinput', *migrations_modules.keys())
-            except Exception:
-                self.print_error_and_exit(ADVICE_DELETE_TMP)
-
-        makemigrations_output = new_stdout.read()
-
-        # only migrate if DB schema changed
-        # it's a bit of extra code, but helps to make the output less noisy
-        if 'No changes detected' not in makemigrations_output:
-            self.stdout.write(makemigrations_output)
+        except Exception:
+            self.print_error_and_exit(ADVICE_DELETE_TMP)
 
         # migrate imports some modules that were created on the fly,
         # so according to the docs for import_module, we need to call
@@ -101,8 +92,11 @@ class Command(runserver.Command):
         importlib.invalidate_caches()
 
         try:
-            # call_command does not add much overhead (0.1 seconds typical)
-            call_command('migrate', '--noinput')
+            # see above comment about makemigrations and capture_stdout.
+            # it applies to migrate command also.
+            with capture_stdout():
+                # call_command does not add much overhead (0.1 seconds typical)
+                call_command('migrate', '--noinput')
         except (OperationalError, migrations_excs.InconsistentMigrationHistory):
             self.print_error_and_exit(ADVICE_DELETE_DB)
 
@@ -116,7 +110,30 @@ class Command(runserver.Command):
             traceback.print_exc()
         else:
             self.stdout.write('An error occurred.')
-        termcolor.cprint(advice, 'red', 'on_white')
+        termcolor.cprint(advice, 'white', 'on_red')
         if not self.show_error_details:
             self.stdout.write(ADVICE_PRINT_DETAILS)
         sys.exit(0)
+
+    def perf_check(self):
+        '''after about 150 migrations,
+        load time increased from 0.6 to 1.2+ second'''
+
+        MAX_MIGRATIONS = 200
+
+        # we want to delete migrations files, but keep __init__.py
+        # and directories, because then we don't need to
+        # migrations files are named 0001_xxx.py, 0002_xxx.py, etc.
+        # so, we assume they will all
+        file_glob = '{}/*/0*.py'.format(TMP_MIGRATIONS_DIR)
+        python_fns = list(Path('.').glob(file_glob))
+        num_files = len(python_fns)
+
+        if num_files > MAX_MIGRATIONS:
+            advice = (
+                'You have too many migrations files ({}). '
+                'This can slow down performance. '
+                'You should delete the directory {} '
+                'and also delete your database.'
+            ).format(num_files, TMP_MIGRATIONS_DIR)
+            termcolor.cprint(advice, 'white', 'on_red')

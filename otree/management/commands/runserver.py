@@ -6,7 +6,6 @@ import otree.common_internal
 from channels import channel_layers
 import logging
 from otree import common_internal
-import random
 import os
 
 class Command(runserver.Command):
@@ -38,6 +37,9 @@ class Command(runserver.Command):
         # (RUN_MAIN is set by Django autoreloader).
         if not os.environ.get('RUN_MAIN'):
             try:
+                # don't suppress output. it's good to know that check is
+                # not failing silently or not being run.
+                # also, intercepting stdout doesn't even seem to work here.
                 self.check(display_num_errors=True)
             except Exception as exc:
                 common_internal.print_colored_traceback_and_exit(exc)

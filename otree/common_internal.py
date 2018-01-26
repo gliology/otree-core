@@ -6,11 +6,14 @@ import logging
 import random
 import re
 import string
+import sys
 import threading
 import uuid
 from collections import OrderedDict
 from importlib import import_module
 import channels
+from io import StringIO
+
 import six
 from django.apps import apps
 from django.conf import settings
@@ -354,3 +357,16 @@ class ResponseForException(Exception):
     framework code.
     '''
     pass
+
+
+@contextlib.contextmanager
+def capture_stdout(target=None):
+    original = sys.stdout
+    if target is None:
+        target = StringIO()
+    sys.stdout = target
+    try:
+        yield target
+        target.seek(0)
+    finally:
+        sys.stdout = original

@@ -5,7 +5,7 @@ from .otree_tags import (
 )
 from otree.chat import chat_template_tag
 from otree.api import safe_json
-
+from otree import get_version
 
 # renaming otree_tags to otree and removing internal tags
 # this code is duplicated in otree_tags. I duplicate it rather than importing
