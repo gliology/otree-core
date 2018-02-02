@@ -1,15 +1,14 @@
 from otree.extensions import get_extensions_modules, get_extensions_data_export_views
 import inspect
 from importlib import import_module
-
+from django.templatetags.static import static
 from django.conf import urls
 
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.views.generic.base import RedirectView
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
-from otree.views.rest import SessionParticipantsList, Ping
 
+from django.contrib.auth.decorators import login_required
 from otree import common_internal
 
 
@@ -156,15 +155,6 @@ def get_urlpatterns():
         ),
     ]
 
-    rest_api_urlpatterns = [
-        urls.url(r'^ping/$', Ping.as_view(), name="ping"),
-        urls.url(
-            r'^sessions/(?P<session_code>[a-z0-9]+)/participants/$',
-            SessionParticipantsList.as_view(),
-            name="session_participants_list")
-    ]
-    urlpatterns += rest_api_urlpatterns
-
     urlpatterns += staticfiles_urlpatterns()
 
     used_names_in_url = set()
@@ -194,6 +184,19 @@ def get_urlpatterns():
 
     urlpatterns += extensions_urlpatterns()
     urlpatterns += extensions_export_urlpatterns()
+
+    # serve a favicon.
+    # otherwise, the logs will contain:
+    # [WARNING] django.request > Not Found: /favicon.ico
+    # Not Found: /favicon.ico
+    # don't want to add a <link> in base template because that makes
+    # the HTML noisier
+    urlpatterns.append(
+        urls.url(
+            r'^favicon\.ico$',
+            RedirectView.as_view(url=static('favicon.ico'))
+        )
+    )
 
     return urlpatterns
 

@@ -12,6 +12,7 @@ from django.db.models import signals
 
 import six
 
+import otree_setup
 import otree
 from otree.common_internal import (
     ensure_superuser_exists
@@ -113,11 +114,9 @@ def monkey_patch_db_cursor():
 
 
 def setup_create_default_superuser():
-    authconfig = apps.get_app_config('auth')
     signals.post_migrate.connect(
         ensure_superuser_exists,
-        sender=authconfig,
-        dispatch_uid='common.models.create_testuser'
+        dispatch_uid='otree.create_superuser'
     )
 
 
@@ -131,7 +130,7 @@ def patch_raven_config():
     # after other settings loaded
     if hasattr(settings, 'RAVEN_CONFIG'):
         settings.RAVEN_CONFIG['release'] = '{}{}'.format(
-            otree.get_version(),
+            otree_setup.__version__,
             # need to pass the server if it's DEBUG
             # mode. could do this in extra context or tags,
             # but this seems the most straightforward way

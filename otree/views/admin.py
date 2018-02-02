@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-
 import json
 import os
 import sys
@@ -28,7 +24,7 @@ from otree.common_internal import (
     get_models_module, get_app_label_from_name, DebugTable,
 )
 from otree.forms import widgets
-from otree.management.cli import check_pypi_for_updates
+from otree_setup import check_pypi_for_updates
 from otree.models import Participant, Session
 from otree.models_concrete import (
     BrowserBotsLauncherSessionCode)
@@ -387,36 +383,6 @@ class SessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
         return context
 
 
-class SessionMonitor(AdminSessionPageMixin, vanilla.TemplateView):
-
-    def get_context_data(self, **kwargs):
-
-        field_names = otree.export.get_field_names_for_live_update(Participant)
-        display_names = {
-            '_id_in_session': 'ID in session',
-            'code': 'Code',
-            'label': 'Label',
-            '_current_page': 'Page',
-            '_current_app_name': 'App',
-            '_round_number': 'Round',
-            '_current_page_name': 'Page name',
-            'status': 'Status',
-            '_last_page_timestamp': 'Time on page',
-        }
-
-        column_names = [display_names[col] for col in field_names]
-
-        context = super(SessionMonitor, self).get_context_data(**kwargs)
-        context['column_names'] = column_names
-
-        advance_users_button_text = (
-            "Advance the slowest user(s) by one page, "
-            "by forcing a timeout on their current page. "
-        )
-        context['advance_users_button_text'] = advance_users_button_text
-        return context
-
-
 def pretty_round_name(app_label, round_number):
     app_label = pretty_name(app_label)
     if round_number > 1:
@@ -490,7 +456,7 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
                 d_row[t] = v
             self.context_json.append(d_row)
 
-        context = super(SessionData, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context.update({
             'subsession_headers': round_headers,
             'model_headers': model_headers,
@@ -504,6 +470,62 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
             return JsonResponse(self.context_json, safe=False)
         else:
             return self.render_to_response(context)
+
+
+class SessionMonitor(AdminSessionPageMixin, vanilla.TemplateView):
+
+    def get_context_data(self, **kwargs):
+
+        field_names = otree.export.get_field_names_for_live_update(Participant)
+        display_names = {
+            '_id_in_session': 'ID in session',
+            'code': 'Code',
+            'label': 'Label',
+            '_current_page': 'Page',
+            '_current_app_name': 'App',
+            '_round_number': 'Round',
+            '_current_page_name': 'Page name',
+            'status': 'Status',
+            '_last_page_timestamp': 'Time on page',
+        }
+
+        callable_fields = {'status', '_id_in_session', '_current_page'}
+
+        column_names = [display_names[col] for col in field_names]
+
+        context = super().get_context_data(**kwargs)
+        context['column_names'] = column_names
+
+        advance_users_button_text = (
+            "Advance the slowest user(s) by one page, "
+            "by forcing a timeout on their current page. "
+        )
+        context['advance_users_button_text'] = advance_users_button_text
+
+
+        participants = self.session.participant_set.filter(visited=True)
+        rows = []
+
+        for participant in participants:
+            row = {}
+            for field_name in field_names:
+                value = getattr(participant, field_name)
+                if field_name in callable_fields:
+                    value = value()
+                row[field_name] = value
+            rows.append(row)
+
+        self.context_json = rows
+
+        return context
+
+    def get(self, request, *args, **kwargs):
+        context = self.get_context_data()
+        if self.request.META.get('CONTENT_TYPE') == 'application/json':
+            return JsonResponse(self.context_json, safe=False)
+        else:
+            return self.render_to_response(context)
+
 
 
 class SessionDescription(AdminSessionPageMixin, vanilla.TemplateView):

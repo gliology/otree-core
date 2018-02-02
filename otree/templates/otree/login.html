@@ -1,12 +1,11 @@
 {% extends "otree/BaseAdmin.html" %}
-{% load i18n admin_static otree otree_internal %}
+{% load i18n otree otree_internal %}
 {% block title %}Admin Login{% endblock %}
 
 {% block content %}
     {% if form.errors and not form.non_field_errors %}
         <p class="errornote">
-            {% if form.errors.items|length == 1 %}Please correct the error
-                below.{% else %}Please correct the errors below.{% endif %}
+            Please correct the error(s).
         </p>
     {% endif %}
 
@@ -16,6 +15,13 @@
                 {{ error }}
             </p>
         {% endfor %}
+    {% endif %}
+
+    {% if form.errors %}
+        <p class="text-danger">
+            If you already set a password but want to change it,
+            first you may need to reset the database.
+        </p>
     {% endif %}
 
     <p class="text-danger">{% ensure_superuser_exists %}</p>
@@ -43,7 +49,7 @@
                     </div>
                 {% endif %}
                 <div class="submit-row">
-                    <button type="submit"
+                    <button type="submit" id="btn-login"
                             class="btn btn-secondary">{% trans 'Log in' %}</button>
                 </div>
         </form>

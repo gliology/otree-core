@@ -4,21 +4,21 @@ because on runserver, Chrome caches it, so all oTree users developing on Chrome
 would need to Ctrl+F5.
  */
 
-function createTableBodyFromJson(json)
+function createTableBody(rows)
 {
-    var html = '<tbody>', i, row, key, value;
-    for (i in json) {
-        html += createTableRowFromJson(json[i]);
+    var html = '<tbody>';
+    for (var i in rows) {
+        html += createTableRow(rows[i]);
     }
     html += '</tbody>';
     return html;
 }
 
-function createTableRowFromJson(json)
+function createTableRow(row)
 {
    html = '<tr>';
-    for (key in json) {
-        value = json[key];
+    for (key in row) {
+        value = row[key];
         if (value === null) {
             value = '';
         }
@@ -48,7 +48,7 @@ function updateTable($table, new_json) {
     var old_json = $table.data("raw");
     // build table for the first time
     if ( old_json === undefined ) {
-        var tableBody = createTableBodyFromJson(new_json);
+        var tableBody = createTableBody(new_json);
         $table.append(tableBody);
     }
     // compute delta and update

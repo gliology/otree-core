@@ -1,9 +1,9 @@
 
 import os
 import channels.asgi
+import otree_setup
 
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
+otree_setup.configure_settings()
 channel_layer = channels.asgi.get_channel_layer()
 
 from otree.common_internal import (

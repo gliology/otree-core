@@ -35,6 +35,10 @@ if is_sqlite:
 else:
     ADVICE_DELETE_DB = 'ADVICE: Try deleting your database.'
 
+ADVICE_DELETE_DB += (
+    ' Then run "otree devserver", not "otree resetdb".'
+)
+
 
 class Command(runserver.Command):
 

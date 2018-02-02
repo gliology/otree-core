@@ -41,6 +41,7 @@ class Command(runserver.Command):
                 # not failing silently or not being run.
                 # also, intercepting stdout doesn't even seem to work here.
                 self.check(display_num_errors=True)
+
             except Exception as exc:
                 common_internal.print_colored_traceback_and_exit(exc)
 
@@ -69,7 +70,8 @@ class Command(runserver.Command):
         if addr == '127.0.0.1':
             addr = 'localhost'
         self.stdout.write((
-            "Starting server at http://%(addr)s:%(port)s/\n"
+            "Starting server.\n"
+            "Open your browser to http://%(addr)s:%(port)s/\n"
             "To quit the server, press Control+C.\n"
         ) % {
             "addr": addr,

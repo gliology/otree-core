@@ -6,14 +6,14 @@ import sys
 import six
 
 import otree
-from otree.management.cli import pypi_updates_cli
+from otree_setup import pypi_updates_cli
 
 
 class Command(startproject.Command):
     help = ("Creates a new oTree project.")
 
     def add_arguments(self, parser):
-        super(Command, self).add_arguments(parser)
+        super().add_arguments(parser)
         ahelp = (
             'Tells the command to NOT prompt the user for '
             'input of any kind.')
@@ -61,4 +61,11 @@ class Command(startproject.Command):
             pypi_updates_cli()
         except:
             pass
-        self.stdout.write('Created project folder.')
+        # this assumes the 'directory' arg was unused, which will be true
+        # for 99% of oTree users.
+        msg = (
+            'Created project folder. '
+            'Enter "cd {}" to move inside the project folder, '
+            'then start the server.' # with "otree devserver"
+        ).format(options['name'])
+        self.stdout.write(msg)

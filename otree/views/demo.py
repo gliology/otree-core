@@ -4,7 +4,6 @@ from django.conf import settings
 from django.urls import reverse
 
 import vanilla
-import otree
 from otree.session import SESSION_CONFIGS_DICT
 from otree.common_internal import create_session_and_redirect
 
@@ -47,7 +46,6 @@ class DemoIndex(vanilla.TemplateView):
             'title': title,
             'intro_html': intro_html,
             'is_debug': settings.DEBUG,
-            'otree_version': otree.get_version(),
         })
         return context
 

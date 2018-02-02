@@ -1,7 +1,7 @@
-from __future__ import absolute_import
-
+import channels
 import contextlib
 import hashlib
+import importlib.util
 import logging
 import random
 import re
@@ -10,28 +10,24 @@ import sys
 import threading
 import uuid
 from collections import OrderedDict
-from importlib import import_module
-import channels
-from io import StringIO
-
-import six
 from django.apps import apps
 from django.conf import settings
-from django.urls import reverse
 from django.db import connection
 from django.db import transaction
 from django.http import HttpResponseRedirect
-from django.template.defaultfilters import title
+from django.urls import reverse
 from django.utils.safestring import mark_safe
 from huey.contrib.djhuey import HUEY
-import otree.channels.utils as channel_utils
+from importlib import import_module
+from io import StringIO
+
+import six
 from six.moves import urllib
-import importlib.util
+
+import otree.channels.utils as channel_utils
 
 # set to False if using runserver
 USE_REDIS = True
-
-PYPI_CHECK_UPDATES = True
 
 # these locks need to be here rather than views.abstract or views.participant
 # because they need to be imported when the main thread runs.
@@ -187,26 +183,29 @@ def create_session_and_redirect(session_kwargs, *, use_browser_bots):
     return HttpResponseRedirect(wait_for_session_url)
 
 
-def ensure_superuser_exists(*args, **kwargs):
+EMPTY_ADMIN_USERNAME_MSG = 'settings.ADMIN_USERNAME is empty'
+EMPTY_ADMIN_PASSWORD_MSG = 'settings.ADMIN_PASSWORD is empty'
+
+def ensure_superuser_exists(*args, **kwargs) -> str:
     """
-    Creates our default superuser, returns True for success
-    and False for failure
+    Creates our default superuser.
+    If it fails, it returns a failure message
     """
-    from django.contrib.auth.models import User
     username = settings.ADMIN_USERNAME
     password = settings.ADMIN_PASSWORD
-    logger = logging.getLogger('otree')
+    if not username:
+        return EMPTY_ADMIN_USERNAME_MSG
+    if not password:
+        return EMPTY_ADMIN_PASSWORD_MSG
+    from django.contrib.auth.models import User
     if User.objects.filter(username=username).exists():
         # msg = 'Default superuser exists.'
         # logger.info(msg)
-        return True
-    if not password:
-        return False
-    assert User.objects.create_superuser(username, email='',
-                                         password=password)
+        return ''
+    User.objects.create_superuser(username, email='', password=password)
     msg = 'Created superuser "{}"'.format(username)
-    logger.info(msg)
-    return True
+    logging.getLogger('otree').info(msg)
+    return ''
 
 
 def release_any_stale_locks():

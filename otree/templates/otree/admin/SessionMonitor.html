@@ -111,8 +111,9 @@ function ajax_json_participants() {
     var $table = $('#monitor-table');
     var $tbody = $table.find('tbody');
     $.ajax({
-        url: '{% url "session_participants_list" session.code %}',
+        url: '{% url "SessionMonitor" session.code %}',
         type: 'GET',
+        contentType: "application/json",
         error: function(jqXHR, textStatus) {
             $( "div#refresh_server_error" ).show();
         },
@@ -122,7 +123,7 @@ function ajax_json_participants() {
             var old_json = $table.data("raw");
             // build table for the first time
             if ( old_json === undefined ) {
-                var htmlTable = createTableBodyFromJson(new_json);
+                var htmlTable = createTableBody(new_json);
                 $table.append(htmlTable);
             }
             // compute delta and update
@@ -144,7 +145,7 @@ function ajax_json_participants() {
                     var nthBodyRow = $tbody.find(rowSelector);
                     // Array means an insertion
                     if (delta.constructor === Array) {
-                        var newRowHTML = createTableRowFromJson(delta[0]);
+                        var newRowHTML = createTableRow(delta[0]);
                         var numRows = $tbody.find('tr').length;
                         if (parseInt(i) === numRows) {
                             $tbody.append(newRowHTML)
