@@ -6,6 +6,7 @@ import django.conf
 import os
 import sys
 from collections import OrderedDict, defaultdict
+from django.conf import settings
 from importlib import import_module
 from django.core.management import get_commands, load_command_class
 import django
@@ -14,11 +15,10 @@ from django.core.management.base import BaseCommand
 from django.core.management.color import color_style
 from django.utils import autoreload, six
 from .settings import augment_settings
-
+import otree
 
 # REMEMBER TO ALSO UPDATE THE PROJECT TEMPLATE
-__version__ = '2.0.19'
-from otree_setup.settings import get_default_settings
+from otree_startup.settings import get_default_settings
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ def execute_from_command_line(*args, **kwargs):
         command_to_explain = argv[2]
         fetch_command(command_to_explain).print_help('otree', command_to_explain)
     elif subcommand in ("version", "--version"):
-        sys.stdout.write(__version__ + '\n')
+        sys.stdout.write(otree.__version__ + '\n')
         try:
             pypi_updates_cli()
         except:
@@ -161,7 +161,6 @@ def do_django_setup():
         django.setup()
     except Exception as exc:
         import colorama
-        from otree.common_internal import print_colored_traceback_and_exit
         colorama.init(autoreset=True)
         print_colored_traceback_and_exit(exc)
 
@@ -228,8 +227,8 @@ def check_pypi_for_updates() -> dict:
     '''return a dict because it needs to be json serialized for the AJAX
     response'''
     # need to import it so it can be patched outside
-    import otree_setup
-    if not otree_setup.PYPI_CHECK_UPDATES:
+    import otree_startup
+    if not otree_startup.PYPI_CHECK_UPDATES:
         return {}
     # import only if we need it
     import requests
@@ -250,7 +249,7 @@ def check_pypi_for_updates() -> dict:
 
     semver_re = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
 
-    installed_dotted = __version__
+    installed_dotted = otree.__version__
     installed_match = semver_re.match(installed_dotted)
 
     if installed_match:
@@ -308,3 +307,33 @@ def pypi_updates_cli():
 
 
 PYPI_CHECK_UPDATES = True
+
+
+def print_colored_traceback_and_exit(exc):
+    import traceback
+    from termcolor import colored
+    import sys
+
+    def highlight(string):
+        return colored(string, 'white', 'on_blue')
+
+    frames = traceback.extract_tb(sys.exc_info()[2])
+    new_frames = []
+    for frame in frames:
+        filename, lineno, name, line = frame
+
+        if django.conf.settings.BASE_DIR in filename:
+            filename = highlight(filename)
+            line = highlight(line)
+        new_frames.append([filename, lineno, name, line])
+    # taken from django source?
+    lines = ['Traceback (most recent call last):\n']
+    lines += traceback.format_list(new_frames)
+    final_lines = traceback.format_exception_only(type(exc), exc)
+    # filename is only available for SyntaxError
+    if isinstance(exc, SyntaxError) and settings.BASE_DIR in exc.filename:
+        final_lines = [highlight(line) for line in final_lines]
+    lines += final_lines
+    for line in lines:
+        sys.stdout.write(line)
+    sys.exit(-1)

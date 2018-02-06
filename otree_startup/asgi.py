@@ -1,9 +1,9 @@
 
 import os
 import channels.asgi
-import otree_setup
+from . import configure_settings
 
-otree_setup.configure_settings()
+configure_settings()
 channel_layer = channels.asgi.get_channel_layer()
 
 from otree.common_internal import (

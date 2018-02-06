@@ -59,9 +59,12 @@ class Command(runserver.Command):
 
     def handle_migrations(self):
 
+        migrate_apps = settings.INSTALLED_OTREE_APPS + ['otree']
+        # it used to be
+        # but i don't see any reason not to just to INSTALLED_APPS
         migrations_modules = {
             app_name: '{}.{}'.format(TMP_MIGRATIONS_DIR, app_name)
-            for app_name in settings.INSTALLED_OTREE_APPS + ['otree']
+            for app_name in migrate_apps
         }
 
         settings.MIGRATION_MODULES = migrations_modules

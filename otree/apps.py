@@ -12,7 +12,7 @@ from django.db.models import signals
 
 import six
 
-import otree_setup
+import otree_startup
 import otree
 from otree.common_internal import (
     ensure_superuser_exists
@@ -130,7 +130,7 @@ def patch_raven_config():
     # after other settings loaded
     if hasattr(settings, 'RAVEN_CONFIG'):
         settings.RAVEN_CONFIG['release'] = '{}{}'.format(
-            otree_setup.__version__,
+            otree.__version__,
             # need to pass the server if it's DEBUG
             # mode. could do this in extra context or tags,
             # but this seems the most straightforward way

@@ -24,7 +24,7 @@ from otree.common_internal import (
     get_models_module, get_app_label_from_name, DebugTable,
 )
 from otree.forms import widgets
-from otree_setup import check_pypi_for_updates
+from otree_startup import check_pypi_for_updates
 from otree.models import Participant, Session
 from otree.models_concrete import (
     BrowserBotsLauncherSessionCode)

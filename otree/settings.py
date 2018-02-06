@@ -5,5 +5,5 @@ def augment_settings(*args, **kwargs):
     pass
 
 # eventually, make augment_settings raise an error.
-# users should instead directly use otree_setup.augment_settings
+# users should instead directly use otree_startup.augment_settings
 

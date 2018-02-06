@@ -5,6 +5,8 @@ from django.conf import settings
 import otree.common_internal
 from channels import channel_layers
 import logging
+
+import otree_startup
 from otree import common_internal
 import os
 
@@ -43,7 +45,7 @@ class Command(runserver.Command):
                 self.check(display_num_errors=True)
 
             except Exception as exc:
-                common_internal.print_colored_traceback_and_exit(exc)
+                otree_startup.print_colored_traceback_and_exit(exc)
 
         super().handle(*args, **options)
 
@@ -67,8 +69,12 @@ class Command(runserver.Command):
         )
 
         addr = '[%s]' % self.addr if self._raw_ipv6 else self.addr
+        # 0.0.0.0 is not a regular IP address, so we can't tell the user
+        # to open their browser to that address
         if addr == '127.0.0.1':
             addr = 'localhost'
+        elif addr == '0.0.0.0':
+            addr = '<ip_address>'
         self.stdout.write((
             "Starting server.\n"
             "Open your browser to http://%(addr)s:%(port)s/\n"

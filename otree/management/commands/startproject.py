@@ -6,7 +6,7 @@ import sys
 import six
 
 import otree
-from otree_setup import pypi_updates_cli
+from otree_startup import pypi_updates_cli
 
 
 class Command(startproject.Command):

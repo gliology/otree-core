@@ -5,8 +5,8 @@ from setuptools import setup, find_packages
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
-import otree_setup
-version = otree_setup.__version__
+import otree
+version = otree.__version__
 
 with open('README.rst', encoding='utf-8') as f:
     README = f.read()
@@ -73,7 +73,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'otree=otree_setup:execute_from_command_line',
+            'otree=otree_startup:execute_from_command_line',
         ],
     },
     zip_safe=False,

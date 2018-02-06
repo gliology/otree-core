@@ -27,7 +27,6 @@ import IPy
 
 import otree
 from otree import forms
-from otree.deprecate import OtreeDeprecationWarning
 from otree.views.abstract import AdminSessionPageMixin
 from otree.checks.mturk import MTurkValidator
 from otree.forms import widgets

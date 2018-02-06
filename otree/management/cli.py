@@ -1,1 +1,1 @@
-from otree_setup import execute_from_command_line
+from otree_startup import execute_from_command_line

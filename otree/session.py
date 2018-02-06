@@ -16,7 +16,6 @@ import schema
 
 import otree.db.idmap
 from otree.models import Participant, Session
-from otree.deprecate import OtreeDeprecationWarning
 from otree.common_internal import (
     get_models_module, get_app_constants, validate_alphanumeric,
     get_bots_module)

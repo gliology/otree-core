@@ -321,35 +321,6 @@ def patch_migrations_module():
     MigrationLoader.migrations_module = migrations_module
 
 
-def print_colored_traceback_and_exit(exc):
-    import traceback
-    from termcolor import colored
-    import sys
-
-    def highlight(string):
-        return colored(string, 'white', 'on_blue')
-
-    frames = traceback.extract_tb(sys.exc_info()[2])
-    new_frames = []
-    for frame in frames:
-        filename, lineno, name, line = frame
-        if settings.BASE_DIR in filename:
-            filename = highlight(filename)
-            line = highlight(line)
-        new_frames.append([filename, lineno, name, line])
-    # taken from django source?
-    lines = ['Traceback (most recent call last):\n']
-    lines += traceback.format_list(new_frames)
-    final_lines = traceback.format_exception_only(type(exc), exc)
-    # filename is only available for SyntaxError
-    if isinstance(exc, SyntaxError) and settings.BASE_DIR in exc.filename:
-        final_lines = [highlight(line) for line in final_lines]
-    lines += final_lines
-    for line in lines:
-        sys.stdout.write(line)
-    sys.exit(-1)
-
-
 class ResponseForException(Exception):
     '''
     allows us to show a much simplified traceback without
