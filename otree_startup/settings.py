@@ -8,7 +8,6 @@ DEFAULT_MIDDLEWARE = (
     'otree.middleware.CheckDBMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    # 'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -258,7 +257,6 @@ def augment_settings(settings: dict):
         'django.contrib.sessions',
         'django.contrib.messages',
         'django.contrib.staticfiles',
-        'otree.timeout',
         'channels',
         'huey.contrib.djhuey',
         'idmap',
@@ -337,13 +335,9 @@ def augment_settings(settings: dict):
                 'context_processors': (
                     # default ones in Django 1.8
                     'django.contrib.auth.context_processors.auth',
-                    'django.template.context_processors.debug',
-                    'django.template.context_processors.i18n',
                     'django.template.context_processors.media',
                     'django.template.context_processors.static',
-                    'django.template.context_processors.tz',
                     'django.contrib.messages.context_processors.messages',
-                    'django.template.context_processors.request',
                  )
             },
         }],

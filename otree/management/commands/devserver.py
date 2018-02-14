@@ -8,9 +8,8 @@ import time
 import traceback
 from django.conf import settings
 from django.core.management import call_command
-from django.db.migrations import exceptions as migrations_excs
-from django.db.utils import OperationalError
 from pathlib import Path
+from django.apps import apps
 
 from otree.common_internal import capture_stdout
 
@@ -27,17 +26,25 @@ ADVICE_PRINT_DETAILS = (
     '(For technical details about this error, run "otree devserver --details")'
 )
 
-is_sqlite = settings.DATABASES['default']['ENGINE'].endswith('sqlite3')
-if is_sqlite:
+db_engine = settings.DATABASES['default']['ENGINE'].lower()
+
+if 'sqlite' in db_engine:
     ADVICE_DELETE_DB = (
-        'ADVICE: Try deleting the file db.sqlite3 in your project folder.'
+        'ADVICE: Delete the file db.sqlite3 in your project folder, '
+        'then run "otree devserver", not "otree resetdb".'
     )
 else:
-    ADVICE_DELETE_DB = 'ADVICE: Try deleting your database.'
+    if 'postgres' in db_engine:
+        db_engine = 'PostgreSQL'
+    elif 'mysql' in db_engine:
+        db_engine = 'MySQL'
 
-ADVICE_DELETE_DB += (
-    ' Then run "otree devserver", not "otree resetdb".'
-)
+    ADVICE_DELETE_DB = (
+        'ADVICE: Delete (drop) your {} database, then create a new empty one '
+        'with the same name. "otree devserver" cannot be used on a database '
+        'that was generated with "otree resetdb". You should either use one '
+        'command or the other.'
+    ).format(db_engine)
 
 
 class Command(runserver.Command):
@@ -59,12 +66,16 @@ class Command(runserver.Command):
 
     def handle_migrations(self):
 
-        migrate_apps = settings.INSTALLED_OTREE_APPS + ['otree']
-        # it used to be
-        # but i don't see any reason not to just to INSTALLED_APPS
+        # only get apps with labels, otherwise migrate will raise an error
+        # when it tries to migrate that app but no migrations dir was created
+        app_labels = set(
+            model._meta.app_config.label
+            for model in apps.get_models()
+        )
+
         migrations_modules = {
-            app_name: '{}.{}'.format(TMP_MIGRATIONS_DIR, app_name)
-            for app_name in migrate_apps
+            app_label: '{}.{}'.format(TMP_MIGRATIONS_DIR, app_label)
+            for app_label in app_labels
         }
 
         settings.MIGRATION_MODULES = migrations_modules
@@ -104,8 +115,19 @@ class Command(runserver.Command):
             with capture_stdout():
                 # call_command does not add much overhead (0.1 seconds typical)
                 call_command('migrate', '--noinput')
-        except (OperationalError, migrations_excs.InconsistentMigrationHistory):
-            self.print_error_and_exit(ADVICE_DELETE_DB)
+        except Exception as exc:
+            # it seems there are different exceptions all named
+            # OperationalError (django.db.OperationalError,
+            # sqlite.OperationalError, mysql....)
+            # so, simplest to use the string name
+
+            if type(exc).__name__ in (
+                    'OperationalError',
+                    'ProgrammingError',
+                    'InconsistentMigrationHistory'):
+                self.print_error_and_exit(ADVICE_DELETE_DB)
+            else:
+                raise
 
         total_time = round(time.time() - start, 1)
         if total_time > 5:
