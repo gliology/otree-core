@@ -64,7 +64,7 @@ class Command(startproject.Command):
         # this assumes the 'directory' arg was unused, which will be true
         # for 99% of oTree users.
         msg = (
-            'Created project folder. '
+            'Created project folder.\n'
             'Enter "cd {}" to move inside the project folder, '
             'then start the server.' # with "otree devserver"
         ).format(options['name'])

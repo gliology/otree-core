@@ -7,11 +7,6 @@ import vanilla
 from otree.session import SESSION_CONFIGS_DICT
 from otree.common_internal import create_session_and_redirect
 
-# if it's debug mode, we should always generate a new session
-# because a bug might have been fixed
-# in production, we optimize for UX and quick loading
-MAX_SESSIONS_TO_CREATE = 1 if settings.DEBUG else 3
-
 
 class DemoIndex(vanilla.TemplateView):
 

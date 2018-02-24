@@ -3,15 +3,12 @@
 {% load otree %}
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <title>{% block head_title %}{% block title %}
     {% endblock %}{% endblock %}</title>
 
-    <meta name="description"
-          content="otree">
-    <meta name="keywords"
-          content="otree">
+    <link rel="icon" href="{% static 'favicon.ico' %}">
 
     {% block internal_styles %}
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
