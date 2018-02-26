@@ -193,7 +193,10 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         https = parsed_url.scheme == 'https'
         secured_url = urlunparse(parsed_url._replace(scheme='https'))
 
-        aws_keys_exist = bool(settings.AWS_ACCESS_KEY_ID) and bool(settings.AWS_SECRET_ACCESS_KEY)
+        aws_keys_exist = bool(
+            getattr(settings, 'AWS_ACCESS_KEY_ID', None) and
+            getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
+        )
         boto3_installed = bool(boto3)
         mturk_ready = aws_keys_exist and boto3_installed and https
         missing_next_button_warning = MTurkValidator(self.session).validation_message()

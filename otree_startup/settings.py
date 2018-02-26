@@ -2,7 +2,7 @@ import os
 import os.path
 from django.contrib.messages import constants as messages
 from six.moves.urllib import parse as urlparse
-
+import dj_database_url
 
 DEFAULT_MIDDLEWARE = (
     'otree.middleware.CheckDBMiddleware',
@@ -132,8 +132,15 @@ def get_default_settings(user_settings: dict):
 
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
     redis_url_parsed = urlparse.urlparse(REDIS_URL)
+    BASE_DIR = user_settings.get('BASE_DIR', '')
+
 
     default_settings.update({
+        'DATABASES': {
+            'default': dj_database_url.config(
+                default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
+            )
+        },
         'HUEY': {
             'name': 'otree-huey',
             'connection': {
@@ -156,9 +163,7 @@ def get_default_settings(user_settings: dict):
         # set to True so that if there is an error in an {% include %}'d
         # template, it doesn't just fail silently. instead should raise
         # an error (and send through Sentry etc)
-        'STATIC_ROOT': os.path.join(
-            user_settings.get('BASE_DIR', ''),
-            '_static_root'),
+        'STATIC_ROOT': os.path.join(BASE_DIR, '_static_root'),
         'STATIC_URL': '/static/',
         'STATICFILES_STORAGE': (
             'whitenoise.django.GzipManifestStaticFilesStorage'
