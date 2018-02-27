@@ -185,19 +185,6 @@ def get_urlpatterns():
     urlpatterns += extensions_urlpatterns()
     urlpatterns += extensions_export_urlpatterns()
 
-    # serve a favicon.
-    # otherwise, the logs will contain:
-    # [WARNING] django.request > Not Found: /favicon.ico
-    # Not Found: /favicon.ico
-    # don't want to add a <link> in base template because that makes
-    # the HTML noisier
-    urlpatterns.append(
-        urls.url(
-            r'^favicon\.ico$',
-            RedirectView.as_view(url=static('favicon.ico'))
-        )
-    )
-
     return urlpatterns
 
 
