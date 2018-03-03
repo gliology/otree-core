@@ -406,12 +406,10 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
         field_names_json = []
 
         for subsession in session.get_subsessions():
-            app_label = subsession._meta.app_config.name
-
-            columns_for_models, subsession_rows = otree.export.get_rows_for_live_update(
-                subsession._meta.app_config.name,
-                subsession_pk=subsession.pk
-            )
+            # can't use subsession._meta.app_config.name, because it won't work
+            # if the app is removed from SESSION_CONFIGS after the session is
+            # created.
+            columns_for_models, subsession_rows = otree.export.get_rows_for_live_update(subsession)
 
             if not rows:
                 rows = subsession_rows
@@ -425,7 +423,7 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
                 model_headers.append((model_name.title(), colspan))
                 round_colspan += colspan
 
-            round_name = pretty_round_name(app_label, subsession.round_number)
+            round_name = pretty_round_name(subsession._meta.app_label, subsession.round_number)
 
             round_headers.append((round_name, round_colspan))
 

@@ -17,6 +17,7 @@ from django.utils import autoreload, six
 from .settings import augment_settings
 import otree
 
+
 # REMEMBER TO ALSO UPDATE THE PROJECT TEMPLATE
 from otree_startup.settings import get_default_settings
 
@@ -53,9 +54,12 @@ def execute_from_command_line(*args, **kwargs):
 
     subcommand = argv[1]
 
-    # We need to add the current directory to the python path as this is not
-    # set by default when no using "python <script>" but a standalone script
-    # like ``otree``.
+    # Add the current directory to sys.path so that Python can find
+    # the settings module.
+    # when using "python manage.py" this is not necessary because
+    # the entry-point script's dir is automatically added to sys.path.
+    # but the 'otree' command script is located outside of the project
+    # directory.
     if os.getcwd() not in sys.path:
         sys.path.insert(0, os.getcwd())
 
@@ -95,6 +99,9 @@ def execute_from_command_line(*args, **kwargs):
         # python.exe: can't open file 'C:\oTree\venv\Scripts\otree':
         # [Errno 2] No such file or directory
 
+        # this doesn't work if you start runserver from another dir
+        # like python my_project/manage.py runserver. but that doesn't seem
+        # high-priority now.
         sys.argv = ['manage.py'] + argv[1:]
 
         # previous solution here was using subprocess.Popen,
@@ -147,6 +154,8 @@ def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings'):
     except ImportError:
         raise ImportSettingsError
     user_settings_dict = {}
+    user_settings_dict['BASE_DIR'] = os.path.dirname(
+        os.path.abspath(user_settings_module.__file__))
     # this is how Django reads settings from a settings module
     for setting_name in dir(user_settings_module):
         if setting_name.isupper():

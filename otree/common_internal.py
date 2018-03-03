@@ -62,6 +62,9 @@ def random_chars_10():
 
 
 def get_models_module(app_name):
+    '''shouldn't rely on app registry because the app might have been removed
+    from SESSION_CONFIGS, especially if the session was created a long time
+    ago and you want to export it'''
     module_name = '{}.models'.format(app_name)
     return import_module(module_name)
 

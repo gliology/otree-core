@@ -258,7 +258,10 @@ class AssignVisitorToRoom(GenericWaitPageMixin, vanilla.View):
             if room.use_secure_urls:
                 hash = self.request.GET.get('hash')
                 if hash != make_hash(label):
-                    return HttpResponseNotFound('Invalid hash parameter.')
+                    return HttpResponseNotFound(
+                        'Invalid hash parameter. use_secure_urls is True, '
+                        'so you must use the participant-specific URL.'
+                    )
 
         session = room.get_session()
         if session is None:

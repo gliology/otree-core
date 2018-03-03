@@ -11,12 +11,6 @@ import copy
 from collections import defaultdict
 from otree.common_internal import has_group_by_arrival_time
 
-ATTRIBUTE_ERROR_MESSAGE = '''
-Subsession object has no attribute '{}'. If it is a model field or method,
-it must be declared on the Subsession class in models.py.
-'''.replace('\n', '')
-
-
 
 class GroupMatrixError(ValueError):
     pass
@@ -25,8 +19,6 @@ class GroupMatrixError(ValueError):
 class RoundMismatchError(GroupMatrixError):
     pass
 
-#from save_the_change.decorators import SaveTheChange
-#@SaveTheChange
 class BaseSubsession(models.Model):
     """Base class for all Subsessions.
     """
@@ -58,12 +50,6 @@ class BaseSubsession(models.Model):
         '''
     )
 
-    def __getattribute__(self, name):
-        try:
-            return super().__getattribute__(name)
-        except AttributeError:
-            raise AttributeError(ATTRIBUTE_ERROR_MESSAGE.format(name)) from None
-
     def in_round(self, round_number):
         return in_round(type(self), round_number,
             session=self.session,
@@ -80,10 +66,6 @@ class BaseSubsession(models.Model):
 
     def __unicode__(self):
         return str(self.pk)
-
-    @property
-    def app_name(self):
-        return self._meta.app_config.name
 
     def get_groups(self):
         return list(self.group_set.order_by('id_in_subsession'))
