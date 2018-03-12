@@ -323,15 +323,22 @@ def print_colored_traceback_and_exit(exc):
     from termcolor import colored
     import sys
 
+
     def highlight(string):
         return colored(string, 'white', 'on_blue')
+
+    # before we used BASE_DIR but apparently that setting was not set yet
+    # (not sure why)
+    # so use os.getcwd() instead.
+    # also, with BASE_DIR, I got "unknown command: devserver", as if
+    # the list of commands was not loaded.
+    current_dir = os.getcwd()
 
     frames = traceback.extract_tb(sys.exc_info()[2])
     new_frames = []
     for frame in frames:
         filename, lineno, name, line = frame
-
-        if django.conf.settings.BASE_DIR in filename:
+        if current_dir in filename:
             filename = highlight(filename)
             line = highlight(line)
         new_frames.append([filename, lineno, name, line])
@@ -340,7 +347,7 @@ def print_colored_traceback_and_exit(exc):
     lines += traceback.format_list(new_frames)
     final_lines = traceback.format_exception_only(type(exc), exc)
     # filename is only available for SyntaxError
-    if isinstance(exc, SyntaxError) and settings.BASE_DIR in exc.filename:
+    if isinstance(exc, SyntaxError) and current_dir in exc.filename:
         final_lines = [highlight(line) for line in final_lines]
     lines += final_lines
     for line in lines:

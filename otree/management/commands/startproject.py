@@ -9,6 +9,13 @@ from otree_startup import pypi_updates_cli
 class Command(startproject.Command):
     help = ("Creates a new oTree project.")
 
+    def add_arguments(self, parser):
+        '''need this so we can test startproject automatically'''
+        super().add_arguments(parser)
+        parser.add_argument(
+            '--noinput', action='store_false', dest='interactive',
+            default=True)
+
     def handle(self, *args, **options):
         if os.path.isfile('settings.py') and os.path.isfile('manage.py'):
             self.stdout.write(
@@ -17,7 +24,10 @@ class Command(startproject.Command):
             )
             sys.exit(-1)
 
-        answer = input("Include sample games? (y or n): ")
+        if options['interactive']:
+            answer = input("Include sample games? (y or n): ")
+        else:
+            answer = 'n'
         if answer and answer[0].lower() == "y":
             project_template_path = (
                 "https://github.com/oTree-org/oTree/archive/master.zip")
