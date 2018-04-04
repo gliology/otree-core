@@ -109,7 +109,8 @@ class FormFieldNode(Node):
         if self.arg_dict:
             with_context = dict(
                 (name, var.resolve(context))
-                for name, var in self.arg_dict.items())
+                for name, var in self.arg_dict.items()
+            )
             # If the with argument label="" was set explicitly, we set it to
             # None. That is required to differentiate between 'use the default
             # label since we didn't set any in the template' and 'do not print
@@ -148,6 +149,13 @@ class FormFieldNode(Node):
             if bits[0] == 'with':
                 bits.pop(0)
             arg_dict = token_kwargs(bits, parser, support_legacy=False)
+            for key in arg_dict:
+                if key != 'label':
+                    raise TemplateSyntaxError(
+                        '{} tag received unknown argument "{}"'.format(
+                            tagname, key
+                        )
+                    )
 
             # Validate against spaces around the '='.
             has_lonely_equal_sign = any(

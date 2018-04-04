@@ -1,4 +1,3 @@
-import channels
 import contextlib
 import hashlib
 import importlib.util
@@ -10,6 +9,12 @@ import sys
 import threading
 import uuid
 from collections import OrderedDict
+from importlib import import_module
+from io import StringIO
+
+import channels
+import otree.channels.utils as channel_utils
+import six
 from django.apps import apps
 from django.conf import settings
 from django.db import connection
@@ -18,13 +23,7 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from huey.contrib.djhuey import HUEY
-from importlib import import_module
-from io import StringIO
-
-import six
 from six.moves import urllib
-
-import otree.channels.utils as channel_utils
 
 # set to False if using runserver
 USE_REDIS = True
@@ -343,3 +342,17 @@ def capture_stdout(target=None):
         target.seek(0)
     finally:
         sys.stdout = original
+
+
+@contextlib.contextmanager
+def capture_stderr():
+    original = sys.stderr
+    from io import StringIO
+    target = StringIO()
+    sys.stderr = target
+    try:
+        yield target
+        target.seek(0)
+    finally:
+        sys.stderr = original
+

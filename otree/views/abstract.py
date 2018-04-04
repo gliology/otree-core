@@ -246,14 +246,12 @@ class FormPageOrInGameWaitPage(vanilla.View):
             otree.db.idmap.save_objects()
             if (self.participant.is_browser_bot and
                     'browser-bot-auto-submit' in response.content.decode('utf-8')):
-                form_errors = getattr(response, 'form_errors', {})
                 # needs to happen in GET, so that we can set the .html
-                # and .form_errors attributes on the bot.
+                # attribute on the bot.
                 browser_bots.set_attributes(
                     participant_code=self.participant.code,
                     request_path=self.request.path,
                     html=response.content.decode('utf-8'),
-                    form_errors=form_errors
                 )
             return response
 
@@ -666,9 +664,8 @@ class Page(FormPageOrInGameWaitPage):
             else:
                 response = self.form_invalid(form)
                 if is_bot:
-                    if post_data.get('must_fail'):
-                        response.form_errors = dict(form.errors)
-                    else:
+                    PageName = self.__class__.__name__
+                    if not post_data.get('must_fail'):
                         errors = [
                             "{}: {}".format(k, repr(v))
                             for k, v in form.errors.items()]
@@ -677,10 +674,26 @@ class Page(FormPageOrInGameWaitPage):
                             'Check your bot in tests.py, '
                             'then create a new session. '
                             'Data submitted was: {}'.format(
-                                self.__class__.__name__,
+                                PageName,
                                 errors,
                                 bot_prettify_post_data(post_data),
                             ))
+                    if post_data.get('error_fields'):
+                        # need to convert to dict because MultiValueKeyDict
+                        # doesn't properly retrieve values that are lists
+                        post_data_dict = dict(post_data)
+                        expected_error_fields = set(post_data_dict['error_fields'])
+                        actual_error_fields = set(form.errors.keys())
+                        if not expected_error_fields == actual_error_fields:
+                            raise BotError(
+                                'Page {}, SubmissionMustFail: '
+                                'Expected error_fields were {}, but actual '
+                                'error_fields are {}'.format(
+                                    PageName,
+                                    expected_error_fields,
+                                    actual_error_fields,
+                                )
+                            )
                 return response
         try:
             self.before_next_page()
@@ -695,7 +708,6 @@ class Page(FormPageOrInGameWaitPage):
                     participant_code=self.participant.code,
                     request_path=self.request.path,
                     html='',
-                    form_errors={},
                 )
                 submission = browser_bots.get_next_post_data(
                         participant_code=self.participant.code)

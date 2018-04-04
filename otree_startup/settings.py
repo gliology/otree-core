@@ -163,7 +163,7 @@ def get_default_settings(user_settings: dict):
         # set to True so that if there is an error in an {% include %}'d
         # template, it doesn't just fail silently. instead should raise
         # an error (and send through Sentry etc)
-        'STATIC_ROOT': os.path.join(BASE_DIR, '_static_root'),
+        'STATIC_ROOT': os.path.join(BASE_DIR, '__temp_static_root'),
         'STATIC_URL': '/static/',
         'STATICFILES_STORAGE': (
             'whitenoise.django.GzipManifestStaticFilesStorage'
@@ -261,6 +261,8 @@ def augment_settings(settings: dict):
         'django.contrib.contenttypes',
         'django.contrib.sessions',
         'django.contrib.messages',
+        # need to keep this around indefinitely for all the people who
+        # have {% load staticfiles %}
         'django.contrib.staticfiles',
         'channels',
         'huey.contrib.djhuey',

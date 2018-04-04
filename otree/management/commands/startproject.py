@@ -62,6 +62,6 @@ class Command(startproject.Command):
         msg = (
             'Created project folder.\n'
             'Enter "cd {}" to move inside the project folder, '
-            'then start the server.' # with "otree devserver"
+            'then start the server with "otree devserver".' #
         ).format(options['name'])
         self.stdout.write(msg)
