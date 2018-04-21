@@ -76,7 +76,7 @@ def get_bots_module(app_name):
     raise ImportError('No tests/bots module found for app {}'.format(app_name))
 
 
-def get_views_module(app_name):
+def get_pages_module(app_name):
     for module_name in ['pages', 'views']:
         dotted = '{}.{}'.format(app_name, module_name)
         if importlib.util.find_spec(dotted):
@@ -234,7 +234,7 @@ def get_redis_conn():
     return HUEY.storage.conn
 
 def has_group_by_arrival_time(app_name):
-    page_sequence = get_views_module(app_name).page_sequence
+    page_sequence = get_pages_module(app_name).page_sequence
     if len(page_sequence) == 0:
         return False
     return getattr(page_sequence[0], 'group_by_arrival_time', False)

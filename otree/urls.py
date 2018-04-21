@@ -170,7 +170,7 @@ def get_urlpatterns():
 
         used_names_in_url.add(name_in_url)
 
-        views_module = common_internal.get_views_module(app_name)
+        views_module = common_internal.get_pages_module(app_name)
         urlpatterns += url_patterns_from_game_module(
             views_module.__name__, name_in_url)
 

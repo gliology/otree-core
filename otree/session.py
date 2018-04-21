@@ -332,7 +332,7 @@ def create_session(
 
         for app_name in session_config['app_sequence']:
 
-            views_module = common_internal.get_views_module(app_name)
+            views_module = common_internal.get_pages_module(app_name)
             models_module = get_models_module(app_name)
             Constants = models_module.Constants
             num_subsessions += Constants.num_rounds

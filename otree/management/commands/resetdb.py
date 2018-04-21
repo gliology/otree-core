@@ -118,5 +118,4 @@ class Command(BaseCommand):
         # (An alternative is to generically catch "no such column" errors,
         # but I recall that this was difficult - because there were many
         # code paths or exception classes. Could re-investigate.)
-        import sys; sys.stderr.write('blah')
         logger.info('Created new tables and columns.')

@@ -11,7 +11,7 @@ from django.conf import settings
 from django.core.checks import register, Error, Warning
 from django.template import Template
 from django.template import TemplateSyntaxError
-
+import django.db.models.fields
 from otree.api import (
     BasePlayer, BaseGroup, BaseSubsession, Currency, WaitPage, Page)
 from otree.common_internal import _get_all_configs
@@ -132,10 +132,11 @@ def model_classes(helper: AppCheckHelper, **kwargs):
     Subsession = app_config.get_model('Subsession')
 
     for Model in [Player, Group, Subsession]:
-        for attr in dir(Model):
-            if attr not in base_model_attrs[Model.__name__]:
+        for attr_name in dir(Model):
+            if attr_name not in base_model_attrs[Model.__name__]:
                 try:
-                    _type = type(getattr(Model, attr))
+                    attr_value = getattr(Model, attr_name)
+                    _type = type(attr_value)
                 except AttributeError:
                     # I got "The 'q_country' attribute can only be accessed
                     # from Player instances."
@@ -147,17 +148,17 @@ def model_classes(helper: AppCheckHelper, **kwargs):
                             'NonModelFieldAttr: '
                             '{} has attribute "{}", which is not a model field, '
                             'and will therefore not be saved '
-                            'to the database.'.format(Model.__name__, attr))
+                            'to the database.'.format(Model.__name__, attr_name))
 
                         helper.add_error(
                             msg,
                             numeric_id=111,
                             hint='Consider changing to "{} = models.{}(initial={})"'.format(
-                                attr, model_field_substitutes[_type], repr(getattr(Model, attr)))
+                                attr_name, model_field_substitutes[_type], repr(getattr(Model, attr_name)))
                         )
                     # if people just need an iterable of choices for a model field,
                     # they should use a tuple, not list or dict
-                    if _type in {list, dict, set}:
+                    elif _type in {list, dict, set}:
                         warning = (
                             'MutableModelClassAttr: '
                             '{ModelName}.{attr} is a {type_name}. '
@@ -169,10 +170,22 @@ def model_classes(helper: AppCheckHelper, **kwargs):
                             "then it's recommended to move it outside of this class "
                             '(e.g. put it in Constants).'
                         ).format(ModelName=Model.__name__,
-                                 attr=attr,
+                                 attr=attr_name,
                                  type_name=_type.__name__)
 
                         helper.add_error(warning, numeric_id=112)
+                    # isinstance(X, type) means X is a class, not instance
+                    elif (isinstance(attr_value, type) and
+                          issubclass(attr_value, django.db.models.fields.Field)):
+                        msg = (
+                            '{}.{} is missing parentheses.'
+                        ).format(Model.__name__, attr_name)
+                        helper.add_error(
+                            msg, numeric_id=113,
+                            hint=(
+                                'Consider changing to "{} = models.{}()"'
+                            ).format(attr_name, attr_value.__name__)
+                        )
 
 
 def constants(helper: AppCheckHelper, **kwargs):
@@ -201,11 +214,25 @@ def constants(helper: AppCheckHelper, **kwargs):
         )
 
 
+def orphan_methods(helper: AppCheckHelper, **kwargs):
+    '''i saw several people making this mistake in the workshop'''
+    pages_module = common_internal.get_pages_module(helper.app_config.name)
+    for method_name in ['vars_for_template', 'is_displayed', 'after_all_players_arrive']:
+        if hasattr(pages_module, method_name):
+            helper.add_error(
+                'pages.py has a function {} that is not inside a class.'.format(method_name),
+                numeric_id=70
+            )
+
+    return
+
+
+
 def pages_function(helper: AppCheckHelper, **kwargs):
-    views_module = common_internal.get_views_module(helper.app_config.name)
-    views_or_pages = views_module.__name__.split('.')[-1]
+    pages_module = common_internal.get_pages_module(helper.app_config.name)
+    views_or_pages = pages_module.__name__.split('.')[-1]
     try:
-        page_list = views_module.page_sequence
+        page_list = pages_module.page_sequence
     except:
         helper.add_error(
             '{}.py is missing the variable page_sequence.'.format(views_or_pages),
@@ -410,6 +437,7 @@ def register_system_checks():
         pages_function,
         templates_valid,
         template_encoding,
+        orphan_methods,
     ]:
         check_function = make_check_function(func)
         register(check_function)

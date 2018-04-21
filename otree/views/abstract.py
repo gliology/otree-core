@@ -273,7 +273,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
         })
 
         vars_for_template = {}
-        views_module = otree.common_internal.get_views_module(
+        views_module = otree.common_internal.get_pages_module(
             self.subsession._meta.app_config.name)
         if hasattr(views_module, 'vars_for_all_templates'):
             vars_for_template.update(views_module.vars_for_all_templates(self) or {})
@@ -563,6 +563,15 @@ class Page(FormPageOrInGameWaitPage):
             fields = self.get_form_fields()
         except:
             raise ResponseForException
+        if isinstance(fields, str):
+            # it could also happen with get_form_fields,
+            # but that is much less commonly used, so we word the error
+            # message just about form_fields.
+            msg = (
+                'form_fields should be a list, not the string {fld}. '
+                'Maybe you meant this: form_fields = [{fld}]'
+            ).format(fld=repr(fields))
+            raise ValueError(msg)
         form_model = self._get_form_model()
         if form_model is UndefinedFormModel and fields:
             raise Exception(
