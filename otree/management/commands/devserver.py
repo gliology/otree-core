@@ -22,15 +22,18 @@ ADVICE_DELETE_TMP = (
     "look for the error in your models.py."
 ).format(TMP_MIGRATIONS_DIR)
 
+PRINT_DETAILS_VERBOSITY_LEVEL = 1
+
 ADVICE_PRINT_DETAILS = (
-    '(For technical details about this error, run "otree devserver --details")'
-)
+    '(For technical details about this error, run "otree devserver --verbosity=1")'
+).format(PRINT_DETAILS_VERBOSITY_LEVEL)
 
 db_engine = settings.DATABASES['default']['ENGINE'].lower()
 
 if 'sqlite' in db_engine:
     ADVICE_DELETE_DB = (
-        'ADVICE: Delete the file db.sqlite3 in your project folder, '
+        'ADVICE: Stop the server, '
+        'then delete the file db.sqlite3 in your project folder, '
         'then run "otree devserver", not "otree resetdb".'
     )
 else:
@@ -49,17 +52,11 @@ else:
 
 class Command(runserver.Command):
 
-    show_error_details = False
-
     def add_arguments(self, parser):
         super().add_arguments(parser)
-        parser.add_argument(
-            '--details', action='store_true', dest='show_error_details', default=False,
-            help="Show details if an error occurs")
 
     def inner_run(self, *args, **options):
 
-        self.show_error_details = options['show_error_details']
         self.handle_migrations()
 
         super().inner_run(*args, **options)
@@ -135,12 +132,13 @@ class Command(runserver.Command):
 
     def print_error_and_exit(self, advice):
         self.stdout.write('\n')
-        if self.show_error_details:
+        show_error_details = self.verbosity >= PRINT_DETAILS_VERBOSITY_LEVEL
+        if show_error_details:
             traceback.print_exc()
         else:
             self.stdout.write('An error occurred.')
         termcolor.cprint(advice, 'white', 'on_red')
-        if not self.show_error_details:
+        if not show_error_details:
             self.stdout.write(ADVICE_PRINT_DETAILS)
         sys.exit(0)
 

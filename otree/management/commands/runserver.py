@@ -10,9 +10,11 @@ import otree_startup
 from otree import common_internal
 import os
 
+
 class Command(runserver.Command):
 
     def handle(self, *args, **options):
+
 
         # seems it would be simpler if i just set
         # self.channel_layer = channel_layers['inmemory']
@@ -116,3 +118,28 @@ class Command(runserver.Command):
             if shutdown_message:
                 self.stdout.write(shutdown_message)
             return
+
+    def add_arguments(self, parser):
+        super().add_arguments(parser)
+        # see log_action below; we only show logs of each request
+        # if verbosity >= 1.
+        # this still allows logger.info and logger.warning to be shown.
+        # NOTE: if we change this back to 1, then need to update devserver
+        # not to show traceback of errors.
+        parser.set_defaults(verbosity=0)
+
+    def log_action(self, protocol, action, details):
+        '''
+        Override log_action method.
+        Need this until https://github.com/django/channels/issues/612
+        is fixed.
+        maybe for some minimal output use this?
+            self.stderr.write('.', ending='')
+        so that you can see that the server is running
+        (useful if you are accidentally running multiple servers)
+
+        idea: maybe only show details if it's a 4xx or 5xx.
+
+        '''
+        if self.verbosity >= 1:
+            super().log_action(protocol, action, details)

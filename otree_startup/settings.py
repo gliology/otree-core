@@ -68,7 +68,7 @@ def get_default_settings(user_settings: dict):
             'console': {
                 'level': 'INFO',
                 'class': 'logging.StreamHandler',
-                'formatter': 'verbose'
+                'formatter': 'simple'
             },
             'sentry': {
                 'level': 'WARNING',
