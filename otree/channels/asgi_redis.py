@@ -9,7 +9,7 @@ import six
 
 REDIS_MSG = (
     "oTree requires Redis to be installed and running, "
-    "unless you are using the development server (runserver). "
+    "unless you are using the development server (devserver). "
 )
 
 

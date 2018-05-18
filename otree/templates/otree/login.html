@@ -27,7 +27,7 @@
     <p class="text-danger">{% ensure_superuser_exists %}</p>
 
     <div id="content-main">
-        <form action="{{ app_path }}" method="post"
+        <form action="" method="post"
               id="login-form">{% csrf_token %}
                 <div class="form-row">
                     {% formfield form.username %}

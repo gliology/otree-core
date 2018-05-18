@@ -235,6 +235,50 @@ def get_default_settings(user_settings: dict):
     return default_settings
 
 
+
+class InvalidVariableError(Exception):
+    pass
+
+
+class InvalidTemplateVariable(str):
+    def get_error_message(self, variable_name_dotted: str):
+        bits = variable_name_dotted.split('.')
+        if len(bits) == 1:
+            return (
+                'Invalid variable: "{}". '
+                'Maybe you need to return it from vars_for_template()'
+            ).format(bits[0])
+
+        built_in_vars = [
+            'player',
+            'group',
+            'subsession',
+            'participant',
+            'session',
+            'Constants',
+        ]
+
+        if bits[0] in built_in_vars:
+            # This will not make sense in the admin report!
+            # but that's OK, it's a rare case, more advanced users
+            return (
+                '{} has no attribute "{}"'
+            ).format(bits[0], '.'.join(bits[1:]))
+        elif bits[0] == 'self' and bits[1] in built_in_vars:
+            return (
+                "Don't use 'self' in the template. "
+                "Just write: {}"
+            ).format('.'.join(bits[1:]))
+        else:
+            return 'Invalid variable: {}'.format(variable_name_dotted)
+
+    def __mod__(self, other):
+        '''hack that takes advantage of string_if_invalid's %s behavior'''
+        msg = self.get_error_message(str(other))
+        # "from None" because otherwise we get the full chain of
+        # checking if it's an attribute, dict key, list index ...
+        raise InvalidVariableError(msg) from None
+
 def augment_settings(settings: dict):
     default_settings = get_default_settings(settings)
     for k, v in default_settings.items():
@@ -323,6 +367,7 @@ def augment_settings(settings: dict):
                 # i set this to False, but I'm not sure why and there is no
                 # note in the commit explaining why.
                 'debug': True,
+                'string_if_invalid': InvalidTemplateVariable("%s"),
 
                 # in Django 1.11, the cached template loader is applied
                 # automatically if template 'debug' is False,
@@ -345,6 +390,7 @@ def augment_settings(settings: dict):
                     'django.template.context_processors.media',
                     'django.template.context_processors.static',
                     'django.contrib.messages.context_processors.messages',
+                    'django.template.context_processors.request',
                  )
             },
         }],

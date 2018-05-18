@@ -778,7 +778,7 @@ class ToggleArchivedSessions(vanilla.View):
             )
         )
 
-        return HttpResponseRedirect(request.POST['origin_url'])
+        return HttpResponseRedirect(reverse('Sessions'))
 
 
 class DeleteSessions(vanilla.View):

@@ -1,4 +1,4 @@
-{% if view.first_field_with_errors %}
+{% if view.first_field_with_errors|default:False %}
     <div id="hidden-form-errors-warning" class="card-body" style="display: none;">
         <div class="alert alert-warning">
             <p>

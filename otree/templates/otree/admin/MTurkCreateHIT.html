@@ -1,5 +1,5 @@
 {% extends "otree/admin/Session.html" %}
-{% load otree %}
+{% load otree i18n %}
 
 {% block content %}
 
@@ -62,10 +62,14 @@
            target="_blank">here</a>.
     </p>
 {% else %}
+    {% if form.errors %}
+        <div class="alert alert-danger">
+        {% blocktrans trimmed %}Please fix the errors in the form.{% endblocktrans %}
+        </div>
+    {% endif %}
 
     <form action="" method="post" role="form" class="form"
           id="form">{% csrf_token %}
-    <input type="hidden" value="{{ request.path }}" name="origin_url"/>
 
     <div class="modal fade" id="mturk-confirm-publish" tabindex="-1" role="dialog">
         <div class="modal-dialog">

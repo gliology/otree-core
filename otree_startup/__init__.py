@@ -238,7 +238,7 @@ def check_pypi_for_updates() -> dict:
     # need to import it so it can be patched outside
     import otree_startup
     if not otree_startup.PYPI_CHECK_UPDATES:
-        return {}
+        return {'pypi_connection_error': True}
     # import only if we need it
     import requests
 
@@ -246,7 +246,7 @@ def check_pypi_for_updates() -> dict:
 
     try:
         response = requests.get(
-            'http://pypi.python.org/pypi/otree/json',
+            'https://pypi.python.org/pypi/otree/json',
             timeout=5,
         )
         assert response.ok

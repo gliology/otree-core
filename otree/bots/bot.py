@@ -26,7 +26,7 @@ ADMIN_SECRET_CODE = get_admin_secret_code()
 logger = logging.getLogger('otree.bots')
 
 INTERNAL_FORM_FIELDS = {
-        'csrfmiddlewaretoken', 'origin_url', 'must_fail', 'timeout_happened',
+        'csrfmiddlewaretoken', 'must_fail', 'timeout_happened',
         'admin_secret_code', 'error_fields'
 }
 

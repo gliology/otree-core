@@ -163,7 +163,7 @@ def get_urlpatterns():
         name_in_url = models_module.Constants.name_in_url
         if name_in_url in used_names_in_url:
             msg = (
-                "App {} has name_in_url='{}', "
+                "App {} has Constants.name_in_url='{}', "
                 "which is already used by another app"
             ).format(app_name, name_in_url)
             raise ValueError(msg)

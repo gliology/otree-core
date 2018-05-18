@@ -104,7 +104,7 @@ def _get_table_fields(Model, for_export=False):
         subclass_fields = [
             f for f in inspect_field_names(Model)
             if f not in inspect_field_names(BasePlayer)
-            and f not in ['id', 'group', 'subsession']
+            and f not in ['id', 'group_id', 'subsession_id']
             ]
 
         if for_export:
@@ -116,7 +116,7 @@ def _get_table_fields(Model, for_export=False):
         subclass_fields = [
             f for f in inspect_field_names(Model)
             if f not in inspect_field_names(BaseGroup)
-            and f not in ['id', 'subsession']
+            and f not in ['id', 'subsession_id']
             ]
 
         return ['id_in_subsession'] + subclass_fields

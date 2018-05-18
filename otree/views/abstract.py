@@ -244,15 +244,24 @@ class FormPageOrInGameWaitPage(vanilla.View):
                 response = response_for_exception(self.request, exc)
 
             otree.db.idmap.save_objects()
-            if (self.participant.is_browser_bot and
-                    'browser-bot-auto-submit' in response.content.decode('utf-8')):
-                # needs to happen in GET, so that we can set the .html
-                # attribute on the bot.
-                browser_bots.set_attributes(
-                    participant_code=self.participant.code,
-                    request_path=self.request.path,
-                    html=response.content.decode('utf-8'),
-                )
+            if self.participant.is_browser_bot:
+                html = response.content.decode('utf-8')
+                # 2018-04-25: not sure why i didn't use an HTTP header.
+                # the if statement doesn't even seem to make a difference.
+                # shouldn't it always submit, if we're in a Page class?
+                # or why not just set an attribute directly on the response object?
+                # OTOH, this is pretty guaranteed to work. whereas i'm not sure
+                # that we can isolate the exact set of cases when we have to
+                # add the auto-submit flag (only GET requests, not wait pages,
+                # ...etc?)
+                if 'browser-bot-auto-submit' in html:
+                    # needs to happen in GET, so that we can set the .html
+                    # attribute on the bot.
+                    browser_bots.set_attributes(
+                        participant_code=self.participant.code,
+                        request_path=self.request.path,
+                        html=html,
+                    )
             return response
 
     def get_context_data(self, **context):
@@ -1420,7 +1429,9 @@ class AdminSessionPageMixin:
         context = super().get_context_data(**kwargs)
         context.update({
             'session': self.session,
-            'is_debug': settings.DEBUG})
+            'is_debug': settings.DEBUG,
+            'request': self.request,
+        })
         return context
 
     def get_template_names(self):

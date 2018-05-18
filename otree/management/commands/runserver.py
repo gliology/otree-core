@@ -9,7 +9,7 @@ import logging
 import otree_startup
 from otree import common_internal
 import os
-
+import sys
 
 class Command(runserver.Command):
 
@@ -40,6 +40,12 @@ class Command(runserver.Command):
         # only run checks when the server starts, not when it reloads
         # (RUN_MAIN is set by Django autoreloader).
         if not os.environ.get('RUN_MAIN'):
+
+            if 'runserver' in sys.argv:
+                sys.stdout.write(
+                    "Suggestion: use 'otree devserver' instead of 'otree runserver'.\n"
+                )
+
             try:
                 # don't suppress output. it's good to know that check is
                 # not failing silently or not being run.
