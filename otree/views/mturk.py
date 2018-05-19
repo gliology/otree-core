@@ -332,8 +332,9 @@ class MTurkSessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         session = self.session
-        if not session.mturk_HITId:
-            context.update({'not_published_yet': True})
+        published = bool(session.mturk_HITId)
+        context['published'] = published
+        if not published:
             return context
         with MTurkClient(use_sandbox=session.mturk_use_sandbox, request=self.request) as mturk_client:
             workers_by_status = get_workers_by_status(

@@ -153,11 +153,8 @@ class FormFieldNode(Node):
             arg_dict = token_kwargs(bits, parser, support_legacy=False)
             label_arg = arg_dict.pop('label', None)
             for key in arg_dict:
-                raise TemplateSyntaxError(
-                    '{} tag received unknown argument "{}"'.format(
-                        tagname, key
-                    )
-                )
+                msg = '{} tag received unknown argument "{}"'.format(tagname, key)
+                raise TemplateSyntaxError(msg)
         else:
             label_arg = None
         if bits:
