@@ -9,6 +9,5 @@
         {% if field.help_text %}
             <p class="help-block">{{ field.help_text }}</p>
         {% endif %}
-        {% for field in hidden_fields %}{{ field.as_hidden }}{% endfor %}
     {% endwith %}
 </div>
