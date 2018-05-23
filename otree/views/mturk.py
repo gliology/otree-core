@@ -165,6 +165,13 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             # probably is a public domain
             return True
 
+    # make these class attributes so they can be mocked
+    aws_keys_exist = bool(
+        getattr(settings, 'AWS_ACCESS_KEY_ID', None) and
+        getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
+    )
+    boto3_installed = bool(boto3)
+
     def get(self, request, *args, **kwargs):
 
         mturk_settings = self.session.config['mturk_hit_settings']
@@ -193,19 +200,16 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         https = parsed_url.scheme == 'https'
         secured_url = urlunparse(parsed_url._replace(scheme='https'))
 
-        aws_keys_exist = bool(
-            getattr(settings, 'AWS_ACCESS_KEY_ID', None) and
-            getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
-        )
-        boto3_installed = bool(boto3)
-        mturk_ready = aws_keys_exist and boto3_installed and https
+
+
+        mturk_ready = self.aws_keys_exist and self.boto3_installed and https
         missing_next_button_warning = MTurkValidator(self.session).validation_message()
 
         context.update({
             # boto3 module must be imported, not None
-            'boto3_installed': boto3_installed,
+            'boto3_installed': self.boto3_installed,
             'https': https,
-            'aws_keys_exist': aws_keys_exist,
+            'aws_keys_exist': self.aws_keys_exist,
             'mturk_ready': mturk_ready,
             'runserver': ('runserver' in sys.argv) or ('devserver' in sys.argv),
             'secured_url': secured_url,
