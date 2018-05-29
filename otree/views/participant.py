@@ -370,3 +370,5 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
 
     def redirect_url(self):
         return self.request.get_full_path()
+
+

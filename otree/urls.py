@@ -10,7 +10,7 @@ from django.conf import settings
 
 from django.contrib.auth.decorators import login_required
 from otree import common_internal
-
+from django.http import HttpResponse
 
 STUDY_UNRESTRICTED_VIEWS = {
     'AssignVisitorToRoom',
@@ -184,6 +184,22 @@ def get_urlpatterns():
 
     urlpatterns += extensions_urlpatterns()
     urlpatterns += extensions_export_urlpatterns()
+
+    # serve an empty favicon.
+    # otherwise, the logs will contain:
+    # [WARNING] django.request > Not Found: /favicon.ico
+    # Not Found: /favicon.ico
+    # don't want to add a <link> in base template because even if it exists,
+    # browsers will still request /favicon.ico.
+    # plus it makes the HTML noisier
+    # can't use the static() function here because maybe collectstatic
+    # has not been run yet
+    urlpatterns.append(
+        urls.url(
+            r'^favicon\.ico$',
+            lambda request: HttpResponse('')
+        )
+    )
 
     return urlpatterns
 

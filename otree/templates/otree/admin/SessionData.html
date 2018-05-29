@@ -5,11 +5,10 @@
 <script>
 $(document).ready(function() {
     ajax_json_results();
-    setInterval(ajax_json_results , 4000);
-
     makeTableDraggable($('#results-table'));
 });
 function ajax_json_results() {
+    var start = Date.now();
     var $table = $('#results-table');
     $.ajax({
         url: '{% url "SessionData" session.code %}',
@@ -21,6 +20,11 @@ function ajax_json_results() {
         success: function (new_json) {
             $( "div#server_error" ).hide();
             updateTable($table, new_json);
+            var msElapsed = Date.now() - start;
+            // feedback mechanism to avoid straining the server:
+            // back off if requests are taking a long time
+            var msUntilNextRequest = Math.max(msElapsed*2, 3000);
+            setTimeout(ajax_json_results, msUntilNextRequest);
         }
     });
 }
@@ -48,8 +52,9 @@ function ajax_json_results() {
             {% endfor %}
         </tr>
     </thead>
+    <tbody></tbody>
 </table>
-<div id="server_error" class="alert alert-danger" style="display: none;"> 
+<div id="server_error" class="alert alert-danger" style="display: none;">
     <a href="#" class="close" data-dismiss="alert">&times;</a>
     "Failed to connect to server"
 </div>
