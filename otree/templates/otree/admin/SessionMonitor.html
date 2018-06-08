@@ -169,6 +169,7 @@ function ajax_and_refresh_table() {
         contentType: "application/json",
         error: function(jqXHR, textStatus) {
             $( "div#refresh_server_error" ).show();
+            setTimeout(ajax_and_refresh_table, 10000);
         },
         success: function(new_json) {
             refreshTable(new_json);

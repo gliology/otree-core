@@ -16,6 +16,7 @@ function ajax_json_results() {
         contentType: "application/json",
         error: function(jqXHR, textStatus) {
             $( "div#server_error" ).show();
+            setTimeout(ajax_json_results, 10000);
         },
         success: function (new_json) {
             $( "div#server_error" ).hide();
@@ -56,7 +57,7 @@ function ajax_json_results() {
 </table>
 <div id="server_error" class="alert alert-danger" style="display: none;">
     <a href="#" class="close" data-dismiss="alert">&times;</a>
-    "Failed to connect to server"
+    Failed to connect to server
 </div>
 <small>You can download data in Excel or CSV format <a href="{% url 'ExportIndex' %}">here</a>.</small>
 {% endblock %}

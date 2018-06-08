@@ -182,7 +182,7 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             'description': mturk_settings['description'],
             'keywords': ', '.join(mturk_settings['keywords']),
             'money_reward': self.session.config['participation_fee'],
-            'use_sandbox': settings.DEBUG,
+            'use_sandbox': True,
             'minutes_allotted_per_assignment': (
                 mturk_settings['minutes_allotted_per_assignment']
             ),

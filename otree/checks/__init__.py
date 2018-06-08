@@ -15,6 +15,7 @@ import django.db.models.fields
 from otree.api import (
     BasePlayer, BaseGroup, BaseSubsession, Currency, WaitPage, Page)
 from otree.common_internal import _get_all_configs
+from pathlib import Path
 
 
 class AppCheckHelper:
@@ -81,24 +82,33 @@ def files(helper: AppCheckHelper, **kwargs):
                 numeric_id=102
             )
 
-    if os.path.isdir(helper.get_path('templates')):
-
-        # check for files in templates, but not in templates/<label>
-
-        misplaced_templates = set(glob.glob(
-            os.path.join(helper.get_path('templates'), '*.html')
-        ))
-        misplaced_templates.discard(helper.app_config.label)
-        if misplaced_templates:
+    templates_dir = Path(helper.get_path('templates'))
+    app_label = helper.app_config.label
+    if templates_dir.is_dir():
+        # check for files in templates/, but not in templates/<label>
+        misplaced_files = list(templates_dir.glob('*.html'))
+        if misplaced_files:
             hint = (
                 'Move template files from "{app}/templates/" '
                 'to "{app}/templates/{app}" subfolder'.format(
-                    app=helper.app_config.label)
+                    app=app_label)
             )
+
             helper.add_error(
-                "TemplatesInWrongDir: Templates files in app's root template folder",
+                "Templates files in wrong folder",
                 hint=hint, numeric_id=103,
             )
+
+        all_subfolders = set(templates_dir.glob('*/'))
+        correctly_named_subfolders = set(templates_dir.glob('{}/'.format(app_label)))
+        other_subfolders = all_subfolders - correctly_named_subfolders
+        if other_subfolders and not correctly_named_subfolders:
+
+            msg = (
+                "The 'templates' folder has a subfolder called '{}', "
+                "but it should be renamed '{}' to match the name of the app. "
+            ).format(other_subfolders.pop().name, app_label)
+            helper.add_error(msg, numeric_id=104)
 
 
 base_model_attrs = {
@@ -294,6 +304,49 @@ def pages_function(helper: AppCheckHelper, **kwargs):
             else:
                 msg = '"{}" is not a valid page'.format(ViewCls)
                 helper.add_error(msg, numeric_id=26)
+
+            '''
+            # make sure no misspelled attributes
+            base_members = set()
+            for Cls in ViewCls.__bases__:
+                base_members.update(dir(Cls))
+            child_members = set(dir(ViewCls))
+            child_only_members = child_members - base_members
+            for member in child_only_members:
+                for valid_ending in ['_error_message', '_min', '_max', '_choices']:
+                    if member.endswith(valid_ending):
+                        child_only_members.discard(member)
+            if child_only_members:
+                child_only_methods = []
+                child_only_attrs = []
+                for member in child_only_members:
+                    if callable(getattr(ViewCls, member)):
+                        child_only_methods.append(member)
+                    else:
+                        child_only_attrs.append(member)
+
+                if child_only_methods:
+                    helper.add_error(
+                        '"{ViewCls}" has the following method(s) that are not '
+                        'recognized by oTree: {methods}. '
+                        'If this is a custom method that you are calling '
+                        'from your own code, you can resolve this warning by'
+                        'moving the method into '
+                        'the Player class in models.py.'
+                        ''.format(ViewCls=ViewCls.__name__, methods=child_only_methods),
+                        numeric_id=25)
+                if child_only_attrs:
+                    helper.add_error(
+                        '"{ViewCls}" has the following attribute(s) that are not '
+                        'recognized by oTree: {attrs}. '
+                        'You can resolve this warning by: '
+                        '(a) deleting the attribute '
+                        '(b) moving it somewhere else, like Constants '
+                        '(c) writing '
+                        ''.format(ViewCls=ViewCls.__name__, attrs=child_only_attrs),
+                        numeric_id=25)
+            '''
+
 
 
 def template_content_is_in_blocks(template_name: str, helper: AppCheckHelper):

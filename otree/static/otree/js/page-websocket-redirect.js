@@ -40,7 +40,7 @@ $(document).ready(function () {
     }
 
     initWebSocket();
-
+    
     if (isBrowserBot === 'True') {
         var form = $('#form');
         form.submit();

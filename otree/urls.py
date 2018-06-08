@@ -185,7 +185,7 @@ def get_urlpatterns():
     urlpatterns += extensions_urlpatterns()
     urlpatterns += extensions_export_urlpatterns()
 
-    # serve an empty favicon.
+    # serve an empty favicon?
     # otherwise, the logs will contain:
     # [WARNING] django.request > Not Found: /favicon.ico
     # Not Found: /favicon.ico
@@ -194,12 +194,26 @@ def get_urlpatterns():
     # plus it makes the HTML noisier
     # can't use the static() function here because maybe collectstatic
     # has not been run yet
-    urlpatterns.append(
-        urls.url(
-            r'^favicon\.ico$',
-            lambda request: HttpResponse('')
-        )
-    )
+    # and it seems an empty HttpResponse or even a 204 response makes the browser
+    # just keep requesting the file with every page load
+    # hmmm...now it seems that chrome is not re-requesting with every page load
+    # but firefox does. but if i remove the favicon, there's 1 404 then FF doesn't
+    # ask for it again.
+
+
+    # import os
+    # dir_path = os.path.dirname(os.path.realpath(__file__))
+    # with open(os.path.join(dir_path, 'favicon_invisible.ico'), 'rb') as f:
+    # #with open('favicon.ico', 'rb') as f:
+    #     favicon_content = f.read()
+    #
+    #
+    # urlpatterns.append(
+    #     urls.url(
+    #         r'^favicon\.ico$',
+    #         lambda request: HttpResponse(favicon_content, content_type="image/x-icon")
+    #     )
+    # )
 
     return urlpatterns
 
