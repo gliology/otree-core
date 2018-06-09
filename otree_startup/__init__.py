@@ -54,6 +54,13 @@ def execute_from_command_line(*args, **kwargs):
 
     subcommand = argv[1]
 
+    if subcommand == 'runserver':
+        sys.stdout.write(
+            "Suggestion: use 'otree devserver' instead of 'otree runserver'. "
+            "devserver automatically syncs your database.\n"
+        )
+
+
     # Add the current directory to sys.path so that Python can find
     # the settings module.
     # when using "python manage.py" this is not necessary because
