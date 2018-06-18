@@ -63,11 +63,11 @@ msgstr "否"
 
 #: .\forms\forms.py:238
 msgid "Value must be greater than or equal to {}."
-msgstr "该值必須大於或等於{}。"
+msgstr "该值必须大于或等于{}。"
 
 #: .\forms\forms.py:244
 msgid "Value must be less than or equal to {}."
-msgstr "该值必須小於或等於{}。"
+msgstr "该值必须小于或等于{}。"
 
 #. Translators: the label next to a "points" input field
 #: .\forms\widgets.py:43
@@ -85,16 +85,16 @@ msgstr "请修复表单中的错误。"
 
 #: .\templates\otree\RoomInputLabel.html:7
 msgid "Welcome"
-msgstr ""
+msgstr "欢迎！"
 
 #. Translators: If the user enters an invalid participant label
 #: .\templates\otree\RoomInputLabel.html:13
 msgid "Invalid entry; try again."
-msgstr ""
+msgstr "无效输入，请重试。"
 
 #: .\templates\otree\RoomInputLabel.html:15
 msgid "Please enter your participant label."
-msgstr ""
+msgstr "请输入你的参与标签。"
 
 #: .\templates\otree\WaitPage.html:49
 msgid ""

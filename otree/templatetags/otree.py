@@ -50,3 +50,9 @@ def json(val):
 @register.inclusion_tag('otreechat_core/widget.html', takes_context=True, name='chat')
 def chat(context, *args, **kwargs):
     return chat_template_tag(context, *args, **kwargs)
+
+
+# this code is duplicated in otree_tags.py
+@register.inclusion_tag('otree/tags/formfields.html', takes_context=True)
+def formfields(context, *args, **kwargs):
+    return context

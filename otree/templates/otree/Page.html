@@ -18,7 +18,7 @@ i removed many linebreaks to make output HTML cleaner
                 {{ form.non_field_errors }}
             </div>
         {% endif %}
-        <form action="" method="post" role="form" id="form">{% csrf_token %}
+        <form action="" method="post" role="form" id="form" autocomplete="off">{% csrf_token %}
 
             <div class="_otree-content">{% block content %}{% endblock %}</div>
         </form>
