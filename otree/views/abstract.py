@@ -351,9 +351,17 @@ class FormPageOrInGameWaitPage(vanilla.View):
 
     def _is_displayed(self):
         try:
-            return self.is_displayed()
+            is_displayed = self.is_displayed()
         except:
             raise ResponseForException
+        if is_displayed is None:
+            msg = (
+                '{}: is_displayed() did not return anything. '
+                'You should fix this. To show the page, you should return True; '
+                'to skip the page, return False.'
+            ).format(self.__class__.__name__)
+            logger.warning(msg)
+        return is_displayed
 
     @property
     def player(self) -> BasePlayer:

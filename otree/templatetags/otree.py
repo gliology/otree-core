@@ -5,7 +5,7 @@ from .otree_tags import (
 )
 from otree.chat import chat_template_tag
 from otree.api import safe_json
-
+from otree.staticfiles import StaticNode
 
 # renaming otree_tags to otree and removing internal tags
 # this code is duplicated in otree_tags. I duplicate it rather than importing
@@ -56,3 +56,9 @@ def chat(context, *args, **kwargs):
 @register.inclusion_tag('otree/tags/formfields.html', takes_context=True)
 def formfields(context, *args, **kwargs):
     return context
+
+
+@register.tag('static')
+def do_static(parser, token):
+    '''this is copied from Django source'''
+    return StaticNode.handle_token(parser, token)
