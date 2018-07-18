@@ -8,7 +8,7 @@ from decimal import Decimal
 from otree.currency import (
     Currency, RealWorldCurrency
 )
-import logging
+
 from idmap.models import IdMapModelBase
 from .idmap import IdMapModel
 
@@ -20,9 +20,6 @@ from otree_save_the_change.mixins import SaveTheChange
 
 # this is imported from other modules
 from .serializedfields import _PickleField
-
-logger = logging.getLogger(__name__)
-
 
 class _JSONField(models.TextField):
     '''just keeping around so that Migrations don't crash'''
@@ -119,11 +116,9 @@ class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
                 # a Django model's setattr, as I discovered.
                 if not field_name in self._dir_attributes:
                     msg = (
-                        '{} has no field "{}".'
+                        '{} has no attribute "{}"'
                     ).format(self.__class__.__name__, field_name)
-                    logger.warning(msg + '-- In the next version of oTree, this will raise an error.')
-                    #raise AttributeError(msg)
-
+                    raise AttributeError(msg)
                 try:
                     field = self._meta.get_field(field_name)
                 except exceptions.FieldDoesNotExist:
@@ -145,10 +140,9 @@ class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
                             if friendly_value_type == 'str':
                                 friendly_value_type = 'string'
                             msg = (
-                                'Wrong data type: {} cannot be set to {} value {}.'
+                                'Wrong data type: {} cannot be set to {} value {}'
                             ).format(field_type_name, friendly_value_type, repr(value))
-                            logger.warning(msg + '-- In the next version of oTree, this will raise an error.')
-                            #raise TypeError(msg)
+                            raise TypeError(msg)
             self._super_setattr(field_name, value)
         else:
             # super() is a bit slower but only gets run during __init__

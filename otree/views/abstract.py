@@ -1252,6 +1252,8 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 )
             )
 
+        # we're doing this inside a lock, so it actually should never be
+        # greater than, only equal.
         if len(waiting_players) >= Constants.players_per_group:
             return waiting_players[:Constants.players_per_group]
 

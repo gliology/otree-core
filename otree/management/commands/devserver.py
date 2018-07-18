@@ -22,11 +22,6 @@ ADVICE_DELETE_TMP = (
     "look for the error in your models.py."
 ).format(TMP_MIGRATIONS_DIR)
 
-ADVICE_FIX_NOT_NULL_FIELD = (
-    'You may have added a non-nullable field without a default. '
-    'This typically happens when importing model fields from django instead of otree.'
-)
-
 PRINT_DETAILS_VERBOSITY_LEVEL = 1
 
 ADVICE_PRINT_DETAILS = (
@@ -100,15 +95,7 @@ class Command(runserver.Command):
             # they can do "otree makemigrations".
             with capture_stdout():
                 call_command('makemigrations', '--noinput', *migrations_modules.keys())
-        except SystemExit as exc:
-            # SystemExit will be raised if NonInteractiveMigrationQuestioner
-            # cannot decide what to do automatically.
-            # SystemExit does not inherit from Exception,
-            # so we need to catch it explicitly.
-            # without this, the process will just exit and the autoreloader
-            # will hang.
-            self.print_error_and_exit(ADVICE_FIX_NOT_NULL_FIELD)
-        except Exception as exc:
+        except Exception:
             self.print_error_and_exit(ADVICE_DELETE_TMP)
 
         # migrate imports some modules that were created on the fly,
@@ -144,7 +131,6 @@ class Command(runserver.Command):
             self.stdout.write('makemigrations & migrate ran in {}s'.format(total_time))
 
     def print_error_and_exit(self, advice):
-        '''this won't actually exit because we can't kill the autoreload process'''
         self.stdout.write('\n')
         show_error_details = self.verbosity >= PRINT_DETAILS_VERBOSITY_LEVEL
         if show_error_details:

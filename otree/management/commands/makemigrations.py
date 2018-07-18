@@ -18,9 +18,11 @@ class Command(makemigrations.Command):
         return False
 
     def handle(self, *args, **options):
+
         '''
         if not self._confirm():
             self.stdout.write('Canceled.')
             return
         '''
+
         super().handle(*args, **options)
