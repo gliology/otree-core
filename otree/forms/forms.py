@@ -13,7 +13,6 @@ import otree.common_internal
 from otree.common_internal import ResponseForException
 import otree.models
 import otree.constants_internal
-from otree.forms import fields
 from otree.db import models
 from otree.currency import Currency, RealWorldCurrency
 
@@ -24,10 +23,8 @@ __all__ = (
 
 
 def formfield_callback(db_field, **kwargs):
-    # TODO: clean this up
-    formfield_kwargs = {}
     # Take the `widget` attribute into account that might be set for a db
-    # field. We want to override the widget given by FORMFIELD_OVERRIDES.
+    # field.
     widget = getattr(db_field, 'widget', None)
     if widget:
         # dynamic methods like FOO_choices, FOO_min, etc
@@ -44,19 +41,14 @@ def formfield_callback(db_field, **kwargs):
         # leaving as is.
         if not isinstance(widget, type):
             widget = copy.copy(widget)
-        formfield_kwargs['widget'] = widget
-    formfield_kwargs.update(kwargs)
-    return db_field.formfield(**formfield_kwargs)
+        kwargs['widget'] = widget
+    return db_field.formfield(**kwargs)
 
 
 def modelform_factory(*args, **kwargs):
     """
-    This custom modelform_factory must be used in all places instead of the
-    default django implemention in order to use the correct
-    `formfield_callback` function.
-
-    Otherwise the created modelform will not use the floppyfied fields defined
-    in FORMFIELD_OVERRIDES.
+    2018-07-11: now this exists only to make a copy of the widget if necessary.
+    maybe there is a better way.
     """
     kwargs.setdefault('formfield_callback', formfield_callback)
     return django_model_forms.modelform_factory(*args, **kwargs)

@@ -422,6 +422,8 @@ class FormPageOrInGameWaitPage(vanilla.View):
             self._load_all_models()
             self.participant._round_number = self.player.round_number
 
+        self._is_frozen = True
+
     # python 3.5 type hint
     def set_attributes_waitpage_clone(self, *, original_view: 'WaitPage'):
         '''put it here so it can be compared with set_attributes...
@@ -526,6 +528,44 @@ class FormPageOrInGameWaitPage(vanilla.View):
             auto_submitted=timeout_happened)
         self.participant.save()
 
+    _is_frozen = False
+
+    _setattr_whitelist = {
+        '_is_frozen',
+        'object',
+        'form',
+        'timeout_happened',
+        # i should send some of these through context
+        '_remaining_timeout_seconds',
+        'first_field_with_errors',
+        'other_fields_with_errors',
+        'debug_tables',
+        '_round_number',
+        'request' # this is just used in a test case mock.
+    }
+
+    def __setattr__(self, attr: str, value):
+        if self._is_frozen and not attr in self._setattr_whitelist:
+            msg = (
+                'You set the attribute "{}" on the page {}. '
+                'Setting attributes on page instances is often a mistake '
+                'and may be blocked in future oTree versions. '
+            ).format(attr, self.__class__.__name__)
+            logger.warning(msg)
+            #raise AttributeError(msg)
+        else:
+            # super() is a bit slower but only gets run during __init__
+            super().__setattr__(attr, value)
+
+    def _force_setattr(self, attr: str, value):
+        '''maybe better to use whitelist rather than this;
+        that keeps all the code in 1 place'''
+        orig = self._is_frozen
+        self._is_frozen = False
+        try:
+            setattr(self, attr, value)
+        finally:
+            self._is_frozen = orig
 
 class Page(FormPageOrInGameWaitPage):
 
@@ -1212,8 +1252,6 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 )
             )
 
-        # we're doing this inside a lock, so it actually should never be
-        # greater than, only equal.
         if len(waiting_players) >= Constants.players_per_group:
             return waiting_players[:Constants.players_per_group]
 

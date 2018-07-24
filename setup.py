@@ -22,21 +22,21 @@ with open('requirements_mturk.txt', encoding='utf-8') as f:
 if sys.argv[-1] == 'publish':
 
     cmd = "python setup.py sdist upload"
-    print(cmd)
+    sys.stdout.write(cmd + '\n')
     os.system(cmd)
 
     cmd = 'git tag -a %s -m "version %s"' % (version, version)
-    print(cmd)
+    sys.stdout.write(cmd + '\n')
     os.system(cmd)
 
     cmd = "git push --tags"
-    print(cmd)
+    sys.stdout.write(cmd + '\n')
     os.system(cmd)
 
     sys.exit()
 
-if sys.version_info < (3, 5):
-    sys.exit('Error: This version of otree requires Python 3.5 or higher')
+if sys.version_info < (3, 6):
+    sys.exit('Error: This version of oTree requires Python 3.6 or higher')
 
 
 setup(

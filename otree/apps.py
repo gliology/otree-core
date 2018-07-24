@@ -15,6 +15,7 @@ from otree.common_internal import (
 )
 from otree.strict_templates import patch_template_silent_failures
 
+
 logger = logging.getLogger('otree')
 
 

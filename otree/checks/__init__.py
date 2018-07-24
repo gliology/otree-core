@@ -218,10 +218,15 @@ def constants(helper: AppCheckHelper, **kwargs):
     ppg = Constants.players_per_group
     if ppg == 0 or ppg == 1:
         helper.add_error(
-            "models.py: 'Constants.players_per_group' cannot be {}. You "
+            "models.py: Constants.players_per_group cannot be {}. You "
             "should set it to None, which makes the group "
             "all players in the subsession.".format(ppg),
             numeric_id=13
+        )
+    if ' ' in Constants.name_in_url:
+        helper.add_error(
+            "models.py: Constants.name_in_url must not contain spaces",
+            numeric_id=14
         )
 
 
