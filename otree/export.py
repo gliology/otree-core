@@ -77,7 +77,9 @@ def _get_table_fields(Model, for_export=False):
                 '_index_in_pages',
                 '_max_page_index',
                 '_current_app_name',
-                '_round_number',
+                # this could be confusing because it will be in every row,
+                # even rows for different rounds.
+                #'_round_number',
                 '_current_page_name',
                 'ip_address',
                 'time_started',

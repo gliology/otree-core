@@ -395,7 +395,7 @@ def ensure_no_misspelled_attributes(ViewCls: type, helper: AppCheckHelper):
             #        '{FLAG}=True on the page class.'
 
             # at first, just make it a warning.
-            helper.add_warning(msg.format(**fmt_kwargs), numeric_id)
+            helper.add_error(msg.format(**fmt_kwargs), numeric_id)
 
 
 def template_content_is_in_blocks(template_name: str, helper: AppCheckHelper):

@@ -548,11 +548,9 @@ class FormPageOrInGameWaitPage(vanilla.View):
         if self._is_frozen and not attr in self._setattr_whitelist:
             msg = (
                 'You set the attribute "{}" on the page {}. '
-                'Setting attributes on page instances is often a mistake '
-                'and may be blocked in future oTree versions. '
+                'Setting attributes on page instances is not permitted. '
             ).format(attr, self.__class__.__name__)
-            logger.warning(msg)
-            #raise AttributeError(msg)
+            raise AttributeError(msg)
         else:
             # super() is a bit slower but only gets run during __init__
             super().__setattr__(attr, value)
@@ -1252,8 +1250,6 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 )
             )
 
-        # we're doing this inside a lock, so it actually should never be
-        # greater than, only equal.
         if len(waiting_players) >= Constants.players_per_group:
             return waiting_players[:Constants.players_per_group]
 
