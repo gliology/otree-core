@@ -239,7 +239,6 @@ class BaseSubsession(models.Model):
         self.set_group_matrix(group_matrix)
 
     def _group_by_rank(self, ranked_list):
-        # FIXME: delete this
         group_matrix = matching.by_rank(
             ranked_list,
             self._Constants.players_per_group

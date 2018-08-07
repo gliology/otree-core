@@ -24,7 +24,7 @@ pytest==2.9.2
 pytest-django==3.0.0
 python-redis-lock
 pytz==2017.3
-raven==6.9.0
+raven==5.25.0
 redis==2.10.5
 requests==2.11.1
 schema==0.6.2
