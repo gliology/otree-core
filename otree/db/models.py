@@ -89,13 +89,13 @@ class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
     _is_frozen = False
     NoneType = type(None)
     _setattr_datatypes = {
-        'BooleanField': (NoneType, bool),
+        'BooleanField': (bool, NoneType),
         # forms seem to save Decimal to CurrencyField
-        'CurrencyField': (NoneType, Currency, int, float, Decimal),
-        'FloatField': (NoneType, int, float),
-        'IntegerField': (NoneType, int),
-        'StringField': (NoneType, str),
-        'LongStringField': (NoneType, str),
+        'CurrencyField': (Currency, NoneType, int, float, Decimal),
+        'FloatField': (float, NoneType, int),
+        'IntegerField': (int, NoneType),
+        'StringField': (str, NoneType),
+        'LongStringField': (str, NoneType),
     }
     _setattr_whitelist = {
         '_initial_prep_values',
@@ -143,8 +143,8 @@ class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
                             if friendly_value_type == 'str':
                                 friendly_value_type = 'string'
                             msg = (
-                                'Wrong data type: {} cannot be set to {} value {}.'
-                            ).format(field_type_name, friendly_value_type, repr(value))
+                                'Wrong data type: {} cannot be set to {}.'
+                            ).format(field_type_name, friendly_value_type)
                             raise TypeError(msg)
             self._super_setattr(field_name, value)
         else:
