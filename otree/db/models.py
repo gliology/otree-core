@@ -88,14 +88,17 @@ class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
 
     _is_frozen = False
     NoneType = type(None)
+
     _setattr_datatypes = {
-        'BooleanField': (NoneType, bool),
+        # first value should be the "recommmended" datatype,
+        # because that's what we recommend in the error message.
+        'BooleanField': (bool, NoneType),
         # forms seem to save Decimal to CurrencyField
-        'CurrencyField': (NoneType, Currency, int, float, Decimal),
-        'FloatField': (NoneType, int, float),
-        'IntegerField': (NoneType, int),
-        'StringField': (NoneType, str),
-        'LongStringField': (NoneType, str),
+        'CurrencyField': (Currency, NoneType, int, float, Decimal),
+        'FloatField': (float, NoneType, int),
+        'IntegerField': (int, NoneType),
+        'StringField': (str, NoneType),
+        'LongStringField': (str, NoneType),
     }
     _setattr_whitelist = {
         '_initial_prep_values',
@@ -131,20 +134,24 @@ class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
                     # or assigning to a property like Player.payoff
                     pass
                 else:
-                    field_type_name = field.__class__.__name__
-                    # everything is an instance of "object"
-                    allowed_types = self._setattr_datatypes.get(field_type_name, object)
-                    if not isinstance(value, allowed_types):
-                        # 2018-07-18:
-                        # have an exception for the bug in the 'quiz' sample game
-                        # after a while, we can remove this
-                        if field_name != 'question_id':
-                            friendly_value_type = value.__class__.__name__
-                            if friendly_value_type == 'str':
-                                friendly_value_type = 'string'
+                    field_type_name = type(field).__name__
+                    if field_type_name in self._setattr_datatypes:
+                        allowed_types = self._setattr_datatypes[field_type_name]
+                        if (
+                                isinstance(value, allowed_types)
+                                # numpy uses its own datatypes, e.g. numpy._bool,
+                                # which doesn't inherit from python bool.
+                                or 'numpy' in str(type(value))
+                                # 2018-07-18:
+                                # have an exception for the bug in the 'quiz' sample game
+                                # after a while, we can remove this
+                                or field_name == 'question_id'
+                        ):
+                            pass
+                        else:
                             msg = (
-                                'Wrong data type: {} cannot be set to {} value {}.'
-                            ).format(field_type_name, friendly_value_type, repr(value))
+                                '{} should be set to {}, not {}.'
+                            ).format(field_type_name, allowed_types[0].__name__, type(value).__name__)
                             raise TypeError(msg)
             self._super_setattr(field_name, value)
         else:
