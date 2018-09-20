@@ -119,6 +119,7 @@ def execute_from_command_line(*args, **kwargs):
     # The hardcoded condition is a code smell but we can't rely on a
     # flag on the command class because we haven't located it yet.
 
+    block_use_of_random()
     if runserver_or_devserver and '--noreload' not in argv:
         try:
             autoreload.check_errors(do_django_setup)()
@@ -131,6 +132,7 @@ def execute_from_command_line(*args, **kwargs):
             apps.apps_ready = apps.models_ready = apps.ready = True
     else:
         do_django_setup()
+    unblock_use_of_random()
 
     if subcommand in ['help', '--help', '-h'] and len(argv) == 2:
         sys.stdout.write(main_help_text() + '\n')
@@ -360,3 +362,32 @@ def print_colored_traceback_and_exit(exc):
     for line in lines:
         sys.stdout.write(line)
     sys.exit(-1)
+
+
+import random
+
+blocked_functions = ['random', 'randint', 'sample', 'choice', 'shuffle']
+
+original_random_functions = {}
+
+class RandomError(Exception):
+    pass
+
+# TODO: make each app's pages.py load on startup,
+# so that we can catch randomization of Page class attributes
+# form_fields or timeout_seconds.
+
+def dummy_random_function(*args, **kwargs):
+    raise RandomError(
+        "In oTree, you cannot use random functions in global code or Constants, " 
+        "only inside methods, such as creating_session."
+    )
+
+def block_use_of_random():
+    for fn_name in blocked_functions:
+        original_random_functions[fn_name] = getattr(random, fn_name)
+        setattr(random, fn_name, dummy_random_function)
+
+def unblock_use_of_random():
+    for fn_name in blocked_functions:
+        setattr(random, fn_name, original_random_functions[fn_name])

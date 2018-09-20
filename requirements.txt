@@ -10,7 +10,7 @@ Django==1.11.2
 django-idmap==1.0.3
 django-vanilla-views==1.0.4
 honcho==0.7.1
-huey==1.2.0
+huey==1.10.2
 IPy==0.83
 msgpack-python==0.4.8
 otree-boto2-shim==0.3.2

@@ -123,6 +123,11 @@
             follow this <a href="{{ session.mturk_worker_url }}"
                            target="_blank">link</a>.
         </p>
+        <p>
+            Do not delete this session or reset your database unless (a) all start links have been used
+            or (b) the HIT has expired or (c) you have manually expired the HIT.
+            Otherwise, MTurk workers will get a "page not found" error.
+        </p>
     {% endif %}
     </form>
 {% endif %}

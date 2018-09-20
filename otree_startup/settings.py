@@ -1,7 +1,6 @@
 import os
 import os.path
 from django.contrib.messages import constants as messages
-from six.moves.urllib import parse as urlparse
 import dj_database_url
 
 DEFAULT_MIDDLEWARE = (
@@ -131,9 +130,7 @@ def get_default_settings(user_settings: dict):
     }
 
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
-    redis_url_parsed = urlparse.urlparse(REDIS_URL)
     BASE_DIR = user_settings.get('BASE_DIR', '')
-
 
     default_settings.update({
         'DATABASES': {
@@ -144,9 +141,7 @@ def get_default_settings(user_settings: dict):
         'HUEY': {
             'name': 'otree-huey',
             'connection': {
-                'host': redis_url_parsed.hostname,
-                'port': redis_url_parsed.port,
-                'password': redis_url_parsed.password
+                'url': REDIS_URL,
             },
             'always_eager': False,
             # I need a result store to retrieve the results of browser-bots

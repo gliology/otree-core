@@ -17,6 +17,7 @@ class Command(startproject.Command):
             default=True)
 
     def handle(self, *args, **options):
+        project_name = options['name']
         if os.path.isfile('settings.py') and os.path.isfile('manage.py'):
             self.stdout.write(
                 'You are trying to create a project but it seems you are '
@@ -52,6 +53,19 @@ class Command(startproject.Command):
                 ).format(py_major, py_minor)
                 self.stdout.write(msg)
                 sys.exit(-1)
+            elif 'an existing Python module' in str(exc) and 'oTree' in project_name:
+                # this is a common error if the initial startproject failed
+                # (e.g. because could not download sample games). it creates
+                # an empty folder. (That error does not look easy to fix directly)
+                # So, we show this error message,
+                # only if oTree is in the project name, because they might give
+                # other illegal names like "otree", "random", etc.,
+                msg = (
+                    f'It appears you already created a project called "{project_name}" '
+                    'in this folder. Either delete that folder first, or use a different name.'
+                )
+                self.stdout.write(msg)
+                sys.exit(-1)
             raise
         try:
             pypi_updates_cli()
@@ -63,5 +77,5 @@ class Command(startproject.Command):
             'Created project folder.\n'
             'Enter "cd {}" to move inside the project folder, '
             'then start the server with "otree devserver".' #
-        ).format(options['name'])
+        ).format(project_name)
         self.stdout.write(msg)

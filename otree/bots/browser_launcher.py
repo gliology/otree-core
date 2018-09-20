@@ -294,7 +294,11 @@ class Launcher:
             process_list_args = ['tasklist']
         else:
             process_list_args = ['ps', 'axw']
-        ps_output = subprocess.check_output(process_list_args).decode('utf-8')
+        ps_output = (
+            subprocess
+                .check_output(process_list_args)
+                .decode(sys.stdout.encoding, 'ignore')
+        )
         is_running = browser_type.lower() in ps_output.lower()
 
         if is_running:
