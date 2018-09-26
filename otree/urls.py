@@ -20,6 +20,7 @@ STUDY_UNRESTRICTED_VIEWS = {
     'JoinSessionAnonymously',
     'OutOfRangeNotification',
     'ParticipantRoomHeartbeat',
+    'ParticipantHeartbeatGBAT',
 }
 
 
