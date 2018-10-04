@@ -178,7 +178,7 @@ def get_default_settings(user_settings: dict):
         'USE_POINTS': True,
         'POINTS_DECIMAL_PLACES': 0,
 
-        'INSTALLED_APPS': ['otree'],
+        #'INSTALLED_APPS': ['otree'],
         'AUTH_LEVEL': None,
         'ADMIN_PASSWORD': None,
         # eventually can remove this,
