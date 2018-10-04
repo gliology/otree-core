@@ -165,21 +165,10 @@ $(function() {
                         <img src='{% static "glyphicons/usd.png" %}'> Payments
                     </a>
                     {% if s.is_for_mturk %}
-                        {% if not s.mturk_HITId %}
-                        <a href="{% url 'MTurkCreateHIT' s.code %}" class="btn btn-sm" role="button">
+                        <a href="{% url 'MTurkCreateHIT' s.code %}"
+                           class="btn btn-sm {% if s.mturk_is_active %}btn-success{% endif %}" role="button">
                             <img src='{% static "glyphicons/cloud.png" %}'> MTurk&nbsp;&nbsp;&nbsp;
                         </a>
-                        {% else %}
-                        <div class="btn-group">
-                            <button class="btn btn-success btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
-                                <img src='{% static "glyphicons/cloud.png" %}'> MTurk <span class="caret"></span>
-                            </button>
-                            <ul class="dropdown-menu" role="menu">
-                                <li><a href="{{ s.mturk_requester_url }}" target="_blank">Requester link</a></li>
-                                <li><a href="{{ s.mturk_worker_url }}" target="_blank">Worker link</a></li>
-                            </ul>
-                        </div>
-                        {% endif %}
                     {% endif %}
                 </td>
             </tr>

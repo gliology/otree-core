@@ -135,10 +135,6 @@ class Session(ModelWithVars):
     def get_participants(self):
         return list(self.participant_set.order_by('id_in_session'))
 
-    def mturk_requester_url(self):
-        subdomain = 'requestersandbox' if self.mturk_use_sandbox else 'requester'
-        return "https://{}.mturk.com/mturk/manageHITs".format(subdomain)
-
     def mturk_worker_url(self):
         # different HITs
         # get the same preview page, because they are lumped into the same
@@ -166,6 +162,9 @@ class Session(ModelWithVars):
         # self.mturk_expiration is offset-aware, so therefore we must compare
         # it against an offset-aware value.
         return self.mturk_expiration and self.mturk_expiration < time.time()
+
+    def mturk_is_active(self):
+        return self.mturk_HITId and not self.mturk_is_expired()
 
     def advance_last_place_participants(self):
         # django.test takes 0.5 sec to import,

@@ -1,2 +1,2 @@
 default_app_config = 'otree.apps.OtreeConfig'
-__version__ = '2.1.18'
+__version__ = '2.1.19'
