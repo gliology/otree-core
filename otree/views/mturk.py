@@ -325,6 +325,7 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             session.mturk_HITId = hit['HITId']
             session.mturk_HITGroupId = hit['HITGroupId']
             session.mturk_use_sandbox = use_sandbox
+            session.mturk_expiration = hit['Expiration'].timestamp()
             session.save()
 
         return HttpResponseRedirect(
