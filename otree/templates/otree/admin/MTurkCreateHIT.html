@@ -79,9 +79,12 @@
         <button type="submit" id="btn-expire-hit" class="btn">Expire HIT</button>
     </form>
     <p>
-        Do not delete this session or reset your database unless all start links have been used,
-        or the HIT has expired.
-        Otherwise, MTurk workers will get a "page not found" error.
+        The above button will expire this HIT early.
+        You should click this button before deleting the session.
+        Otherwise, your nonexistent session will still be advertised
+        on the MTurk website, and MTurk workers will get a "page not found" error.
+        (However, it is safe to delete the session if all assignments have been
+        submitted.)
     </p>
 {% else %}
     {% if form.errors %}
