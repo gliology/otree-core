@@ -340,6 +340,9 @@ class ParticipantHeartbeatGBAT(vanilla.View):
 
 
 class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
+    '''should i move this to another module?
+    because the rest of these views are accessible without password login.
+    '''
 
     url_pattern = r'^browser_bot_start/$'
 

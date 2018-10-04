@@ -12,7 +12,7 @@ from otree.common_internal import (
     random_chars_8, random_chars_10, get_admin_secret_code,
     get_app_label_from_name
 )
-
+import time
 
 from otree.db import models
 from otree.models_concrete import ParticipantToPlayerLookup, RoomToSession
@@ -72,6 +72,13 @@ class Session(ModelWithVars):
     mturk_use_sandbox = models.BooleanField(
         default=True,
         help_text="Should this session be created in mturk sandbox?")
+
+    # use Float instead of DateTime because DateTime
+    # is a pain to work with (e.g. naive vs aware datetime objects)
+    # and there is no need here for DateTime
+    mturk_expiration = models.FloatField(
+        null=True
+    )
 
     archived = models.BooleanField(
         default=False,
@@ -154,6 +161,11 @@ class Session(ModelWithVars):
             subdomain,
             self.mturk_HITGroupId
         )
+
+    def mturk_is_expired(self):
+        # self.mturk_expiration is offset-aware, so therefore we must compare
+        # it against an offset-aware value.
+        return self.mturk_expiration and self.mturk_expiration < time.time()
 
     def advance_last_place_participants(self):
         # django.test takes 0.5 sec to import,

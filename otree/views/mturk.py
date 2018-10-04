@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 import warnings
-import datetime
+from datetime import datetime
 from collections import defaultdict
 import sys
 import logging
@@ -446,4 +446,30 @@ class RejectMTurk(vanilla.View):
                                       "selected assignments")
         return HttpResponseRedirect(
             reverse('MTurkSessionPayments', args=(session.code,)))
+
+
+class MTurkExpireHIT(vanilla.View):
+
+    url_pattern = r'^MTurkExpireHIT/(?P<session_code>[a-z0-9]+)/$'
+
+    def post(self, request, *args, **kwargs):
+        session = get_object_or_404(Session,
+                                    code=kwargs['session_code'])
+        with MTurkClient(use_sandbox=session.mturk_use_sandbox,
+                         request=request) as mturk_client:
+            expiration = datetime(2015, 1, 1)
+            mturk_client.update_expiration_for_hit(
+                HITId=session.mturk_HITId,
+                # If you update it to a time in the past,
+                # the HIT will be immediately expired.
+                ExpireAt=expiration
+            )
+            session.mturk_expiration = expiration.timestamp()
+            session.save()
+
+            # don't need a message because the MTurkCreateHIT page will
+            # statically say the HIT has expired.
+
+        return HttpResponseRedirect(
+            reverse('MTurkCreateHIT', args=(session.code,)))
 

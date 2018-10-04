@@ -178,6 +178,9 @@ def get_default_settings(user_settings: dict):
         'USE_POINTS': True,
         'POINTS_DECIMAL_PLACES': 0,
 
+        'INSTALLED_APPS': ['otree'],
+        'AUTH_LEVEL': None,
+        'ADMIN_PASSWORD': None,
         # eventually can remove this,
         # when it's present in otree-library
         # that most people downloaded
@@ -274,7 +277,31 @@ class InvalidTemplateVariable(str):
         # checking if it's an attribute, dict key, list index ...
         raise InvalidVariableError(msg) from None
 
+
+def validate_user_settings(settings: dict):
+    '''
+    These are the settings that from my testing must not be None.
+    This just exists so that oTree doesn't give a cryptic error later on
+    '''
+
+    # currently not using the datatypes, maybe do that later
+    required_settings = {
+        'SESSION_CONFIG_DEFAULTS': dict,
+        'SESSION_CONFIGS': list,
+        'LANGUAGE_CODE': str,
+        'SECRET_KEY': str,
+        'DEBUG': bool,
+        'ADMIN_USERNAME': str,
+    }
+    for SETTING in required_settings:
+        if SETTING not in settings:
+            raise ValueError(f'Required setting {SETTING} is missing from settings.py.')
+        elif settings.get(SETTING) is None:
+            raise ValueError(f'settings.py: setting {SETTING} cannot be None.')
+
+
 def augment_settings(settings: dict):
+    validate_user_settings(settings)
     default_settings = get_default_settings(settings)
     for k, v in default_settings.items():
         settings.setdefault(k, v)
