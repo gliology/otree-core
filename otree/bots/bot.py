@@ -4,7 +4,7 @@ import decimal
 import logging
 import abc
 import six
-from six.moves import urllib
+from urllib.parse import unquote, urlsplit
 from six.moves.html_parser import HTMLParser
 
 from otree.models_concrete import ParticipantToPlayerLookup
@@ -177,13 +177,16 @@ class ParticipantBot(test.Client):
     @response.setter
     def response(self, response):
         try:
-            self.url = response.redirect_chain[-1][0]
+            # have to use unquote in case the name_in_url or PageClass
+            # contains non-ascii characters. playing the games in the browser
+            # works generally, so we should also support non-ascii in bots.
+            self.url = unquote(response.redirect_chain[-1][0])
         except IndexError as exc:
             # this happens e.g. if you use SubmissionMustFail
             # and it returns the same URL
             pass
         else:
-            self.path = urllib.parse.urlsplit(self.url).path
+            self.path = urlsplit(self.url).path
         self._response = response
         self.html = response.content.decode('utf-8')
 

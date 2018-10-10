@@ -92,7 +92,10 @@ class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
     _setattr_datatypes = {
         # first value should be the "recommmended" datatype,
         # because that's what we recommend in the error message.
-        'BooleanField': (bool, NoneType),
+        # it seems the habit of setting boolean values to 0 or 1
+        # is very common. that's even what oTree shows in the "live update"
+        # view, and the data export.
+        'BooleanField': (bool, int, NoneType),
         # forms seem to save Decimal to CurrencyField
         'CurrencyField': (Currency, NoneType, int, float, Decimal),
         'FloatField': (float, NoneType, int),
