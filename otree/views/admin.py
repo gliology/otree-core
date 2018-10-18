@@ -646,6 +646,9 @@ class ServerCheck(vanilla.TemplateView):
         sqlite = settings.DATABASES['default']['ENGINE'].endswith('sqlite3')
         debug = settings.DEBUG
         regular_sentry = hasattr(settings, 'RAVEN_CONFIG')
+        # TODO:
+        # is this line necessary?
+        # how does Heroku's Sentry addon report errors without Raven?
         heroku_sentry = os.environ.get('SENTRY_DSN')
         sentry = regular_sentry or heroku_sentry
         auth_level = settings.AUTH_LEVEL

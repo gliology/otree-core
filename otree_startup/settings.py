@@ -37,9 +37,10 @@ def get_default_settings(user_settings: dict):
     '''
     default_settings = {}
 
-    if user_settings.get('SENTRY_DSN'):
+    sentry_dsn = user_settings.get('SENTRY_DSN') or os.environ.get('SENTRY_DSN')
+    if sentry_dsn:
         default_settings['RAVEN_CONFIG'] = {
-            'dsn': user_settings['SENTRY_DSN'],
+            'dsn': sentry_dsn,
             'processors': ['raven.processors.SanitizePasswordsProcessor'],
         }
         # SentryHandler is very slow with URL resolving...can add 2 seconds
