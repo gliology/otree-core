@@ -1,13 +1,34 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-# =============================================================================
-# IMPORTS
-# =============================================================================
-
 from django.http import HttpResponseServerError
-
+import time
 from otree.common_internal import missing_db_tables
+import logging
+
+logger = logging.getLogger('otree.perf')
+
+def perf_middleware(get_response):
+    # One-time configuration and initialization.
+
+    def middleware(request):
+        start = time.time()
+
+        response = get_response(request)
+
+        # Code to be executed for each request/response after
+        # the view is called.
+
+        # heroku has 'X-Request-ID', which Django translates to
+        # the following:
+        request_id = request.META.get('HTTP_X_REQUEST_ID')
+        if request_id:
+            # only log this info on Heroku
+            elapsed = time.time() - start
+            msec = int(elapsed * 1000)
+            msg = f'own_time={msec}ms request_id={request_id}'
+            logger.info(msg)
+
+        return response
+
+    return middleware
 
 
 class CheckDBMiddleware:

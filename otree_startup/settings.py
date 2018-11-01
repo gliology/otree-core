@@ -5,12 +5,14 @@ import dj_database_url
 
 DEFAULT_MIDDLEWARE = (
     'otree.middleware.CheckDBMiddleware',
+    'otree.middleware.perf_middleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+
 
     # 2015-04-08: disabling SSLify until we make this work better
     # 'sslify.middleware.SSLifyMiddleware',
@@ -134,6 +136,7 @@ def get_default_settings(user_settings: dict):
     BASE_DIR = user_settings.get('BASE_DIR', '')
 
     default_settings.update({
+        'DEBUG': os.environ.get('OTREE_PRODUCTION') in [None, '', '0'],
         'DATABASES': {
             'default': dj_database_url.config(
                 default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
@@ -291,7 +294,6 @@ def validate_user_settings(settings: dict):
         'SESSION_CONFIGS': list,
         'LANGUAGE_CODE': str,
         'SECRET_KEY': str,
-        'DEBUG': bool,
         'ADMIN_USERNAME': str,
     }
     for SETTING in required_settings:
