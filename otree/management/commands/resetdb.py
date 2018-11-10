@@ -83,6 +83,7 @@ class Command(BaseCommand):
                 db_engine = 'SQLite'
             elif 'mysql' in db_engine.lower():
                 db_engine = 'MySQL'
+            # hub depends on this string
             logger.info("Database engine: {}".format(db_engine))
             dt_stmt = self._drop_table_stmt(dbconf)
 
@@ -118,4 +119,6 @@ class Command(BaseCommand):
         # (An alternative is to generically catch "no such column" errors,
         # but I recall that this was difficult - because there were many
         # code paths or exception classes. Could re-investigate.)
+
+        # 2018-11-08: oTree Hub depends on this string
         logger.info('Created new tables and columns.')
