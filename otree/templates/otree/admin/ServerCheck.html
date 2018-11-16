@@ -41,12 +41,7 @@
             of your app.
             Before launching a study, you should switch DEBUG mode off.
             To turn off DEBUG mode,
-            {% if heroku %}
-                run:
-                <p><code>heroku config:set OTREE_PRODUCTION=1</code></p>
-            {% else %}
-                set the environment variable <code>OTREE_PRODUCTION</code> to <code>1</code>.
-            {% endif %}
+            set the environment variable <code>OTREE_PRODUCTION</code>.
         </div>
     {% else %}
         <div class="alert alert-success">

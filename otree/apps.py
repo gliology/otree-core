@@ -26,37 +26,6 @@ def create_singleton_objects(sender, **kwargs):
         ModelClass.objects.get_or_create()
 
 
-def monkey_patch_static_tag():
-    '''
-    In Django >= 1.10, you can use {% load static %}
-    instead of {% load staticfiles %}. if we switch to that format,
-    then it will bypass this. so eventually after Django 1.10, we
-    should change this code to patch django.templatetags.static.static
-    '''
-
-    from django.contrib.staticfiles.storage import staticfiles_storage
-    from django.contrib.staticfiles.templatetags import staticfiles
-
-    def patched_static(path):
-        '''same 1-line function,
-        just tries to give a friendlier error message'''
-        try:
-            return staticfiles_storage.url(path)
-        except ValueError as exc:
-            # Heroku and "otree runprodserver" both execute collectstatic
-            # automatically, so there is ordinarily no need to suggest
-            # running collectstatic if a file is not found. It's more likely
-            # that the file doesn't exist or wasn't added in git.
-            if 'runserver' in sys.argv or 'devserver' in sys.argv:
-                msg = '{} - did you remember to run "otree collectstatic"?'
-                raise ValueError(msg.format(exc)) from None
-            else:
-                raise exc from None
-
-
-    staticfiles.static = patched_static
-
-
 SQLITE_LOCKING_ADVICE = (
     'Locking is common with SQLite. '
     'When you run your study, you should use a database like PostgreSQL '
@@ -146,7 +115,6 @@ class OtreeConfig(AppConfig):
         setup_create_singleton_objects()
         setup_create_default_superuser()
         patch_raven_config()
-        monkey_patch_static_tag()
         monkey_patch_db_cursor()
         # to initialize locks
 

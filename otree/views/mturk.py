@@ -246,7 +246,6 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
 
         # updating schema from http to https
         # this is compulsory for MTurk exteranlQuestion
-        # TODO: validate, that the server support https
         #       (heroku does support by default)
         secured_url_landing_page = urlunparse(
             urlparse(url_landing_page)._replace(scheme='https'))

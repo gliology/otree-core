@@ -480,10 +480,15 @@ def no_model_class_references(helper: AppCheckHelper, **kwargs):
         # (this was originally copied from template check)
         return
 
-    m = re.search(r'(Player|Group|Subsession)\.\w+', content)
-    if m:
+    allowed_attr_names = ['add_to_class', 'objects']
+    matches = re.finditer(r'(Player|Group|Subsession)\.(\w+)', content)
+
+    for m in matches:
         matched_text = m.group(0)
         ModelName = m.group(1)
+        attr_name = m.group(2)
+        if attr_name in allowed_attr_names:
+            continue
         position = m.start(0)
         num_newlines = content[:position].count('\n')
         line_number = num_newlines + 1
