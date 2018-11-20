@@ -137,6 +137,8 @@ def get_default_settings(user_settings: dict):
 
     default_settings.update({
         'DEBUG': os.environ.get('OTREE_PRODUCTION') in [None, '', '0'],
+        'AWS_ACCESS_KEY_ID': os.environ.get('AWS_ACCESS_KEY_ID'),
+        'AWS_SECRET_ACCESS_KEY': os.environ.get('AWS_SECRET_ACCESS_KEY'),
         'DATABASES': {
             'default': dj_database_url.config(
                 default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
@@ -181,6 +183,10 @@ def get_default_settings(user_settings: dict):
         'REAL_WORLD_CURRENCY_DECIMAL_PLACES': 2,
         'USE_POINTS': True,
         'POINTS_DECIMAL_PLACES': 0,
+
+        # INSTALLED_APPS is required somehow to see if settings.configured()
+        # alse we should encourage it to be defined in project, because it helps
+        # pycharm autocomplete
 
         #'INSTALLED_APPS': ['otree'],
         'AUTH_LEVEL': None,

@@ -21,13 +21,13 @@ BASE_DIR = settings.BASE_DIR
 # https://git-scm.com/docs/gitignore#_pattern_format
 
 # TODO: maybe some of these extensions like .env, staticfiles could legitimately exist in subfolders.
-EXCLUDED_PATH_ENDINGS = '~ .git db.sqlite3 .pyo .pyc .pyd .idea venv _static_root staticfiles __pycache__ .env'.split()
+EXCLUDED_PATH_ENDINGS = '~ .git db.sqlite3 .pyo .pyc .pyd .idea .otreezip venv _static_root staticfiles __pycache__ .env'.split()
 
 # always use the same name for simplicity and so that we don't get bloat
 # or even worse, all the previous zips being included in this one
 # call it zipped.tar so that it shows up alphabetically last
 # (using __temp prefix makes it show up in the middle, because it's a file)
-ARCHIVE_NAME = 'zipped.tar.gz'
+ARCHIVE_NAME = 'zipped.otreezip'
 
 # TODO: make sure we recognize and exclude virtualenvs, even if not called venv
 
@@ -58,14 +58,17 @@ class Command(BaseCommand):
     def handle(self, **options):
 
         try:
-            check_requirements_files()
+            check_requirements_files(Path(BASE_DIR))
         except RequirementsError as exc:
             logger.error(str(exc))
             sys.exit(1)
 
         # w:gz
         with tarfile.open(ARCHIVE_NAME, 'w:gz') as tar:
-            tar.add(BASE_DIR, arcname='proj', filter=filter_func)
+            # if i omit arcname, it nests the project 2 levels deep.
+            # if i say arcname=proj, it puts the whole project in a folder.
+            # if i say arcname='', it has 0 levels of nesting.
+            tar.add(BASE_DIR, arcname='', filter=filter_func)
         logger.info(f'Saved your code into file "{ARCHIVE_NAME}"')
 
 

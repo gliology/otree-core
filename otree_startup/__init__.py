@@ -85,7 +85,8 @@ def execute_from_command_line(*args, **kwargs):
             'startproject',
             'help', 'version', '--help', '--version', '-h',
             'compilemessages', 'makemessages',
-            'upgrade_my_code', 'update_my_code'
+            'upgrade_my_code', 'update_my_code',
+            'unzip',
         ]:
             if not settings.configured:
                 settings.configure(**get_default_settings({}))
@@ -217,7 +218,7 @@ def fetch_command(subcommand: str) -> BaseCommand:
     hard to test this because we need to simulate settings not being
     configured
     """
-    if subcommand in ['startapp', 'startproject']:
+    if subcommand in ['startapp', 'startproject', 'unzip']:
         command_module = import_module(
             'otree.management.commands.{}'.format(subcommand))
         return command_module.Command()
