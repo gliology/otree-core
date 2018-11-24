@@ -44,10 +44,6 @@ def get_default_settings(user_settings: dict):
         default_settings['RAVEN_CONFIG'] = {
             'dsn': sentry_dsn,
             'processors': ['raven.processors.SanitizePasswordsProcessor'],
-            # 2018-11-24: breadcrumbs were causing memory leaks when doing queries,
-            # especially when creating sessions, which construct hugely verbose
-            # queries with bulk_create
-            'enable_breadcrumbs': False,
         }
         # SentryHandler is very slow with URL resolving...can add 2 seconds
         # to runserver startup! so only use when it's needed

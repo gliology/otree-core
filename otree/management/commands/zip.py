@@ -85,7 +85,7 @@ class RequirementsError(Exception): pass
 
 
 def check_requirements_files(project_path: Path):
-    reqs_server_path = project_path / 'requirements_server.txt'
+    reqs_server_path = project_path / 'requirements_base.txt'
     if reqs_server_path.exists():
         # checking legacy requirements structure is too complicated,
         # skip it.
