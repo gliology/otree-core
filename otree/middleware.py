@@ -45,7 +45,7 @@ class CheckDBMiddleware:
                 listed_tables = missing_tables[:3]
                 unlisted_tables = missing_tables[3:]
                 msg = (
-                    "Your database is not ready. Try running 'otree resetdb'. "
+                    "Your database is not ready. Try resetting the database "
                     "(Missing tables for {}, and {} other models). "
                 ).format(
                     ', '.join(listed_tables), len(unlisted_tables))

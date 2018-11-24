@@ -70,7 +70,7 @@ def monkey_patch_db_cursor():
                         if 'locked' in str(exc):
                             advice = SQLITE_LOCKING_ADVICE
                         else:
-                            advice = 'try running "otree resetdb"'
+                            advice = 'try resetting the database ("otree resetdb")'
 
                         raise ExceptionClass('{} - {}.'.format(
                             exc, advice)).with_traceback(tb) from None

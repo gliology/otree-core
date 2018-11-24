@@ -44,6 +44,10 @@ def get_default_settings(user_settings: dict):
         default_settings['RAVEN_CONFIG'] = {
             'dsn': sentry_dsn,
             'processors': ['raven.processors.SanitizePasswordsProcessor'],
+            # 2018-11-24: breadcrumbs were causing memory leaks when doing queries,
+            # especially when creating sessions, which construct hugely verbose
+            # queries with bulk_create
+            'enable_breadcrumbs': False,
         }
         # SentryHandler is very slow with URL resolving...can add 2 seconds
         # to runserver startup! so only use when it's needed
@@ -139,6 +143,7 @@ def get_default_settings(user_settings: dict):
         'DEBUG': os.environ.get('OTREE_PRODUCTION') in [None, '', '0'],
         'AWS_ACCESS_KEY_ID': os.environ.get('AWS_ACCESS_KEY_ID'),
         'AWS_SECRET_ACCESS_KEY': os.environ.get('AWS_SECRET_ACCESS_KEY'),
+        'AUTH_LEVEL': os.environ.get('OTREE_AUTH_LEVEL'),
         'DATABASES': {
             'default': dj_database_url.config(
                 default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
@@ -189,7 +194,7 @@ def get_default_settings(user_settings: dict):
         # pycharm autocomplete
 
         #'INSTALLED_APPS': ['otree'],
-        'AUTH_LEVEL': None,
+
         'ADMIN_PASSWORD': None,
         # eventually can remove this,
         # when it's present in otree-library
