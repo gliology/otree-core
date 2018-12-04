@@ -66,6 +66,17 @@ class Command(startproject.Command):
                 )
                 self.stdout.write(msg)
                 sys.exit(-1)
+            elif '[WinError 5]' in str(exc):
+                msg = (
+                    'WinError 5: '
+                    'You may not have permissions to the current folder. '
+                    'On some PCs, the command prompt opens in a system folder '
+                    'like C:/Windows/System32. '
+                    'You need to run this command from somewhere in your home folder.'
+                )
+                self.stdout.write(msg)
+                sys.exit(-1)
+
             raise
         try:
             pypi_updates_cli()

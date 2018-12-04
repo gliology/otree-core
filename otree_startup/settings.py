@@ -44,6 +44,18 @@ def get_default_settings(user_settings: dict):
         default_settings['RAVEN_CONFIG'] = {
             'dsn': sentry_dsn,
             'processors': ['raven.processors.SanitizePasswordsProcessor'],
+            # 2018-11-24: breadcrumbs were causing memory leaks when doing queries,
+            # especially when creating sessions, which construct hugely verbose
+            # queries with bulk_create.
+            # however, i could only clearly observe the difference this line makes
+            # when testing
+            # on a script that bulk_created thousands of non-otree models.
+            # when testing on a live server, things are more ambiguous.
+            # maybe just refreshing the page several times after creating a session
+            # is enough to reset memory to reasnoable levels?
+            # disabling also may make things faster...
+            # in anecdotal test, 40 vs 50 seconds
+            'enable_breadcrumbs': False,
         }
         # SentryHandler is very slow with URL resolving...can add 2 seconds
         # to runserver startup! so only use when it's needed
@@ -348,6 +360,18 @@ def augment_settings(settings: dict):
     # these are slow...only add if we need them
     if settings.get('RAVEN_CONFIG'):
         no_experiment_apps.append('raven.contrib.django.raven_compat')
+
+    if 'OTREE_SECRET_KEY' in os.environ:
+        # then override the SECRET_KEY from settings file, which might
+        # be exposed if the source code is made public
+        # an alternative is to change the project template so that
+        # SECRET_KEY = os.environ.get('OTREE_SECRET_KEY', '{{ secret_key }}')
+        # but this change is just as good and backward compatible
+        # and doesn't involve any churn.
+        # people don't usually care about the specific value of their secret key.
+        # eventually maybe we can make SECRET_KEY an optional setting,
+        # but that will require people to set the env vars.
+        settings['SECRET_KEY'] = os.environ['OTREE_SECRET_KEY']
 
     # order is important:
     # otree unregisters User & Group, which are installed by auth.
