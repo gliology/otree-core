@@ -177,6 +177,9 @@ def do_django_setup():
     try:
         django.setup()
     except Exception as exc:
+        # it would be nice to catch ModuleNotFoundError but need a good way
+        # to differentiate between the app being in SESSION_CONFIGS vs
+        # EXTENSION_APPS vs a regular import statement.
         import colorama
         colorama.init(autoreset=True)
         print_colored_traceback_and_exit(exc)

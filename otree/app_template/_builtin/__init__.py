@@ -1,20 +1,20 @@
 # Don't change anything in this file.
-from ..models import Subsession, Group, Player
+from .. import models
 import otree.api
 
 
 class Page(otree.api.Page):
-    subsession: Subsession
-    group: Group
-    player: Player
+    subsession: models.Subsession
+    group: models.Group
+    player: models.Player
 
 
 class WaitPage(otree.api.WaitPage):
-    subsession: Subsession
-    group: Group
+    subsession: models.Subsession
+    group: models.Group
 
 
 class Bot(otree.api.Bot):
-    subsession: Subsession
-    group: Group
-    player: Player
+    subsession: models.Subsession
+    group: models.Group
+    player: models.Player

@@ -24,6 +24,13 @@ class Command(startproject.Command):
                 'already in a project folder (found settings.py and manage.py).'
             )
             sys.exit(-1)
+        if os.path.exists(project_name):
+            msg = (
+                f'It appears you already created a project called "{project_name}" '
+                'in this folder. Either delete that folder first, or use a different name.'
+            )
+            self.stdout.write(msg)
+            sys.exit(-1)
 
         if options['interactive']:
             answer = input("Include sample games? (y or n): ")
@@ -41,6 +48,14 @@ class Command(startproject.Command):
         try:
             super().handle(*args, **options)
         except CommandError as exc:
+            # Django startproject first creates an empty folder and then tries to
+            # download the project template, etc. If an error occurs, the empty project
+            # folder is not deleted, which can confuse people.
+            # this will not delete any files created by the user because we
+            # would have caught that above when we checked if the folder existed.
+            if os.path.exists(project_name):
+                os.rmdir(project_name)
+
             is_macos = sys.platform.startswith('darwin')
             if is_macos and 'CERTIFICATE_VERIFY_FAILED' in str(exc):
                 py_major, py_minor = sys.version_info[:2]
@@ -53,30 +68,6 @@ class Command(startproject.Command):
                 ).format(py_major, py_minor)
                 self.stdout.write(msg)
                 sys.exit(-1)
-            elif 'an existing Python module' in str(exc) and 'oTree' in project_name:
-                # this is a common error if the initial startproject failed
-                # (e.g. because could not download sample games). it creates
-                # an empty folder. (That error does not look easy to fix directly)
-                # So, we show this error message,
-                # only if oTree is in the project name, because they might give
-                # other illegal names like "otree", "random", etc.,
-                msg = (
-                    f'It appears you already created a project called "{project_name}" '
-                    'in this folder. Either delete that folder first, or use a different name.'
-                )
-                self.stdout.write(msg)
-                sys.exit(-1)
-            elif '[WinError 5]' in str(exc):
-                msg = (
-                    'WinError 5: '
-                    'You may not have permissions to the current folder. '
-                    'On some PCs, the command prompt opens in a system folder '
-                    'like C:/Windows/System32. '
-                    'You need to run this command from somewhere in your home folder.'
-                )
-                self.stdout.write(msg)
-                sys.exit(-1)
-
             raise
         try:
             pypi_updates_cli()

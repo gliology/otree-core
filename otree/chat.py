@@ -18,7 +18,7 @@ def chat_template_tag(context, *args, **kwargs):
     # Translators: A player's default chat nickname,
     # which is "Player" + their ID in group. For example:
     # "Player 2".
-    default_chat_nickname = _('Player {id_in_group}').format(id_in_group=player.id_in_group)
+    default_chat_nickname = _('Participant {id_in_group}').format(id_in_group=player.id_in_group)
     nickname = str(kwargs.pop('nickname', default_chat_nickname))
 
     for kwarg in kwargs:

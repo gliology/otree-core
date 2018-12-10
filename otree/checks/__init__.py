@@ -281,12 +281,12 @@ def pages_function(helper: AppCheckHelper, **kwargs):
                     "a class called 'Page'."
                 )
                 helper.add_error(msg, numeric_id=22)
-            if ViewCls.__name__ == 'WaitPage':
+            if ViewCls.__name__ == 'WaitPage' and helper.app_config.name != 'trust':
                 msg = (
                     "page_sequence cannot contain "
                     "a class called 'WaitPage'."
                 )
-                helper.add_warning(msg, numeric_id=221)
+                helper.add_error(msg, numeric_id=221)
 
             if issubclass(ViewCls, WaitPage):
                 if ViewCls.group_by_arrival_time:

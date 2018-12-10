@@ -15,9 +15,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-BASE_DIR = settings.BASE_DIR
-
-project_path = Path(BASE_DIR)
+PROJECT_PATH = Path(settings.BASE_DIR)
 
 # don't want to use the .gitignore format, it looks like a mini-language
 # https://git-scm.com/docs/gitignore#_pattern_format
@@ -25,18 +23,12 @@ project_path = Path(BASE_DIR)
 # TODO: maybe some of these extensions like .env, staticfiles could legitimately exist in subfolders.
 EXCLUDED_PATH_ENDINGS = '~ .git db.sqlite3 .pyo .pyc .pyd .idea .DS_Store .otreezip venv _static_root staticfiles __pycache__ .env'.split()
 
-# always use the same name for simplicity and so that we don't get bloat
-# or even worse, all the previous zips being included in this one
-# call it zipped.tar so that it shows up alphabetically last
-# (using __temp prefix makes it show up in the middle, because it's a file)
-ARCHIVE_NAME = f'{project_path.name}.otreezip'
 
 # TODO: make sure we recognize and exclude virtualenvs, even if not called venv
 
 def filter_func(tar_info: tarfile.TarInfo):
 
     path = tar_info.path
-
 
     for ending in EXCLUDED_PATH_ENDINGS:
         if path.endswith(ending):
@@ -55,23 +47,32 @@ def filter_func(tar_info: tarfile.TarInfo):
 
 
 class Command(BaseCommand):
-    help = ("Zip into an archive")
+    help = "Zip into an archive"
 
     def handle(self, **options):
+        zip_project(PROJECT_PATH)
 
-        try:
-            check_requirements_files(project_path)
-        except RequirementsError as exc:
-            logger.error(str(exc))
-            sys.exit(1)
 
-        # w:gz
-        with tarfile.open(ARCHIVE_NAME, 'w:gz') as tar:
-            # if i omit arcname, it nests the project 2 levels deep.
-            # if i say arcname=proj, it puts the whole project in a folder.
-            # if i say arcname='', it has 0 levels of nesting.
-            tar.add(BASE_DIR, arcname='', filter=filter_func)
-        logger.info(f'Saved your code into file "{ARCHIVE_NAME}"')
+def zip_project(project_path: Path):
+    # always use the same name for simplicity and so that we don't get bloat
+    # or even worse, all the previous zips being included in this one
+    # call it zipped.tar so that it shows up alphabetically last
+    # (using __temp prefix makes it show up in the middle, because it's a file)
+    archive_name = f'{project_path.name}.otreezip'
+
+    try:
+        check_requirements_files(project_path)
+    except RequirementsError as exc:
+        logger.error(str(exc))
+        sys.exit(1)
+
+    # w:gz
+    with tarfile.open(archive_name, 'w:gz') as tar:
+        # if i omit arcname, it nests the project 2 levels deep.
+        # if i say arcname=proj, it puts the whole project in a folder.
+        # if i say arcname='', it has 0 levels of nesting.
+        tar.add(project_path, arcname='', filter=filter_func)
+    logger.info(f'Saved your code into file "{archive_name}"')
 
 
 def get_non_comment_lines(f):

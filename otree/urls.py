@@ -146,7 +146,7 @@ def get_urlpatterns():
             r'^accounts/login/$',
             login,
             {'template_name': 'otree/login.html'},
-            name='login_url',
+            name='login',
         ),
         urls.url(
             r'^accounts/logout/$',

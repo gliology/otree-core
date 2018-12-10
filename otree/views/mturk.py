@@ -193,14 +193,10 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         form = self.get_form(initial=initial)
         context = self.get_context_data(form=form)
 
-        url = self.request.build_absolute_uri(
-            reverse('MTurkCreateHIT', args=(self.session.code,))
-        )
+        url = self.request.build_absolute_uri()
         parsed_url = urlparse(url)
         https = parsed_url.scheme == 'https'
         secured_url = urlunparse(parsed_url._replace(scheme='https'))
-
-
 
         mturk_ready = self.aws_keys_exist and self.boto3_installed and https
         missing_next_button_warning = MTurkValidator(self.session).validation_message()

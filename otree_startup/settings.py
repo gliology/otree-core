@@ -203,7 +203,7 @@ def get_default_settings(user_settings: dict):
 
         #'INSTALLED_APPS': ['otree'],
 
-        'ADMIN_PASSWORD': None,
+        'ADMIN_PASSWORD': os.environ.get('OTREE_ADMIN_PASSWORD', ''),
         # eventually can remove this,
         # when it's present in otree-library
         # that most people downloaded
@@ -361,7 +361,7 @@ def augment_settings(settings: dict):
     if settings.get('RAVEN_CONFIG'):
         no_experiment_apps.append('raven.contrib.django.raven_compat')
 
-    if 'OTREE_SECRET_KEY' in os.environ:
+    if os.environ.get('OTREE_SECRET_KEY'):
         # then override the SECRET_KEY from settings file, which might
         # be exposed if the source code is made public
         # an alternative is to change the project template so that

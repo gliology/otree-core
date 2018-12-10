@@ -21,44 +21,10 @@ class Command(BaseCommand):
             'output_folder', type=str, nargs='?',
             help="What to call the new project folder")
 
-    def auto_named_output_folder(self, zip_file_name):
-        base_folder_name = Path(zip_file_name).stem
-
-        for x in range(1, 50):
-            if x == 1:
-                folder_name = base_folder_name
-            else:
-                folder_name = f'{base_folder_name}-{x}'
-            if not Path(folder_name).exists():
-                return folder_name
-        logger.error(
-            f"Could not unzip the file; target folder {folder_name} already exists. "
-        )
-        sys.exit(-1)
-
     def handle(self, **options):
-        if os.path.isfile('settings.py') and os.path.isfile('manage.py'):
-            self.stdout.write(
-                'You are trying to create a project but it seems you are '
-                'already in a project folder (found settings.py and manage.py).'
-            )
-            sys.exit(-1)
-
         zip_file = options['zip_file']
         output_folder = options['output_folder']
-
-        if not output_folder:
-            output_folder = self.auto_named_output_folder(zip_file)
-
-        with tarfile.open(zip_file) as tar:
-            tar.extractall(output_folder)
-        msg = (
-            f'Unzipped code into folder "{output_folder}"\n'
-            'Enter "cd {}" to move inside the project folder,\n'
-            "then run 'pip3 install -r requirements.txt' to install this project's dependencies."
-        ).format(output_folder)
-
-        logger.info(msg)
+        unzip(zip_file, output_folder)
 
     def run_from_argv(self, argv):
         '''
@@ -80,3 +46,41 @@ class Command(BaseCommand):
             sys.exit(-1)
         cmd_options = vars(options)
         self.handle(**cmd_options)
+
+
+def auto_named_output_folder(zip_file_name):
+    base_folder_name = Path(zip_file_name).stem
+
+    for x in range(1, 50):
+        if x == 1:
+            folder_name = base_folder_name
+        else:
+            folder_name = f'{base_folder_name}-{x}'
+        if not Path(folder_name).exists():
+            return folder_name
+    logger.error(
+        f"Could not unzip the file; target folder {folder_name} already exists. "
+    )
+    sys.exit(-1)
+
+
+def unzip(zip_file: str, output_folder):
+    if os.path.isfile('settings.py') and os.path.isfile('manage.py'):
+        logger.error(
+            'You are trying to create a project but it seems you are '
+            'already in a project folder (found settings.py and manage.py).'
+        )
+        sys.exit(-1)
+
+    if not output_folder:
+        output_folder = auto_named_output_folder(zip_file)
+
+    with tarfile.open(zip_file) as tar:
+        tar.extractall(output_folder)
+    msg = (
+        f'Unzipped code into folder "{output_folder}"\n'
+        'Enter "cd {}" to move inside the project folder,\n'
+        "then run 'pip3 install -r requirements.txt' to install this project's dependencies."
+    ).format(output_folder)
+
+    logger.info(msg)
