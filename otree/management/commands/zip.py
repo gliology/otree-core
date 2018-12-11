@@ -6,7 +6,6 @@ crash when pushed to Heroku
 
 from django.core.management.base import BaseCommand
 import tarfile
-from django.conf import settings
 import os
 import logging
 from pathlib import Path
@@ -15,7 +14,8 @@ import re
 
 logger = logging.getLogger(__name__)
 
-PROJECT_PATH = Path(settings.BASE_DIR)
+# need to resolve to expand path
+PROJECT_PATH = Path('.').resolve()
 
 # don't want to use the .gitignore format, it looks like a mini-language
 # https://git-scm.com/docs/gitignore#_pattern_format
@@ -50,7 +50,22 @@ class Command(BaseCommand):
     help = "Zip into an archive"
 
     def handle(self, **options):
+        # remove these lines after a month or so
+        legacy_filename = 'zipped.otreezip'
+        if os.path.exists(legacy_filename):
+            self.stdout.write('removing zipped.otreezip, this should only happen once')
+            os.remove(legacy_filename)
         zip_project(PROJECT_PATH)
+
+    def run_from_argv(self, argv):
+        '''
+        copy-pasted from 'unzip' command
+        '''
+
+        parser = self.create_parser(argv[0], argv[1])
+        options = parser.parse_args(argv[2:])
+        cmd_options = vars(options)
+        self.handle(**cmd_options)
 
 
 def zip_project(project_path: Path):

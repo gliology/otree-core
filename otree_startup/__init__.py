@@ -6,7 +6,9 @@ import django.conf
 import os
 import sys
 from collections import OrderedDict, defaultdict
-from django.conf import settings
+
+# avoid confusion with otree_startup.settings
+from django.conf import settings as django_settings
 from importlib import import_module
 from django.core.management import get_commands, load_command_class
 import django
@@ -14,7 +16,11 @@ from django.apps import apps
 from django.core.management.base import BaseCommand
 from django.core.management.color import color_style
 from django.utils import autoreload, six
-from .settings import augment_settings
+
+# "from .settings import ..." actually imports the whole settings module
+# confused me, it was overwriting django.conf.settings above
+# https://docs.python.org/3/reference/import.html#submodules
+from otree_startup.settings import augment_settings
 import otree
 
 
@@ -45,9 +51,6 @@ def execute_from_command_line(*args, **kwargs):
 
     argv = sys.argv
 
-    # so that we can patch it easily
-    settings = django.conf.settings
-
     if len(argv) == 1:
         # default command
         argv.append('help')
@@ -77,27 +80,26 @@ def execute_from_command_line(*args, **kwargs):
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
     DJANGO_SETTINGS_MODULE = os.environ['DJANGO_SETTINGS_MODULE']
 
-    # some commands don't need settings.INSTALLED_APPS
-    try:
-        configure_settings(DJANGO_SETTINGS_MODULE)
-    except ImportSettingsError:
-        if subcommand in [
-            'startproject',
-            'help', 'version', '--help', '--version', '-h',
-            'compilemessages', 'makemessages',
-            'upgrade_my_code', 'update_my_code',
-            'unzip',
-        ]:
-            if not settings.configured:
-                settings.configure(**get_default_settings({}))
-        # need to differentiate between an ImportError because settings.py
-        # was not found, vs. ImportError because settings.py imports another
-        # module that is not found.
-        elif os.path.isfile('{}.py'.format(DJANGO_SETTINGS_MODULE)):
-            raise
-        else:
-            print_settings_not_found_error()
-            return
+    if subcommand in [
+        'startproject',
+        'help', 'version', '--help', '--version', '-h',
+        'compilemessages', 'makemessages',
+        'upgrade_my_code', 'update_my_code',
+        'unzip', 'zip'
+    ]:
+        django_settings.configure(**get_default_settings({}))
+    else:
+        try:
+            configure_settings(DJANGO_SETTINGS_MODULE)
+        except ImportSettingsError:
+            # need to differentiate between an ImportError because settings.py
+            # was not found, vs. ImportError because settings.py imports another
+            # module that is not found.
+            if os.path.isfile('{}.py'.format(DJANGO_SETTINGS_MODULE)):
+                raise
+            else:
+                print_settings_not_found_error()
+                return
 
     runserver_or_devserver = subcommand in ['runserver', 'devserver']
 
@@ -153,10 +155,6 @@ class ImportSettingsError(ImportError):
 
 
 def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings'):
-    # settings could already be configured if we are testing
-    # execute_from_command_line
-    if django.conf.settings.configured:
-        return
     try:
         user_settings_module = import_module(DJANGO_SETTINGS_MODULE)
     except ImportError:
@@ -170,7 +168,7 @@ def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings'):
             setting_value = getattr(user_settings_module, setting_name)
             user_settings_dict[setting_name] = setting_value
     augment_settings(user_settings_dict)
-    django.conf.settings.configure(**user_settings_dict)
+    django_settings.configure(**user_settings_dict)
 
 
 def do_django_setup():
@@ -221,7 +219,7 @@ def fetch_command(subcommand: str) -> BaseCommand:
     hard to test this because we need to simulate settings not being
     configured
     """
-    if subcommand in ['startapp', 'startproject', 'unzip']:
+    if subcommand in ['startapp', 'startproject', 'unzip', 'zip']:
         command_module = import_module(
             'otree.management.commands.{}'.format(subcommand))
         return command_module.Command()

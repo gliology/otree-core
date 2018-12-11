@@ -34,28 +34,31 @@ class Command(BaseCommand):
         otree-specific management command that doesn't require settings
         '''
 
-        parser = self.create_parser(argv[0], argv[1])
-
-        try:
-            options = parser.parse_args(argv[2:])
-        except CommandError:
+        if len(argv) == 2:
             self.stdout.write(
                 'You must provide the name of the *.otreezip file. Example:\n '
                 'otree unzip AAA.otreezip'
             )
             sys.exit(-1)
+
+        parser = self.create_parser(argv[0], argv[1])
+        options = parser.parse_args(argv[2:])
         cmd_options = vars(options)
         self.handle(**cmd_options)
 
 
 def auto_named_output_folder(zip_file_name):
-    base_folder_name = Path(zip_file_name).stem
+    default_folder_name = Path(zip_file_name).stem
 
-    for x in range(1, 50):
-        if x == 1:
-            folder_name = base_folder_name
-        else:
-            folder_name = f'{base_folder_name}-{x}'
+    if not Path(default_folder_name).exists():
+        return default_folder_name
+
+    logger.info(
+        'Hint: you can provide the name of the folder to create. Example:\n'
+        f"otree unzip {zip_file_name} {default_folder_name}"
+    )
+    for x in range(2, 20):
+        folder_name = f'{default_folder_name}-{x}'
         if not Path(folder_name).exists():
             return folder_name
     logger.error(
