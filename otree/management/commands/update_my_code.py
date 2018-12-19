@@ -170,12 +170,15 @@ class Command(BaseCommand):
                 else:
                     with inplace(fn, 'r') as (infh, outfh):
                         for line in infh:
-                            l_django = line.startswith('Django==')
-                            # remove obsolete comments about including Django
-                            l_explicitly = 'explicitly' in line
-                            l_collectstatic = 'collectstatic' in line
-                            if not (l_django or l_collectstatic or l_explicitly):
-                                outfh.write(line)
+                            if line.startswith('otree-core'):
+                                outfh.write('otree\n')
+                            else:
+                                l_django = line.startswith('Django==')
+                                # remove obsolete comments about including Django
+                                l_explicitly = 'explicitly' in line
+                                l_collectstatic = 'collectstatic' in line
+                                if not (l_django or l_collectstatic or l_explicitly):
+                                    outfh.write(line)
 
         self.print_rule_header()
         if os.path.isfile('.gitignore'):

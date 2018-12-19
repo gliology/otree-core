@@ -76,7 +76,7 @@ def get_bots_module(app_name):
 
 
 def get_views_module(app_name):
-    for module_name in ['views', 'pages']:
+    for module_name in ['pages', 'views']:
         dotted = '{}.{}'.format(app_name, module_name)
         if importlib.util.find_spec(dotted):
             return import_module(dotted)

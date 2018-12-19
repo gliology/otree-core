@@ -23,7 +23,7 @@ Typical setup
 
 ::
 
-    pip install --upgrade otree-core
+    pip install --upgrade otree
     otree startproject oTree
     otree resetdb
     otree runserver
