@@ -9,7 +9,6 @@ $(document).ready(function () {
     var socketUrl = $currentScript.data('socketUrl');
     var isBrowserBot = $currentScript.data('isBrowserBot');
     var redirectUrl = $currentScript.data('redirectUrl');
-    var isDebug = $currentScript.data('isDebug');
 
     /*
     One user reported that with a 588 bot session,
@@ -20,21 +19,8 @@ $(document).ready(function () {
     function initWebSocket() {
         var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
         var ws_path = ws_scheme + '://' + window.location.host + socketUrl;
+
         socket = new ReconnectingWebSocket(ws_path);
-
-        // <disconnected-alert>
-        var alertStyle = document.querySelector('#disconnected-alert').style;
-        socket.onopen = function (e) {
-            alertStyle.visibility = 'hidden';
-        };
-
-        socket.onclose = function (e) {
-            if (isDebug === 'True') {
-                alertStyle.visibility = 'visible';
-            }
-        };
-        // </disconnected-alert>
-
         socket.onmessage = function (e) {
             var data = JSON.parse(e.data);
 
@@ -47,7 +33,6 @@ $(document).ready(function () {
                 window.location.href = redirectUrl;
             }
         };
-
     }
 
     initWebSocket();

@@ -23,16 +23,8 @@ class Command(BaseCommand):
 
     def handle(self, **options):
         zip_file = options['zip_file']
-        output_folder = options['output_folder'] or auto_named_output_folder(zip_file)
+        output_folder = options['output_folder']
         unzip(zip_file, output_folder)
-        msg = (
-            f'Unzipped file. Enter this:\n'
-            f'cd {esc_fn(output_folder)}\n'
-            "then run 'pip3 install -r requirements.txt' to install this project's dependencies."
-        )
-
-        logger.info(msg)
-
 
     def run_from_argv(self, argv):
         '''
@@ -55,12 +47,7 @@ class Command(BaseCommand):
         self.handle(**cmd_options)
 
 
-def esc_fn(fn):
-    if ' ' in fn:
-        return f'\"{fn}\"'
-    return fn
-
-def auto_named_output_folder(zip_file_name) -> str:
+def auto_named_output_folder(zip_file_name):
     default_folder_name = Path(zip_file_name).stem
 
     if not Path(default_folder_name).exists():
@@ -68,7 +55,7 @@ def auto_named_output_folder(zip_file_name) -> str:
 
     logger.info(
         'Hint: you can provide the name of the folder to create. Example:\n'
-        f"otree unzip {esc_fn(zip_file_name)} my_project"
+        f"otree unzip {zip_file_name} {default_folder_name}"
     )
     for x in range(2, 20):
         folder_name = f'{default_folder_name}-{x}'
@@ -88,6 +75,15 @@ def unzip(zip_file: str, output_folder):
         )
         sys.exit(-1)
 
+    if not output_folder:
+        output_folder = auto_named_output_folder(zip_file)
+
     with tarfile.open(zip_file) as tar:
         tar.extractall(output_folder)
+    msg = (
+        f'Unzipped code into folder "{output_folder}"\n'
+        'Enter "cd {}" to move inside the project folder,\n'
+        "then run 'pip3 install -r requirements.txt' to install this project's dependencies."
+    ).format(output_folder)
 
+    logger.info(msg)

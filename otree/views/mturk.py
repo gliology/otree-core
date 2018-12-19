@@ -33,7 +33,6 @@ from otree.forms import widgets
 from otree.common import RealWorldCurrency
 from otree.models import Session
 from decimal import Decimal
-from django.shortcuts import redirect
 
 logger = logging.getLogger('otree')
 
@@ -173,18 +172,15 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
     )
     boto3_installed = bool(boto3)
 
-    def get(self, request, **kwargs):
+    def get(self, request, *args, **kwargs):
 
         mturk_settings = self.session.config['mturk_hit_settings']
 
-        keywords = mturk_settings['keywords']
-        if isinstance(keywords, (list, tuple)):
-            keywords = ', '.join(keywords)
 
         initial = {
             'title': mturk_settings['title'],
             'description': mturk_settings['description'],
-            'keywords': keywords,
+            'keywords': ', '.join(mturk_settings['keywords']),
             'money_reward': self.session.config['participation_fee'],
             'use_sandbox': True,
             'minutes_allotted_per_assignment': (
@@ -195,23 +191,30 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         }
 
         form = self.get_form(initial=initial)
+        context = self.get_context_data(form=form)
 
         url = self.request.build_absolute_uri()
         parsed_url = urlparse(url)
         https = parsed_url.scheme == 'https'
+        secured_url = urlunparse(parsed_url._replace(scheme='https'))
 
-        context = self.get_context_data(
-            form=form,
-            boto3_installed=self.boto3_installed,
-            https=https,
-            aws_keys_exist=self.aws_keys_exist,
-            mturk_ready=self.aws_keys_exist and self.boto3_installed and https,
-            missing_next_button_warning=MTurkValidator(self.session).validation_message(),
-        )
+        mturk_ready = self.aws_keys_exist and self.boto3_installed and https
+        missing_next_button_warning = MTurkValidator(self.session).validation_message()
+
+        context.update({
+            # boto3 module must be imported, not None
+            'boto3_installed': self.boto3_installed,
+            'https': https,
+            'aws_keys_exist': self.aws_keys_exist,
+            'mturk_ready': mturk_ready,
+            'runserver': ('runserver' in sys.argv) or ('devserver' in sys.argv),
+            'secured_url': secured_url,
+            'missing_next_button_warning': missing_next_button_warning
+        })
 
         return self.render_to_response(context)
 
-    def post(self, request, **kwargs):
+    def post(self, request, *args, **kwargs):
         form = self.get_form(
             data=request.POST,
             files=request.FILES
@@ -219,10 +222,9 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         if not form.is_valid():
             return self.form_invalid(form)
         session = self.session
-        cleaned_data = form.cleaned_data
-
-        use_sandbox = bool(cleaned_data['use_sandbox'])
-        if (not self.in_public_domain(request, **kwargs) and
+        use_sandbox = 'use_sandbox' in form.data
+        # session can't be created
+        if (not self.in_public_domain(request, *args, **kwargs) and
            not use_sandbox):
                 msg = (
                     '<h1>Error: '
@@ -245,7 +247,7 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             urlparse(url_landing_page)._replace(scheme='https'))
 
         # TODO: validate that there is enough money for the hit
-        money_reward = cleaned_data['money_reward']
+        money_reward = form.cleaned_data['money_reward']
 
         # assign back to participation_fee, in case it was changed
         # in the form
@@ -263,35 +265,55 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
 
         qualifications = mturk_settings.get('qualification_requirements')
 
+        if qualifications and not isinstance(qualifications[0], dict):
+            raise ValueError(
+                'settings.py: You need to upgrade your MTurk qualification_requirements '
+                'to the boto3 format. See the documentation.'
+            )
+
         mturk_hit_parameters = {
-            'Title': cleaned_data['title'],
-            'Description': cleaned_data['description'],
-            'Keywords': cleaned_data['keywords'],
+            'Title': form.cleaned_data['title'],
+            'Description': form.cleaned_data['description'],
+            'Keywords': form.cleaned_data['keywords'],
             'Question': external_question,
-            'MaxAssignments': cleaned_data['assignments'],
+            'MaxAssignments': form.cleaned_data['assignments'],
             'Reward': str(float(money_reward)),
             'QualificationRequirements': qualifications,
-            'AssignmentDurationInSeconds': 60*cleaned_data['minutes_allotted_per_assignment'],
-            'LifetimeInSeconds': int(60*60*cleaned_data['expiration_hours']),
+            'AssignmentDurationInSeconds': 60*form.cleaned_data['minutes_allotted_per_assignment'],
+            'LifetimeInSeconds': int(60*60*form.cleaned_data['expiration_hours']),
             # prevent duplicate HITs
             'UniqueRequestToken':'otree_{}'.format(session.code),
         }
 
         with MTurkClient(use_sandbox=use_sandbox, request=request) as mturk_client:
             if qualification_id:
-                # make sure this qualification actually exists
                 try:
                     mturk_client.get_qualification_type(
                         QualificationTypeId=qualification_id)
                 # it's RequestError, but
                 except Exception as exc:
+                    if use_sandbox:
+                        sandbox_note = (
+                            'You are currently using the sandbox, so you '
+                            'can only grant qualifications that were '
+                            'also created in the sandbox.')
+                    else:
+                        sandbox_note = (
+                            'You are using the MTurk live site, so you '
+                            'can only grant qualifications that were '
+                            'also created on the live site, and not the '
+                            'MTurk sandbox.')
                     msg = (
                         "In settings.py you specified qualification ID '{qualification_id}' "
-                        "MTurk returned the following error: [{exc}] ".format(
+                        "MTurk returned the following error: [{exc}] "
+                        "Note: {sandbox_note}".format(
                             qualification_id=qualification_id,
-                            exc=exc))
+                            exc=exc,
+                            sandbox_note=sandbox_note))
                     messages.error(request, msg)
-                    return redirect('MTurkCreateHIT', session.code)
+                    return HttpResponseRedirect(
+                        reverse(
+                            'MTurkCreateHIT', args=(session.code,)))
 
             hit = mturk_client.create_hit(**mturk_hit_parameters)['HIT']
 
@@ -301,47 +323,51 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             session.mturk_expiration = hit['Expiration'].timestamp()
             session.save()
 
-        return redirect('MTurkCreateHIT', session.code)
+        return HttpResponseRedirect(
+            reverse('MTurkCreateHIT', args=(session.code,)))
 
 
 class MTurkSessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
 
-    def vars_for_template(self):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         session = self.session
         published = bool(session.mturk_HITId)
+        context['published'] = published
         if not published:
-            return dict(published=False)
+            return context
         with MTurkClient(use_sandbox=session.mturk_use_sandbox, request=self.request) as mturk_client:
             workers_by_status = get_workers_by_status(
                 mturk_client,
                 session.mturk_HITId
             )
+            participants_not_reviewed = session.participant_set.filter(
+                mturk_worker_id__in=workers_by_status['Submitted']
+            )
+            participants_approved = session.participant_set.filter(
+                mturk_worker_id__in=workers_by_status['Approved']
+            )
+            participants_rejected = session.participant_set.filter(
+                mturk_worker_id__in=workers_by_status['Rejected']
+            )
 
-        participants_not_reviewed = session.participant_set.filter(
-            mturk_worker_id__in=workers_by_status['Submitted']
-        )
-        participants_approved = session.participant_set.filter(
-            mturk_worker_id__in=workers_by_status['Approved']
-        )
-        participants_rejected = session.participant_set.filter(
-            mturk_worker_id__in=workers_by_status['Rejected']
-        )
+            context.update({
+                'participants_approved': participants_approved,
+                'participants_rejected': participants_rejected,
+                'participants_not_reviewed': participants_not_reviewed,
+                'participation_fee': session.config['participation_fee'],
+            })
 
-        return dict(
-            published=True,
-            participants_approved=participants_approved,
-            participants_rejected=participants_rejected,
-            participants_not_reviewed=participants_not_reviewed,
-            participation_fee=session.config['participation_fee'],
-        )
+        return context
 
 
 class PayMTurk(vanilla.View):
 
     url_pattern = r'^PayMTurk/(?P<session_code>[a-z0-9]+)/$'
 
-    def post(self, request, session_code):
-        session = get_object_or_404(otree.models.Session, code=session_code)
+    def post(self, request, *args, **kwargs):
+        session = get_object_or_404(otree.models.Session,
+                                    code=kwargs['session_code'])
         successful_payments = 0
         failed_payments = 0
         mturk_client = get_mturk_client(use_sandbox=session.mturk_use_sandbox)
@@ -386,15 +412,17 @@ class PayMTurk(vanilla.View):
             messages.warning(request, msg)
         else:
             messages.success(request, msg)
-        return redirect('MTurkSessionPayments', session.code)
+        return HttpResponseRedirect(
+            reverse('MTurkSessionPayments', args=(session.code,)))
 
 
 class RejectMTurk(vanilla.View):
 
     url_pattern = r'^RejectMTurk/(?P<session_code>[a-z0-9]+)/$'
 
-    def post(self, request, session_code):
-        session = get_object_or_404(Session, code=session_code)
+    def post(self, request, *args, **kwargs):
+        session = get_object_or_404(Session,
+                                    code=kwargs['session_code'])
         with MTurkClient(use_sandbox=session.mturk_use_sandbox,
                          request=request) as mturk_client:
 
@@ -412,15 +440,17 @@ class RejectMTurk(vanilla.View):
 
             messages.success(request, "You successfully rejected "
                                       "selected assignments")
-        return redirect('MTurkSessionPayments', session_code)
+        return HttpResponseRedirect(
+            reverse('MTurkSessionPayments', args=(session.code,)))
 
 
 class MTurkExpireHIT(vanilla.View):
 
     url_pattern = r'^MTurkExpireHIT/(?P<session_code>[a-z0-9]+)/$'
 
-    def post(self, request, session_code):
-        session = get_object_or_404(Session, code=session_code)
+    def post(self, request, *args, **kwargs):
+        session = get_object_or_404(Session,
+                                    code=kwargs['session_code'])
         with MTurkClient(use_sandbox=session.mturk_use_sandbox,
                          request=request) as mturk_client:
             expiration = datetime(2015, 1, 1)
@@ -436,5 +466,6 @@ class MTurkExpireHIT(vanilla.View):
             # don't need a message because the MTurkCreateHIT page will
             # statically say the HIT has expired.
 
-        return redirect('MTurkCreateHIT', session.code)
+        return HttpResponseRedirect(
+            reverse('MTurkCreateHIT', args=(session.code,)))
 

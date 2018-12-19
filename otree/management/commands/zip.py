@@ -42,10 +42,7 @@ def filter_func(tar_info: tarfile.TarInfo):
     if kb > 500:
         logger.info(f'Adding large file ({kb} KB): {path}')
 
-    # make sure all dirs are writable, so their children can be deleted,
-    # so that otree unzip/runzip work as expected.
-    # we were getting some folders with permission 16749.
-    tar_info.mode |= 0o222
+    #print(path)
     return tar_info
 
 
@@ -77,16 +74,6 @@ def zip_project(project_path: Path):
     # call it zipped.tar so that it shows up alphabetically last
     # (using __temp prefix makes it show up in the middle, because it's a file)
     archive_name = f'{project_path.name}.otreezip'
-
-    settings_file = project_path / 'settings.py'
-    if not settings_file.exists():
-        msg = (
-            "Cannot find oTree settings. "
-            "You must run this command from the folder that contains your "
-            "settings.py file."
-        )
-        logger.error(msg)
-        sys.exit(1)
 
     try:
         check_requirements_files(project_path)

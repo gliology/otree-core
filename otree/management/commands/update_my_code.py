@@ -88,6 +88,7 @@ class Command(BaseCommand):
     current_rule_number = 1
 
     def add_arguments(self, parser):
+        super(Command, self).add_arguments(parser)
         ahelp = (
             'Tells the command to NOT prompt the user for '
             'input of any kind.')

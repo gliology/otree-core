@@ -34,7 +34,7 @@ start_link_thread_lock = threading.RLock()
 class OutOfRangeNotification(vanilla.View):
     name_in_url = 'shared'
 
-    def dispatch(self, request):
+    def dispatch(self, request, *args, **kwargs):
         return TemplateResponse(
             request, 'otree/OutOfRangeNotification.html'
         )
@@ -44,13 +44,15 @@ class OutOfRangeNotification(vanilla.View):
 
 class InitializeParticipant(vanilla.UpdateView):
 
-    url_pattern = r'^InitializeParticipant/(?P<participant_code>[a-z0-9]+)/$'
+    url_pattern = r'^InitializeParticipant/(?P<{}>[a-z0-9]+)/$'.format(
+            constants.participant_code
+        )
 
-    def get(self, request, participant_code):
+    def get(self, *args, **kwargs):
 
         participant = get_object_or_404(
             Participant,
-            code=participant_code
+            code=kwargs[constants.participant_code]
         )
 
         if participant._index_in_pages == 0:
@@ -80,11 +82,14 @@ class MTurkLandingPage(vanilla.TemplateView):
 
     url_pattern = r"^MTurkLandingPage/(?P<session_code>[a-z0-9]+)/$"
 
-    def dispatch(self, request, session_code):
+    def dispatch(self, request, *args, **kwargs):
+        session_code = kwargs['session_code']
         self.session = get_object_or_404(
             otree.models.Session, code=session_code
         )
-        return super().dispatch(request)
+        return super().dispatch(
+            request, *args, **kwargs
+        )
 
     def get_context_data(self):
         '''
@@ -102,7 +107,7 @@ class MTurkLandingPage(vanilla.TemplateView):
             'participant': {'is_browser_bot': False}
         }
 
-    def get(self, request):
+    def get(self, request, *args, **kwargs):
         assignment_id = self.request.GET.get('assignmentId')
         if assignment_id and assignment_id != 'ASSIGNMENT_ID_NOT_AVAILABLE':
             url_start = reverse('MTurkStart', args=(self.session.code,))
@@ -119,25 +124,24 @@ class MTurkStart(vanilla.View):
 
     url_pattern = r"^MTurkStart/(?P<session_code>[a-z0-9]+)/$"
 
-    def dispatch(self, request, session_code):
+    def dispatch(self, request, *args, **kwargs):
+        session_code = kwargs['session_code']
         self.session = get_object_or_404(
             otree.models.Session, code=session_code
         )
-        return super().dispatch(request)
+        return super(MTurkStart, self).dispatch(
+            request, *args, **kwargs
+        )
 
-    def get(self, request):
+    def get(self, *args, **kwargs):
         assignment_id = self.request.GET['assignmentId']
         worker_id = self.request.GET['workerId']
         qualification_id = self.session.config['mturk_hit_settings'].get('grant_qualification_id')
-        use_sandbox=self.session.mturk_use_sandbox
-        if qualification_id and not use_sandbox:
-            # if using sandbox, there is no point in granting quals.
-            # https://groups.google.com/forum/#!topic/otree/aAmqTUF-b60
-
+        if qualification_id:
             # don't pass request arg, because we don't want to show a message.
             # using the fully qualified name because that seems to make mock.patch work
             mturk_client = otree.views.mturk.get_mturk_client(
-                use_sandbox=use_sandbox)
+                use_sandbox=self.session.mturk_use_sandbox)
             # seems OK to assign this multiple times
             mturk_client.associate_qualification_with_worker(
                 QualificationTypeId=qualification_id,
@@ -223,7 +227,9 @@ class JoinSessionAnonymously(vanilla.View):
 
     url_pattern = r'^join/(?P<anonymous_code>[a-z0-9]+)/$'
 
-    def get(self, request, anonymous_code):
+    def get(self, *args, **kwargs):
+
+        anonymous_code = kwargs['anonymous_code']
         session = get_object_or_404(
             otree.models.Session, _anonymous_code=anonymous_code
         )
@@ -235,8 +241,8 @@ class AssignVisitorToRoom(GenericWaitPageMixin, vanilla.View):
 
     url_pattern = r'^room/(?P<room>\w+)/$'
 
-    def dispatch(self, request, room):
-        self.room_name = room
+    def dispatch(self, request, *args, **kwargs):
+        self.room_name = kwargs['room']
         try:
             room = ROOM_DICT[self.room_name]
         except KeyError:
@@ -315,11 +321,11 @@ class ParticipantRoomHeartbeat(vanilla.View):
 
     url_pattern = r'^ParticipantRoomHeartbeat/(?P<tab_unique_id>\w+)/$'
 
-    def get(self, request, tab_unique_id):
+    def get(self, request, *args, **kwargs):
         # better not to return 404, because in practice, on Firefox,
         # this was still being requested after the session started.
         ParticipantRoomVisit.objects.filter(
-            tab_unique_id=tab_unique_id
+            tab_unique_id=kwargs['tab_unique_id']
         ).update(last_updated=time.time())
         return HttpResponse('')
 
@@ -327,8 +333,8 @@ class ParticipantRoomHeartbeat(vanilla.View):
 class ParticipantHeartbeatGBAT(vanilla.View):
     url_pattern = r'^ParticipantHeartbeatGBAT/(?P<participant_code>\w+)/$'
 
-    def get(self, request, participant_code):
-        Participant.objects.filter(code=participant_code).update(
+    def get(self, request, *args, **kwargs):
+        Participant.objects.filter(code=kwargs['participant_code']).update(
             _last_request_timestamp=time.time())
         return HttpResponse('')
 
@@ -340,8 +346,8 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
 
     url_pattern = r'^browser_bot_start/$'
 
-    def dispatch(self, request):
-        get_redis_conn() # why do we do this?
+    def dispatch(self, request, *args, **kwargs):
+        get_redis_conn()
         session_info = BrowserBotsLauncherSessionCode.objects.first()
         if session_info:
             session = Session.objects.get(code=session_info.code)

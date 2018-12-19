@@ -136,7 +136,7 @@ class ParticipantBot(test.Client):
         '''convenience method for testing'''
         self.open_start_url()
         for submission in self.submits_generator:
-            self.submit(**submission)
+            self.submit(submission)
 
     def assert_html_ok(self, submission):
         if submission['check_html']:
@@ -208,14 +208,15 @@ class ParticipantBot(test.Client):
         self.response = self.get(self.url, follow=True)
         return is_wait_page(self.response)
 
-    def submit(self, *, post_data, must_fail=False, timeout_happened=False, **kwargs):
+    def submit(self, submission):
+        post_data = submission['post_data']
         pretty_post_data = bot_prettify_post_data(post_data)
         log_string = self.path
         if pretty_post_data:
             log_string += ', {}'.format(pretty_post_data)
-        if must_fail:
+        if post_data.get('must_fail'):
             log_string += ', SubmissionMustFail'
-        if timeout_happened:
+        if post_data.get('timeout_happened'):
             log_string += ', timeout_happened'
         logger.info(log_string)
         self.response = self.post(self.url, post_data, follow=True)
@@ -413,7 +414,7 @@ class HtmlString(str):
 class PageHtmlChecker(HTMLParser, object):
 
     def __init__(self, fields_to_check):
-        super().__init__()
+        super(PageHtmlChecker, self).__init__()
         self.missing_fields = set(fields_to_check)
         self.field_tags = {'input', 'button', 'select', 'textarea'}
         self.submit_button_found = False

@@ -24,10 +24,10 @@ pytest==2.9.2
 pytest-django==3.0.0
 python-redis-lock
 pytz==2017.3
+raven==6.9.0
 redis==2.10.5
 requests==2.11.1
 schema==0.6.2
-sentry-sdk==0.7.9
 six==1.10.0
 termcolor==1.1.0
 Twisted==16.2.0

@@ -10,9 +10,7 @@ from otree import matching
 import copy
 from collections import defaultdict
 from otree.common_internal import has_group_by_arrival_time
-from django.template.loader import select_template
-from django.template import TemplateDoesNotExist, Template
-from typing import Optional
+
 
 class GroupMatrixError(ValueError):
     pass

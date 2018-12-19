@@ -1,7 +1,6 @@
 import os
 import sys
 from setuptools import setup, find_packages
-import shutil
 
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
@@ -22,20 +21,19 @@ with open('requirements_mturk.txt', encoding='utf-8') as f:
 
 if sys.argv[-1] == 'publish':
 
-    shutil.rmtree('dist')
-    for cmd in [
-        "python setup.py sdist",
-        "twine upload dist/*",
-        f'git tag -a {version} -m "version {version}"',
-        "git push --tags"
-    ]:
-        sys.stdout.write(cmd + '\n')
-        exit_code = os.system(cmd)
-        if exit_code != 0:
-            raise AssertionError
+    cmd = "python setup.py sdist upload"
+    sys.stdout.write(cmd + '\n')
+    os.system(cmd)
+
+    cmd = 'git tag -a %s -m "version %s"' % (version, version)
+    sys.stdout.write(cmd + '\n')
+    os.system(cmd)
+
+    cmd = "git push --tags"
+    sys.stdout.write(cmd + '\n')
+    os.system(cmd)
 
     sys.exit()
-
 
 if sys.version_info < (3, 6):
     sys.exit('Error: This version of oTree requires Python 3.6 or higher')

@@ -19,7 +19,8 @@
 <script>
 $(function () {
     $('[data-toggle="popover"]').popover()
-
+});
+$(function(){
     // if top menu link is clicked inside iframe
     // we exit full mode
     $("#top_menu a").click(function() {
@@ -27,7 +28,8 @@ $(function () {
                 window.parent.location.href = $(this).attr("href");
         }
     });
-
+});
+$(function () {
     $.ajax({
         url: '{% url 'OtreeCoreUpdateCheck' %}',
         type: 'GET',
@@ -40,29 +42,6 @@ $(function () {
             }
         }
     });
-
-    // i guess sockets must be global variables, and i should name it
-    // something other than 'socket' because there might be other sockets
-    // in descendant pages
-    var disconnectionSocket;
-
-    function setupDisconnectedAlert() {
-        var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-        var ws_path = ws_scheme + '://' + window.location.host + '/no_op/';
-        disconnectionSocket = new ReconnectingWebSocket(ws_path);
-        var socket = disconnectionSocket;
-
-        var alertStyle = document.querySelector('#disconnected-alert').style;
-        socket.onopen = function (e) {
-            alertStyle.visibility = 'hidden';
-        };
-
-        socket.onclose = function (e) {
-            alertStyle.visibility = 'visible';
-        };
-    }
-    setupDisconnectedAlert();
-
 });
 
 </script>

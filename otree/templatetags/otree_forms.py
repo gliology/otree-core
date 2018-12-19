@@ -18,38 +18,9 @@ from django.template.base import Token, FilterExpression
 class FormFieldNode(Node):
     default_template = 'otree/tags/_formfield.html'
 
-    @classmethod
-    def parse(cls, parser, token: Token):
-
-        # here is how split_contents() works:
-
-        # {% formfield player.f1 label="f1 label" %}
-        # ...yields:
-        # ['formfield', 'player.f1', 'label="f1 label"']
-
-        # {% formfield player.f2 "f2 label with no kwarg" %}
-        # ...yields:
-        # ['formfield', 'player.f2', '"f2 label with no kwarg"']
-
-        # handle where the user did {% formfield player.f label = "foo" %}
-        token.contents = token.contents.replace('label = ', 'label=')
-        bits = token.split_contents()
-        tagname = bits.pop(0)
-        if len(bits) < 1:
-            raise TemplateSyntaxError(
-                f"{tagname} requires the name of the field."
-            )
-        field_name = bits.pop(0)
-        if bits[:1] == ['with']:
-            bits.pop(0)
-        arg_dict = token_kwargs(bits, parser, support_legacy=False)
-        if bits:
-            raise TemplateSyntaxError(f'Unused parameter to formfield tag: {bits[0]}')
-        return cls(field_name, **arg_dict)
-
-    def __init__(self, field_variable_name, label:FilterExpression=None):
+    def __init__(self, field_variable_name, label_arg:FilterExpression):
         self.field_variable_name = field_variable_name
-        self.label_arg = label
+        self.label_arg = label_arg
 
     def get_form_instance(self, context):
         try:
@@ -154,3 +125,41 @@ class FormFieldNode(Node):
         new_context = context.new(tag_specific_context)
         return t.render(new_context)
 
+    @classmethod
+    def parse(cls, parser, token: Token):
+
+        # here is how split_contents() works:
+
+        # {% formfield player.f1 label="f1 label" %}
+        # ...yields:
+        # ['formfield', 'player.f1', 'label="f1 label"']
+
+        # {% formfield player.f2 "f2 label with no kwarg" %}
+        # ...yields:
+        # ['formfield', 'player.f2', '"f2 label with no kwarg"']
+
+        # handle where the user did {% formfield player.f label = "foo" %}
+        token.contents = token.contents.replace('label = ', 'label=')
+        bits = token.split_contents()
+        tagname = bits.pop(0)
+        if len(bits) < 1:
+            raise TemplateSyntaxError(
+                "{tagname!r} requires at least one argument.".format(
+                    tagname=tagname))
+        field = bits.pop(0)
+        if bits:
+            if bits[0] == 'with':
+                bits.pop(0)
+            arg_dict = token_kwargs(bits, parser, support_legacy=False)
+            label_arg = arg_dict.pop('label', None)
+            for key in arg_dict:
+                msg = '{} tag received unknown argument "{}"'.format(tagname, key)
+                raise TemplateSyntaxError(msg)
+        else:
+            label_arg = None
+        if bits:
+            raise TemplateSyntaxError(
+                'Unknown argument for {tagname} tag: {bits!r}'.format(
+                    tagname=tagname,
+                    bits=bits))
+        return cls(field, label_arg=label_arg)

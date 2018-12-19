@@ -16,7 +16,7 @@ class Command(webandworkers.Command):
     '''
 
     def add_arguments(self, parser):
-        super().add_arguments(parser)
+        super(Command, self).add_arguments(parser)
         ahelp = (
             'By default we will collect all static files into the directory '
             'configured in your settings. Disable it with this switch if you '
@@ -25,8 +25,8 @@ class Command(webandworkers.Command):
             '--no-collectstatic', action='store_false', dest='collectstatic',
             default=True, help=ahelp)
 
-    def setup_honcho(self, **options):
-        super().setup_honcho(**options)
+    def setup_honcho(self, options):
+        super().setup_honcho(options)
         honcho = self.honcho
 
         honcho.add_otree_process(
@@ -38,10 +38,11 @@ class Command(webandworkers.Command):
             'otree timeoutworkeronly',
         )
 
-    def handle(self, *args, collectstatic, **options):
+    def handle(self, *args, **options):
+        collectstatic = options['collectstatic']
 
         if collectstatic:
             self.stdout.write('Running collectstatic ...')
             call_command('collectstatic', interactive=False, verbosity=1)
 
-        return super().handle(*args, **options)
+        return super(Command, self).handle(*args, **options)

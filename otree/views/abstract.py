@@ -56,47 +56,6 @@ UNHANDLED_EXCEPTIONS = (
     SuspiciousOperation, SystemExit
 )
 
-
-# make the technical 500 page auto-reload when the server restarts
-# when the websocket reconnects, that means the server must have restarted.
-# hardcode path to reconnecting-websocket because
-# can't use Django template tags because template is already rendered
-TECHNICAL_500_AUTORELOAD_JS = b'''
-<style>
-    #disconnected-alert {
-        position: fixed;
-        top: 0;
-        left: 0;
-        background-color: lightgray;
-        font-style: italic;
-        visibility: hidden;
-    }
-</style>
-<div id='disconnected-alert' style="visibility: hidden">Lost server connection...</div>
-<script src="/static/otree/js/reconnecting-websocket.js" type="text/javascript">
-</script>
-<script>
-    var disconnectionSocket;
-
-    function setupDisconnectedAlert() {
-        var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-        var ws_path = ws_scheme + '://' + window.location.host + '/no_op/';
-        disconnectionSocket = new ReconnectingWebSocket(ws_path);
-        var socket = disconnectionSocket;
-
-        var alertStyle = document.querySelector('#disconnected-alert').style;
-        socket.onopen = function (e) {
-            alertStyle.visibility = 'hidden';
-        };
-
-        socket.onclose = function (e) {
-            alertStyle.visibility = 'visible';
-        };
-    }
-    setupDisconnectedAlert();
-</script>
-'''
-
 def response_for_exception(request, exc):
     '''simplified from Django 1.11 source.
     The difference is that we use the exception that was passed in,
@@ -111,8 +70,6 @@ def response_for_exception(request, exc):
     exc_info = (type(exc), exc, exc.__traceback__)
     response = handle_uncaught_exception(
         request, get_resolver(get_urlconf()), exc_info)
-    if settings.DEBUG:
-        response.content += TECHNICAL_500_AUTORELOAD_JS
 
     # Force a TemplateResponse to be rendered.
     if not getattr(response, 'is_rendered', True) and callable(getattr(response, 'render', None)):
@@ -237,7 +194,8 @@ class FormPageOrInGameWaitPage(vanilla.View):
     @method_decorator(never_cache)
     @method_decorator(cache_control(must_revalidate=True, max_age=0,
                                     no_cache=True, no_store=True))
-    def dispatch(self, request, participant_code, **kwargs):
+    def dispatch(self, *args, **kwargs):
+        participant_code = kwargs.pop(constants.participant_code)
 
         if otree.common_internal.USE_REDIS:
             lock = redis_lock.Lock(
@@ -635,6 +593,15 @@ class FormPageOrInGameWaitPage(vanilla.View):
             # super() is a bit slower but only gets run during __init__
             super().__setattr__(attr, value)
 
+    def _force_setattr(self, attr: str, value):
+        '''maybe better to use whitelist rather than this;
+        that keeps all the code in 1 place'''
+        orig = self._is_frozen
+        self._is_frozen = False
+        try:
+            setattr(self, attr, value)
+        finally:
+            self._is_frozen = orig
 
 class Page(FormPageOrInGameWaitPage):
 
@@ -672,7 +639,6 @@ class Page(FormPageOrInGameWaitPage):
         return self.form_fields
 
     def _get_form_model(self):
-        # TODO: move this to checks framework?
         form_model = self.form_model
         if isinstance(form_model, str):
             if form_model == 'player':
@@ -834,7 +800,6 @@ class Page(FormPageOrInGameWaitPage):
         try:
             self.before_next_page()
         except Exception as exc:
-            # why not raise ResponseForException?
             return response_for_exception(self.request, exc)
 
         if self.participant.is_browser_bot:
@@ -1014,14 +979,17 @@ _MSG_Undefined_GetPlayersForGroup = (
 )
 
 _MSG_Undefined_AfterAllPlayersArrive_Player = (
-    'self.player and self.participant do not exist in after_all_players_arrive. '
-    'You should use self.group.get_players() instead.'
+    'self.player and self.participant cannot be referenced '
+    'inside after_all_players_arrive, '
+    'which is executed only once '
+    'for the entire group.'
 )
 
 _MSG_Undefined_AfterAllPlayersArrive_Group = (
-    'self.group does not exist in after_all_players_arrive '
-    'if wait_for_all_groups=True. '
-    'You should use self.subsession.get_groups() instead.'
+    'self.group cannot be referenced inside after_all_players_arrive '
+    'if wait_for_all_groups=True, '
+    'because after_all_players_arrive() is executed only once '
+    'for all groups in the subsession.'
 )
 
 class Undefined_AfterAllPlayersArrive_Player:
@@ -1590,30 +1558,23 @@ class AdminSessionPageMixin:
         return r"^{}/(?P<code>[a-z0-9]+)/$".format(cls.__name__)
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(
-            session=self.session,
-            is_debug=settings.DEBUG,
-            request=self.request,
-            **kwargs)
-        # vars_for_template has highest priority
-        context.update(self.vars_for_template())
+        context = super().get_context_data(**kwargs)
+        context.update({
+            'session': self.session,
+            'is_debug': settings.DEBUG,
+            'request': self.request,
+        })
         return context
-
-    def vars_for_template(self):
-        '''
-        simpler to use vars_for_template, but need to use get_context_data when:
-        -   you need access to the context produced by the parent class,
-            such as the form
-        '''
-        return {}
 
     def get_template_names(self):
         return ['otree/admin/{}.html'.format(self.__class__.__name__)]
 
-    def dispatch(self, request, code, **kwargs):
+    def dispatch(self, request, *args, **kwargs):
+        session_code = kwargs['code']
         self.session = get_object_or_404(
-            otree.models.Session, code=code)
-        return super().dispatch(request, **kwargs)
+            otree.models.Session, code=session_code)
+        return super().dispatch(
+            request, *args, **kwargs)
 
     def get_form_class(self):
         """A drop-in replacement for
