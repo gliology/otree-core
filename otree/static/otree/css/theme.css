@@ -42,7 +42,8 @@ select.form-control {
 }
 
 /* Don't break BS3 wells */
-.well {
+/* a little while after the oTree 2.0 upgrade, remove this */
+.instructions {
     min-height: 20px;
     padding: 19px;
     margin-bottom: 20px;
