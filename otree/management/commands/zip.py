@@ -75,6 +75,16 @@ def zip_project(project_path: Path):
     # (using __temp prefix makes it show up in the middle, because it's a file)
     archive_name = f'{project_path.name}.otreezip'
 
+    settings_file = project_path / 'settings.py'
+    if not settings_file.exists():
+        msg = (
+            "Cannot find oTree settings. "
+            "You must run this command from the folder that contains your "
+            "settings.py file."
+        )
+        logger.error(msg)
+        sys.exit(1)
+
     try:
         check_requirements_files(project_path)
     except RequirementsError as exc:
