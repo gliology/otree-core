@@ -9,6 +9,7 @@ from django.db.migrations import exceptions as migrations_excs
 import sys
 import traceback
 from colorama import Fore
+import termcolor
 import importlib
 
 TMP_MIGRATIONS_DIR = '__temp_migrations'
@@ -32,8 +33,17 @@ else:
 
 class Command(runserver.Command):
 
+    show_error_details = False
+
+    def add_arguments(self, parser):
+        super().add_arguments(parser)
+        parser.add_argument(
+            '--details', action='store_true', dest='show_error_details', default=False,
+            help="Show details if an error occurs")
+
     def inner_run(self, *args, **options):
 
+        self.show_error_details = options['show_error_details']
         self.handle_migrations()
 
         super().inner_run(*args, **options)
@@ -79,6 +89,11 @@ class Command(runserver.Command):
 
     def print_error_and_exit(self, advice):
         self.stdout.write('\n')
-        traceback.print_exc()
-        self.stdout.write(Fore.RED + advice)
+        if self.show_error_details:
+            traceback.print_exc()
+        else:
+            self.stdout.write('An error occurred.')
+        termcolor.cprint(advice, 'red', 'on_white')
+        if not self.show_error_details:
+            self.stdout.write(ADVICE_PRINT_DETAILS)
         sys.exit()
