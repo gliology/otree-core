@@ -56,6 +56,47 @@ UNHANDLED_EXCEPTIONS = (
     SuspiciousOperation, SystemExit
 )
 
+
+# make the technical 500 page auto-reload when the server restarts
+# when the websocket reconnects, that means the server must have restarted.
+# hardcode path to reconnecting-websocket because
+# can't use Django template tags because template is already rendered
+TECHNICAL_500_AUTORELOAD_JS = b'''
+<style>
+    #disconnected-alert {
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: lightgray;
+        font-style: italic;
+        visibility: hidden;
+    }
+</style>
+<div id='disconnected-alert' style="visibility: hidden">Lost server connection...</div>
+<script src="/static/otree/js/reconnecting-websocket.js" type="text/javascript">
+</script>
+<script>
+    var disconnectionSocket;
+
+    function setupDisconnectedAlert() {
+        var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
+        var ws_path = ws_scheme + '://' + window.location.host + '/no_op/';
+        disconnectionSocket = new ReconnectingWebSocket(ws_path);
+        var socket = disconnectionSocket;
+
+        var alertStyle = document.querySelector('#disconnected-alert').style;
+        socket.onopen = function (e) {
+            alertStyle.visibility = 'hidden';
+        };
+
+        socket.onclose = function (e) {
+            alertStyle.visibility = 'visible';
+        };
+    }
+    setupDisconnectedAlert();
+</script>
+'''
+
 def response_for_exception(request, exc):
     '''simplified from Django 1.11 source.
     The difference is that we use the exception that was passed in,
@@ -70,6 +111,8 @@ def response_for_exception(request, exc):
     exc_info = (type(exc), exc, exc.__traceback__)
     response = handle_uncaught_exception(
         request, get_resolver(get_urlconf()), exc_info)
+    if settings.DEBUG:
+        response.content += TECHNICAL_500_AUTORELOAD_JS
 
     # Force a TemplateResponse to be rendered.
     if not getattr(response, 'is_rendered', True) and callable(getattr(response, 'render', None)):
