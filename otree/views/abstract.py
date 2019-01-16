@@ -18,7 +18,7 @@ import redis_lock
 import vanilla
 from django.conf import settings
 from django.core.urlresolvers import resolve
-from django.db.models import Max
+from django.db.models import Max, Min
 from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -43,7 +43,7 @@ from otree.models import (
 from otree.models_concrete import (
     PageCompletion, CompletedSubsessionWaitPage,
     CompletedGroupWaitPage, PageTimeout, UndefinedFormModel,
-    ParticipantLockModel,
+    ParticipantLockModel, ParticipantToPlayerLookup
 )
 from django.core.handlers.exception import handle_uncaught_exception
 
@@ -55,6 +55,47 @@ UNHANDLED_EXCEPTIONS = (
     Http404, PermissionDenied, MultiPartParserError,
     SuspiciousOperation, SystemExit
 )
+
+
+# make the technical 500 page auto-reload when the server restarts
+# when the websocket reconnects, that means the server must have restarted.
+# hardcode path to reconnecting-websocket because
+# can't use Django template tags because template is already rendered
+TECHNICAL_500_AUTORELOAD_JS = b'''
+<style>
+    #disconnected-alert {
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: lightgray;
+        font-style: italic;
+        visibility: hidden;
+    }
+</style>
+<div id='disconnected-alert' style="visibility: hidden">Lost server connection...</div>
+<script src="/static/otree/js/reconnecting-websocket.js" type="text/javascript">
+</script>
+<script>
+    var disconnectionSocket;
+
+    function setupDisconnectedAlert() {
+        var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
+        var ws_path = ws_scheme + '://' + window.location.host + '/no_op/';
+        disconnectionSocket = new ReconnectingWebSocket(ws_path);
+        var socket = disconnectionSocket;
+
+        var alertStyle = document.querySelector('#disconnected-alert').style;
+        socket.onopen = function (e) {
+            alertStyle.visibility = 'hidden';
+        };
+
+        socket.onclose = function (e) {
+            alertStyle.visibility = 'visible';
+        };
+    }
+    setupDisconnectedAlert();
+</script>
+'''
 
 def response_for_exception(request, exc):
     '''simplified from Django 1.11 source.
@@ -70,6 +111,8 @@ def response_for_exception(request, exc):
     exc_info = (type(exc), exc, exc.__traceback__)
     response = handle_uncaught_exception(
         request, get_resolver(get_urlconf()), exc_info)
+    if settings.DEBUG:
+        response.content += TECHNICAL_500_AUTORELOAD_JS
 
     # Force a TemplateResponse to be rendered.
     if not getattr(response, 'is_rendered', True) and callable(getattr(response, 'render', None)):
@@ -452,6 +495,9 @@ class FormPageOrInGameWaitPage(vanilla.View):
         # we skip any page that is a sequence page where is_displayed
         # evaluates to False to eliminate unnecessary redirection
 
+        page_index_to_skip_to = self._get_next_page_index_if_skipping_apps()
+        is_skipping_apps = bool(page_index_to_skip_to)
+
         for page_index in range(
                 # go to max_page_index+2 because range() skips the last index
                 # and it's possible to go to max_page_index + 1 (OutOfRange)
@@ -460,13 +506,16 @@ class FormPageOrInGameWaitPage(vanilla.View):
             if page_index == self.participant._max_page_index+1:
                 # break and go to OutOfRangeNotification
                 break
+            if is_skipping_apps and page_index == page_index_to_skip_to:
+                break
+
             url = self.participant._url_i_should_be_on()
 
             Page = get_view_from_url(url)
             page = Page()
 
             page.set_attributes(self.participant, lazy=True)
-            if page._is_displayed():
+            if (not is_skipping_apps) and page._is_displayed():
                 break
 
             # if it's a wait page, record that they visited
@@ -499,6 +548,39 @@ class FormPageOrInGameWaitPage(vanilla.View):
 
     def is_displayed(self):
         return True
+
+    def app_after_this_page(self, upcoming_apps):
+        pass
+
+    def _get_next_page_index_if_skipping_apps(self):
+        # FIXME: to enable app_after_this_page, remove this return
+        return
+        # don't run it if the page is not displayed, because:
+        # (1) it's consistent with other functions like before_next_page, vars_for_template
+        # (2) then when we do
+        # a lookahead skipping pages, we would need to check each page if it
+        # has app_after_this_page defined, then set attributes and run it.
+        # what if we are already skipping to a future app, then another page
+        # has app_after_this_page? does it override the first one?
+        if not self._is_displayed():
+            return
+
+        current_app = self.participant._current_app_name
+        app_sequence = self.session.config['app_sequence']
+        current_app_index = app_sequence.index(current_app)
+        upcoming_apps = app_sequence[current_app_index+1:]
+
+        app_to_skip_to = self.app_after_this_page(upcoming_apps)
+        if app_to_skip_to:
+            if app_to_skip_to not in upcoming_apps:
+                raise InvalidAppError(
+                    f'"{app_to_skip_to}" is not in the upcoming_apps list'
+                )
+            return (
+                ParticipantToPlayerLookup.objects
+                    .filter(participant=self.participant, app_name=app_to_skip_to)
+                    .aggregate(Min('page_index'))
+            )['page_index__min']
 
     def _record_page_completion_time(self):
 
@@ -1552,3 +1634,7 @@ class AdminSessionPageMixin:
             self.model,
             fields=self.fields,
             formfield_callback=otree.forms.formfield_callback)
+
+
+class InvalidAppError(Exception):
+    pass

@@ -153,13 +153,9 @@ class widgets:
     # don't need HiddenInput because you can just write <input type="hidden" ...>
     # and then you know the element's selector
     class CheckboxInput: pass
-    class Select: pass
     class RadioSelect: pass
     class RadioSelectHorizontal: pass
     class Slider: pass
-    # useful if you use choices= but don't want a dropdown
-    # (e.g. don't want bias)
-    class TextInput: pass
 
 
 class Session:

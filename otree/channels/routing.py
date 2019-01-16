@@ -43,6 +43,14 @@ channel_routing = [
         # need authentication! like add admin_secret_code.
         path=r"^/export/$"),
 
+    # no-op just to reload the page automatically
+    route('websocket.connect',
+          lambda message: None,
+          path=r'^/no_op/$'),
+    route('websocket.disconnect',
+          lambda message: None,
+          path=r'^/no_op/$'),
+
 ]
 
 # TODO: perf issue. this takes 0.1-0.5 seconds.

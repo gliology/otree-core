@@ -30,15 +30,6 @@ from otree_startup.settings import get_default_settings
 logger = logging.getLogger(__name__)
 
 
-def print_settings_not_found_error():
-    msg = (
-        "Cannot find oTree settings. "
-        "Please 'cd' to your oTree project folder, "
-        "which contains a settings.py file."
-    )
-    logger.warning(msg)
-
-
 def execute_from_command_line(*args, **kwargs):
     '''
     This is called if people use manage.py,
@@ -62,7 +53,6 @@ def execute_from_command_line(*args, **kwargs):
             "Suggestion: use 'otree devserver' instead of 'otree runserver'. "
             "devserver automatically syncs your database.\n"
         )
-
 
     # Add the current directory to sys.path so that Python can find
     # the settings module.
@@ -98,7 +88,12 @@ def execute_from_command_line(*args, **kwargs):
             if os.path.isfile('{}.py'.format(DJANGO_SETTINGS_MODULE)):
                 raise
             else:
-                print_settings_not_found_error()
+                msg = (
+                    "Cannot find oTree settings. "
+                    "Please 'cd' to your oTree project folder, "
+                    "which contains a settings.py file."
+                )
+                logger.warning(msg)
                 return
 
     runserver_or_devserver = subcommand in ['runserver', 'devserver']
@@ -294,6 +289,14 @@ def check_pypi_for_updates() -> dict:
 
     else:
         # compare to the latest release, whether stable or not
+        # 2018-12-29: it seems now that ['info']['version'] reports the latest
+        # *stable* release. maybe they changed their format?
+        # it's not currently a high priority since few people install beta
+        # releases. if i do fix it later, i could basically flip the
+        # "if" and "else". actually it looks like "releases" list is ordered
+        # from oldest to newest, so i can just take the last element, and that
+        # is the newest (whether stable or not). because it could be hard to parse
+        # pre-release versions and determine which is newest.
         newest_dotted = data['info']['version'].strip()
         update_needed = newest_dotted != installed_dotted
 
@@ -302,7 +305,7 @@ def check_pypi_for_updates() -> dict:
             'Your otree package is out-of-date '
             '(version {}; latest is {}). '
             'You should upgrade with:\n '
-            '"pip3 install --upgrade otree"\n '
+            '"pip3 install --U otree"\n '
             'and update your requirements_base.txt.'.format(
                 installed_dotted, newest_dotted))
     else:
