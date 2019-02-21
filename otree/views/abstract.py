@@ -1024,17 +1024,14 @@ _MSG_Undefined_GetPlayersForGroup = (
 )
 
 _MSG_Undefined_AfterAllPlayersArrive_Player = (
-    'self.player and self.participant cannot be referenced '
-    'inside after_all_players_arrive, '
-    'which is executed only once '
-    'for the entire group.'
+    'self.player and self.participant do not exist in after_all_players_arrive. '
+    'You should use self.group.get_players() instead.'
 )
 
 _MSG_Undefined_AfterAllPlayersArrive_Group = (
-    'self.group cannot be referenced inside after_all_players_arrive '
-    'if wait_for_all_groups=True, '
-    'because after_all_players_arrive() is executed only once '
-    'for all groups in the subsession.'
+    'self.group does not exist in after_all_players_arrive '
+    'if wait_for_all_groups=True. '
+    'You should use self.subsession.get_groups() instead.'
 )
 
 class Undefined_AfterAllPlayersArrive_Player:

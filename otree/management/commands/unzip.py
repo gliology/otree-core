@@ -23,8 +23,16 @@ class Command(BaseCommand):
 
     def handle(self, **options):
         zip_file = options['zip_file']
-        output_folder = options['output_folder']
+        output_folder = options['output_folder'] or auto_named_output_folder(zip_file)
         unzip(zip_file, output_folder)
+        msg = (
+            f'Unzipped code into folder "{output_folder}"\n'
+            'Enter "cd {}" to move inside the project folder,\n'
+            "then run 'pip3 install -r requirements.txt' to install this project's dependencies."
+        ).format(output_folder)
+
+        logger.info(msg)
+
 
     def run_from_argv(self, argv):
         '''
@@ -47,7 +55,7 @@ class Command(BaseCommand):
         self.handle(**cmd_options)
 
 
-def auto_named_output_folder(zip_file_name):
+def auto_named_output_folder(zip_file_name) -> str:
     default_folder_name = Path(zip_file_name).stem
 
     if not Path(default_folder_name).exists():
@@ -75,15 +83,6 @@ def unzip(zip_file: str, output_folder):
         )
         sys.exit(-1)
 
-    if not output_folder:
-        output_folder = auto_named_output_folder(zip_file)
-
     with tarfile.open(zip_file) as tar:
         tar.extractall(output_folder)
-    msg = (
-        f'Unzipped code into folder "{output_folder}"\n'
-        'Enter "cd {}" to move inside the project folder,\n'
-        "then run 'pip3 install -r requirements.txt' to install this project's dependencies."
-    ).format(output_folder)
 
-    logger.info(msg)
