@@ -73,7 +73,7 @@ def get_bots_module(app_name):
         dotted = '{}.{}'.format(app_name, module_name)
         if importlib.util.find_spec(dotted):
             return import_module(dotted)
-    raise ImportError('No tests/bots module found for app {}'.format(app_name))
+    raise ImportError('No tests module found for app {}'.format(app_name))
 
 
 def get_pages_module(app_name):
@@ -81,7 +81,7 @@ def get_pages_module(app_name):
         dotted = '{}.{}'.format(app_name, module_name)
         if importlib.util.find_spec(dotted):
             return import_module(dotted)
-    raise ImportError('No views/pages module found for app {}'.format(app_name))
+    raise ImportError('No pages module found for app {}'.format(app_name))
 
 
 def get_app_constants(app_name):

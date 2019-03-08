@@ -95,23 +95,8 @@ class Command(BaseCommand):
         port = port or os.environ.get('PORT') or DEFAULT_PORT
 
         daphne_cmd = 'daphne otree_startup.asgi:channel_layer'
-        if False: #options['dev_https']: # disabled until we upgrade channels
-            try:
-                import OpenSSL
-            except ImportError:
-                raise ImportError(
-                    'To run oTree server in HTTPS mode for MTurk testing, you need pyopenssl. '
-                    'You can install it and related packages by installing otree[mturk].'
-                ) from None
-            daphne_cmd += ' -e ssl:{}:privateKey={}:certKey={}:interface={}'.format(
-                port,
-                twisted_ssl_file_path('development.crt'),
-                twisted_ssl_file_path('development.key'),
-                addr)
-            logger.info('Starting daphne HTTPS server on {}:{} (development/testing only)'.format(addr, port))
-        else:
-            daphne_cmd += ' -b {} -p {}'.format(addr, port)
-            logger.info('Starting daphne server on {}:{}'.format(addr, port))
+        daphne_cmd += ' -b {} -p {}'.format(addr, port)
+        logger.info('Starting daphne server on {}:{}'.format(addr, port))
         logger.info(daphne_cmd)
 
         honcho = self.honcho

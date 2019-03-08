@@ -19,6 +19,10 @@ def main(remaining_argv):
     - top-level process that keeps checking for new files
     - subprocess that actually runs the server
     '''
+    sys.stdout.write(
+        'There may be a newer version of the runzip command. '
+        'Make sure you are upgraded to the latest version of oTree.\n'
+        )
     try:
         if remaining_argv:
             exit_code = run_single_zipfile(remaining_argv[0])
@@ -55,24 +59,24 @@ def autoreload_for_new_zipfiles() -> int:
                         shutil.move(str(item_path), tempdir.name)
 
             tempdirs.append(tempdir)
-
             proc = run_devserver(tempdir)
-
-            while True:
-                # if process is still running, poll() returns None
-                exit_code = proc.poll()
-                if exit_code != None:
-                    return exit_code
-                time.sleep(1)
-                current_zipfile = get_newest_zipfile()
-                updated_time = get_time(current_zipfile)
-                if updated_time > current_time:
-                    current_time = updated_time
-                    # use stdout.write because logger is not configured
-                    # (django setup has not even been run)
-                    sys.stdout.write(f'new project found: {current_zipfile}\n')
-                    proc.terminate()
-                    break
+            try:
+                while True:
+                    # if process is still running, poll() returns None
+                    exit_code = proc.poll()
+                    if exit_code != None:
+                        return exit_code
+                    time.sleep(1)
+                    current_zipfile = get_newest_zipfile()
+                    updated_time = get_time(current_zipfile)
+                    if updated_time > current_time:
+                        current_time = updated_time
+                        # use stdout.write because logger is not configured
+                        # (django setup has not even been run)
+                        sys.stdout.write(f'new project found: {current_zipfile}\n')
+                        break
+            finally:
+                proc.terminate()                
     finally:
         for td in tempdirs:
             td.cleanup()
@@ -110,7 +114,7 @@ def get_newest_zipfile() -> Path:
 
     # cleanup so they don't end up with hundreds of zipfiles
     for zf in zipfiles[10:]:
-        sys.stdout.write('deleting old file', zf.name)
+        sys.stdout.write(f'deleting old file: {zf.name}')
         zf.unlink()
 
     return newest_zipfile

@@ -144,7 +144,7 @@ class FormFieldNode(Node):
         tagname = bits.pop(0)
         if len(bits) < 1:
             raise TemplateSyntaxError(
-                "{tagname!r} requires at least one argument.".format(
+                "{tagname!r} requires the name of the field.".format(
                     tagname=tagname))
         field = bits.pop(0)
         if bits:

@@ -684,6 +684,7 @@ class Page(FormPageOrInGameWaitPage):
         return self.form_fields
 
     def _get_form_model(self):
+        # TODO: move this to checks framework?
         form_model = self.form_model
         if isinstance(form_model, str):
             if form_model == 'player':

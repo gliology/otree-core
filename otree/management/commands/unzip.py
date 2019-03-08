@@ -26,10 +26,10 @@ class Command(BaseCommand):
         output_folder = options['output_folder'] or auto_named_output_folder(zip_file)
         unzip(zip_file, output_folder)
         msg = (
-            f'Unzipped code into folder "{output_folder}"\n'
-            'Enter "cd {}" to move inside the project folder,\n'
+            f'Unzipped file. Enter this:\n'
+            f'cd {esc_fn(output_folder)}\n'
             "then run 'pip3 install -r requirements.txt' to install this project's dependencies."
-        ).format(output_folder)
+        )
 
         logger.info(msg)
 
@@ -55,6 +55,11 @@ class Command(BaseCommand):
         self.handle(**cmd_options)
 
 
+def esc_fn(fn):
+    if ' ' in fn:
+        return f'\"{fn}\"'
+    return fn
+
 def auto_named_output_folder(zip_file_name) -> str:
     default_folder_name = Path(zip_file_name).stem
 
@@ -63,7 +68,7 @@ def auto_named_output_folder(zip_file_name) -> str:
 
     logger.info(
         'Hint: you can provide the name of the folder to create. Example:\n'
-        f"otree unzip {zip_file_name} {default_folder_name}"
+        f"otree unzip {esc_fn(zip_file_name)} my_project"
     )
     for x in range(2, 20):
         folder_name = f'{default_folder_name}-{x}'
