@@ -1,34 +1,39 @@
-import tarfile
+from typing import Optional
 import logging
 import os.path
 import sys
 from pathlib import Path
-import contextlib
 from tempfile import TemporaryDirectory
 from otree.management.commands.unzip import unzip
 import os.path
-import os, time
+import os
 import subprocess
 import shutil
+from time import sleep
 
 logger = logging.getLogger(__name__)
+
+# to make patching easy without modifying global sys.stdout.write which is essential
+stdout_write = print
 
 
 def main(remaining_argv):
     '''
     - top-level process that keeps checking for new files
-    - subprocess that actually runs the server
+    - subprocess is manage.py devserver
+    - this is adapted from django autoreload
     '''
-    sys.stdout.write(
+    stdout_write(
         'There may be a newer version of the runzip command. '
-        'Make sure you are upgraded to the latest version of oTree.\n'
+        'Make sure you are upgraded to the latest version of oTree.'
         )
     try:
         if remaining_argv:
             exit_code = run_single_zipfile(remaining_argv[0])
         else:
             exit_code = autoreload_for_new_zipfiles()
-        # if child process crashes, we should kill this process also
+        # the rest is adapted from django autoreload, not sure why it's done
+        # this way
         if exit_code < 0:
             os.kill(os.getpid(), -exit_code)
         else:
@@ -36,86 +41,125 @@ def main(remaining_argv):
     except KeyboardInterrupt:
         pass
 
+
 def run_single_zipfile(fn: str):
-    tempdir = unzip_to_tempdir(fn)
-    unzip(fn, tempdir.name)
-    proc = run_devserver(tempdir)
-    return proc.wait()
+    project = Project(Path(fn))
+    project.unzip_to_tempdir()
+    project.start()
+    # from experimenting, this responds to Ctrl+C,
+    # and there is no zombie subprocess
+    return project.wait()
+
+
+MSG_NO_OTREEZIP_YET = 'No *.otreezip file found in this folder yet, waiting...'
+MSG_FOUND_NEWER_OTREEZIP = 'Newer project found: {}'
 
 
 def autoreload_for_new_zipfiles() -> int:
-    current_zipfile = get_newest_zipfile()
-    current_time = get_time(current_zipfile)
+    project = get_newest_project()
+    newer_project = None
+    if not project:
+        stdout_write(MSG_NO_OTREEZIP_YET)
+        while True:
+            project = get_newest_project()
+            if project:
+                break
+            sleep(1)
+
     tempdirs = []
     try:
         while True:
-            tempdir = unzip_to_tempdir(current_zipfile.name)
+            if newer_project:
+                project = newer_project
+            project.unzip_to_tempdir()
             if tempdirs:
-                # get __temp_migrations and sqlite DB from previous one
-                previous_tempdir = Path(tempdirs[-1].name)
-                for item in ['__temp_migrations', 'db.sqlite3']:
-                    item_path = previous_tempdir / item
-                    if item_path.exists():
-                        shutil.move(str(item_path), tempdir.name)
+                project.take_db_from_previous(tempdirs[-1].name)
 
-            tempdirs.append(tempdir)
-            proc = run_devserver(tempdir)
+            tempdirs.append(project.tmpdir)
+            project.start()
             try:
                 while True:
                     # if process is still running, poll() returns None
-                    exit_code = proc.poll()
+                    exit_code = project.poll()
                     if exit_code != None:
                         return exit_code
-                    time.sleep(1)
-                    current_zipfile = get_newest_zipfile()
-                    updated_time = get_time(current_zipfile)
-                    if updated_time > current_time:
-                        current_time = updated_time
+                    sleep(1)
+                    latest_project = get_newest_project()
+                    # it's possible that zipfile was deleted while the program
+                    # was running
+                    if latest_project and latest_project.mtime() > project.mtime():
+                        newer_project = latest_project
                         # use stdout.write because logger is not configured
                         # (django setup has not even been run)
-                        sys.stdout.write(f'new project found: {current_zipfile}\n')
+                        stdout_write(MSG_FOUND_NEWER_OTREEZIP.format(newer_project.zipname()))
                         break
             finally:
-                proc.terminate()                
+                project.terminate()
     finally:
         for td in tempdirs:
             td.cleanup()
 
 
+class Project:
+    tmpdir: TemporaryDirectory = None
+    _proc: subprocess.Popen
+
+    def __init__(self, otreezip: Path):
+        self._otreezip = otreezip
+
+    def zipname(self):
+        return self._otreezip.name
+
+    def mtime(self):
+        return self._otreezip.stat().st_mtime
+
+    def unzip_to_tempdir(self):
+        self.tmpdir = TemporaryDirectory()
+        unzip(str(self._otreezip), self.tmpdir.name)
+
+    def start(self):
+        self._proc = subprocess.Popen(
+            [sys.executable, 'manage.py', 'devserver', '--noreload'],
+            cwd=self.tmpdir.name,
+            env=os.environ.copy(),
+        )
+
+    def delete_otreezip(self):
+        self._otreezip.unlink()
+
+    def poll(self):
+        return self._proc.poll()
+
+    def terminate(self):
+        return self._proc.terminate()
+
+    def wait(self):
+        return self._proc.wait()
+
+    def take_db_from_previous(self, other_tmpdir: str):
+        for item in ['__temp_migrations', 'db.sqlite3']:
+            item_path = Path(other_tmpdir) / item
+            if item_path.exists():
+                shutil.move(str(item_path), self.tmpdir.name)
 
 
-def get_time(path: Path):
-    return path.stat().st_mtime
+MAX_OTREEZIP_FILES = 10
+MSG_DELETING_OLD_OTREEZIP = 'Deleting old file: {}'
 
+# returning the time together with object makes it easier to test
+def get_newest_project() -> Optional[Project]:
 
-def run_devserver(tempdir: TemporaryDirectory) -> subprocess.Popen:
-    return subprocess.Popen(
-        [sys.executable, 'manage.py', 'devserver', '--noreload'],
-        cwd=tempdir.name,
-        env=os.environ.copy(),
-    )
+    projects = [Project(path) for path in Path('.').glob('*.otreezip')]
+    if not projects:
+        return None
 
-
-def unzip_to_tempdir(zipfile: str) -> TemporaryDirectory:
-    tempdir = TemporaryDirectory()
-    unzip(zipfile, tempdir.name)
-    return tempdir
-
-
-
-def get_newest_zipfile() -> Path:
-    user_dir = Path('.')
-    zipfiles = sorted(user_dir.glob('*.otreezip'), key=get_time, reverse=True)
-    if not zipfiles:
-        sys.stdout.write('No *.otreezip file found in this folder')
-        sys.exit(-1)
-
-    newest_zipfile = zipfiles[0]
+    sorted_projects = sorted(projects, key=lambda proj: proj.mtime(), reverse=True)
+    newest_project = sorted_projects[0]
 
     # cleanup so they don't end up with hundreds of zipfiles
-    for zf in zipfiles[10:]:
-        sys.stdout.write(f'deleting old file: {zf.name}')
-        zf.unlink()
+    for old_proj in sorted_projects[MAX_OTREEZIP_FILES:]:
+        stdout_write(MSG_DELETING_OLD_OTREEZIP.format(old_proj.zipname()))
+        old_proj.delete_otreezip()
 
-    return newest_zipfile
+    return newest_project
 
