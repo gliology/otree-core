@@ -180,11 +180,15 @@ class SessionConfig(dict):
         # before making an HTML attribute. even '>漢 ."&'
         # so i'll just put a general recommendation in the docs
 
-        return [
+        fields = [
             k for k, v in self.items()
             if k not in self.non_editable_fields
             and k not in self.builtin_editable_fields()
             and type(v) in [bool, int, float, str]]
+
+        # they're in a dict so we can't preserve the original ordering
+        # this is the best we can do
+        return sorted(fields)
 
     def editable_fields(self):
         return self.builtin_editable_fields() + self.custom_editable_fields()

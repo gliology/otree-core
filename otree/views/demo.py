@@ -6,7 +6,6 @@ from django.urls import reverse
 import vanilla
 from otree.session import SESSION_CONFIGS_DICT
 from otree.common_internal import create_session_and_redirect
-import os
 
 
 class DemoIndex(vanilla.TemplateView):
@@ -43,14 +42,6 @@ class DemoIndex(vanilla.TemplateView):
             'intro_html': intro_html,
             'is_debug': settings.DEBUG,
         })
-
-        if os.environ.get('OTREEHUB_PUB'):
-            otreehub_app_name = os.environ.get('OTREEHUB_APP_NAME')
-            otreehub_url = f'https://www.otreehub.com/projects/{otreehub_app_name}/'
-        else:
-            otreehub_url = ''
-        context.update(otreehub_url=otreehub_url)
-
         return context
 
 

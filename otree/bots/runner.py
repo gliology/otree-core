@@ -55,7 +55,7 @@ class SessionBotRunner:
                         self.bots.pop(pk)
                         progress_made = True
                     else:
-                        bot.submit(**submission)
+                        bot.submit(submission)
                         progress_made = True
             if not progress_made:
                 loops_without_progress += 1
@@ -159,7 +159,10 @@ def test_all_bots_for_session_config(
         logger.info('Exported CSV to folder "{}"'.format(export_path))
 
 
-def run_pytests(session_config_name, num_participants, verbosity, **kwargs):
+def run_pytests(**kwargs):
+    session_config_name = kwargs['session_config_name']
+    num_participants = kwargs['num_participants']
+    verbosity = kwargs['verbosity']
 
     this_module = sys.modules[__name__]
 

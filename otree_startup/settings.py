@@ -2,7 +2,6 @@ import os
 import os.path
 from django.contrib.messages import constants as messages
 import dj_database_url
-from otree_startup.version import __version__
 
 DEFAULT_MIDDLEWARE = (
     'otree.middleware.CheckDBMiddleware',
@@ -13,30 +12,11 @@ DEFAULT_MIDDLEWARE = (
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+
+
+    # 2015-04-08: disabling SSLify until we make this work better
+    # 'sslify.middleware.SSLifyMiddleware',
 )
-
-SENTRY_DSN = os.environ.get('SENTRY_DSN')
-if SENTRY_DSN:
-    import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration
-
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration()],
-        # 2018-11-24: breadcrumbs were causing memory leaks when doing queries,
-        # especially when creating sessions, which construct hugely verbose
-        # queries with bulk_create.
-        # however, i could only clearly observe the difference this line makes
-        # when testing
-        # on a script that bulk_created thousands of non-otree models.
-        # when testing on a live server, things are more ambiguous.
-        # maybe just refreshing the page several times after creating a session
-        # is enough to reset memory to reasnoable levels?
-        # disabling also may make things faster...
-        # in anecdotal test, 40 vs 50 seconds
-        max_breadcrumbs=0,
-        release=__version__,
-    )
 
 
 def collapse_to_unique_list(*args):
@@ -59,8 +39,30 @@ def get_default_settings(user_settings: dict):
     '''
     default_settings = {}
 
-    # 2019-04-02: it seems logging works fine inside botworker and channels,
-    # without any special logger config.
+    sentry_dsn = user_settings.get('SENTRY_DSN') or os.environ.get('SENTRY_DSN')
+    if sentry_dsn:
+        default_settings['RAVEN_CONFIG'] = {
+            'dsn': sentry_dsn,
+            'processors': ['raven.processors.SanitizePasswordsProcessor'],
+            # 2018-11-24: breadcrumbs were causing memory leaks when doing queries,
+            # especially when creating sessions, which construct hugely verbose
+            # queries with bulk_create.
+            # however, i could only clearly observe the difference this line makes
+            # when testing
+            # on a script that bulk_created thousands of non-otree models.
+            # when testing on a live server, things are more ambiguous.
+            # maybe just refreshing the page several times after creating a session
+            # is enough to reset memory to reasnoable levels?
+            # disabling also may make things faster...
+            # in anecdotal test, 40 vs 50 seconds
+            'enable_breadcrumbs': False,
+        }
+        # SentryHandler is very slow with URL resolving...can add 2 seconds
+        # to runserver startup! so only use when it's needed
+        sentry_handler_class = 'raven.contrib.django.raven_compat.handlers.SentryHandler'
+    else:
+        sentry_handler_class = 'logging.StreamHandler'
+
     logging = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -82,6 +84,14 @@ def get_default_settings(user_settings: dict):
                 'class': 'logging.StreamHandler',
                 'formatter': 'simple'
             },
+            'sentry': {
+                'level': 'WARNING',
+                # perf issue. just use StreamHandler by default.
+                # only use the real sentry handler if a DSN exists.
+                # see below.
+                'class': sentry_handler_class,
+
+            },
         },
         'loggers': {
             'otree.test.core': {
@@ -89,10 +99,12 @@ def get_default_settings(user_settings: dict):
                 'propagate': False,
                 'level': 'INFO',
             },
+            # 2016-07-25: botworker seems to be sending messages to Sentry
+            # without any special configuration, not sure why.
             # but, i should use a logger, because i need to catch exceptions
             # in botworker so it keeps running
             'otree.test.browser_bots': {
-                'handlers': ['console'],
+                'handlers': ['sentry', 'console'],
                 'propagate': False,
                 'level': 'INFO',
             },
@@ -101,6 +113,34 @@ def get_default_settings(user_settings: dict):
                 'propagate': True,
                 'level': 'DEBUG',
             },
+            # logger so that we can explicitly send certain warnings to sentry,
+            # without raising an exception.
+            # 2016-10-23: has not been used yet
+            'otree.sentry': {
+                'handlers': ['sentry'],
+                'propagate': True,
+                'level': 'DEBUG',
+            },
+            # log any error that occurs inside channels code
+            'django.channels': {
+                'handlers': ['sentry'],
+                'propagate': True,
+                'level': 'ERROR',
+            },
+            # This is required for exceptions inside Huey tasks to get logged
+            # to Sentry
+            'huey.consumer': {
+                'handlers': ['sentry', 'console'],
+                'level': 'INFO'
+            },
+            # suppress the INFO message: 'raven is not configured (logging
+            # disabled).....', in case someone doesn't have a DSN
+            'raven.contrib.django.client.DjangoClient': {
+                'handlers': ['console'],
+                'level': 'WARNING'
+            }
+
+
         }
     }
 
@@ -316,6 +356,10 @@ def augment_settings(settings: dict):
         'huey.contrib.djhuey',
         'idmap',
     ]
+
+    # these are slow...only add if we need them
+    if settings.get('RAVEN_CONFIG'):
+        no_experiment_apps.append('raven.contrib.django.raven_compat')
 
     if os.environ.get('OTREE_SECRET_KEY'):
         # then override the SECRET_KEY from settings file, which might

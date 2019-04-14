@@ -52,8 +52,8 @@ def run_single_zipfile(fn: str):
 
 
 MSG_NO_OTREEZIP_YET = 'No *.otreezip file found in this folder yet, waiting...'
-MSG_FOUND_NEWER_OTREEZIP = 'Newer project found'
-MSG_RUNNING_OTREEZIP_NAME = "Running {}"
+MSG_FOUND_NEWER_OTREEZIP = 'Newer project found: {}'
+
 
 def autoreload_for_new_zipfiles() -> int:
     project = get_newest_project()
@@ -71,7 +71,6 @@ def autoreload_for_new_zipfiles() -> int:
         while True:
             if newer_project:
                 project = newer_project
-            stdout_write(MSG_RUNNING_OTREEZIP_NAME.format(project.zipname()))
             project.unzip_to_tempdir()
             if tempdirs:
                 project.take_db_from_previous(tempdirs[-1].name)
@@ -92,7 +91,7 @@ def autoreload_for_new_zipfiles() -> int:
                         newer_project = latest_project
                         # use stdout.write because logger is not configured
                         # (django setup has not even been run)
-                        stdout_write(MSG_FOUND_NEWER_OTREEZIP)
+                        stdout_write(MSG_FOUND_NEWER_OTREEZIP.format(newer_project.zipname()))
                         break
             finally:
                 project.terminate()

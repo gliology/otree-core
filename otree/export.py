@@ -446,17 +446,17 @@ def export_time_spent(fp):
     """
 
     column_names = [
-        'session_id',
-        'participant__id_in_session',
-        'participant__code',
-        'page_index',
-        'app_name',
-        'page_name',
-        'time_stamp',
-        'seconds_on_page',
-        'subsession_pk',
-        'auto_submitted',
-    ]
+            'session_id',
+            'participant__id_in_session',
+            'participant__code',
+            'page_index',
+            'app_name',
+            'page_name',
+            'time_stamp',
+            'seconds_on_page',
+            'subsession_pk',
+            'auto_submitted',
+        ]
 
     rows = PageCompletion.objects.order_by(
         'session', 'participant', 'page_index'

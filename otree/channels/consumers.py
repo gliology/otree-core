@@ -421,6 +421,8 @@ class ChatConsumer(OTreeJsonWebsocketConsumer):
         self.send(list(history))
 
     def post_receive(self, content, channel, participant_id):
+        content['channel'] = channel
+        content['participant_id'] = participant_id
 
         # in the Channels docs, the example has a separate msg_consumer
         # channel, so this can be done asynchronously.
@@ -428,7 +430,11 @@ class ChatConsumer(OTreeJsonWebsocketConsumer):
         # moving into here for simplicity, especially for testing.
         nickname_signed = content['nickname_signed']
         nickname = Signer().unsign(nickname_signed)
+        channel = content['channel']
+        channels_group = get_chat_group(channel)
+
         body = content['body']
+        participant_id = content['participant_id']
 
         chat_message = {
             'nickname': nickname,
@@ -436,7 +442,6 @@ class ChatConsumer(OTreeJsonWebsocketConsumer):
             'participant_id': participant_id
         }
 
-        channels_group = get_chat_group(channel)
         Group(channels_group).send({'text': json.dumps([chat_message])})
 
         ChatMessage.objects.create(

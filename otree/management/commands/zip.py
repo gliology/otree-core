@@ -42,10 +42,7 @@ def filter_func(tar_info: tarfile.TarInfo):
     if kb > 500:
         logger.info(f'Adding large file ({kb} KB): {path}')
 
-    # make sure all dirs are writable, so their children can be deleted,
-    # so that otree unzip/runzip work as expected.
-    # we were getting some folders with permission 16749.
-    tar_info.mode |= 0o222
+    #print(path)
     return tar_info
 
 

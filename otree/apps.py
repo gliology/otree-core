@@ -93,6 +93,17 @@ def setup_create_singleton_objects():
                                  dispatch_uid='create_singletons')
 
 
+def patch_raven_config():
+    # patch settings with info that is only available
+    # after other settings loaded
+    if hasattr(settings, 'RAVEN_CONFIG'):
+        settings.RAVEN_CONFIG['release'] = '{}{}'.format(
+            otree.__version__,
+            # need to pass the server if it's DEBUG
+            # mode. could do this in extra context or tags,
+            # but this seems the most straightforward way
+            ',dbg' if settings.DEBUG else ''
+        )
 
 
 class OtreeConfig(AppConfig):
@@ -103,6 +114,7 @@ class OtreeConfig(AppConfig):
     def ready(self):
         setup_create_singleton_objects()
         setup_create_default_superuser()
+        patch_raven_config()
         monkey_patch_db_cursor()
         # to initialize locks
 

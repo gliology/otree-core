@@ -22,7 +22,7 @@ from django.utils import autoreload, six
 # confused me, it was overwriting django.conf.settings above
 # https://docs.python.org/3/reference/import.html#submodules
 from otree_startup.settings import augment_settings
-from otree_startup.version import __version__
+import otree
 from . import runzip
 
 # REMEMBER TO ALSO UPDATE THE PROJECT TEMPLATE
@@ -152,7 +152,7 @@ def execute_from_command_line(*args, **kwargs):
         command_to_explain = argv[2]
         fetch_command(command_to_explain).print_help('otree', command_to_explain)
     elif subcommand in ("version", "--version"):
-        sys.stdout.write(__version__ + '\n')
+        sys.stdout.write(otree.__version__ + '\n')
         try:
             pypi_updates_cli()
         except:
@@ -278,7 +278,7 @@ def check_pypi_for_updates() -> dict:
 
     semver_re = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
 
-    installed_dotted = __version__
+    installed_dotted = otree.__version__
     installed_match = semver_re.match(installed_dotted)
 
     if installed_match:
