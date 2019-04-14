@@ -1,2 +1,2 @@
+from otree_startup import __version__
 default_app_config = 'otree.apps.OtreeConfig'
-__version__ = '2.1.39'

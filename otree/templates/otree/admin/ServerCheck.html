@@ -62,23 +62,6 @@
         </div>
     {% endif %}
 
-
-    {% if not sentry %}
-        <div class="alert alert-danger">
-            <strong>Sentry not configured</strong>
-            Sentry can send you the details of each server error by email.
-            This is necessary because once you have turned off <code>DEBUG</code> mode,
-            you will no longer see Django’s yellow error pages;
-            you or your users will just see generic "500 server error" pages.
-            oTree offers a free Sentry service;
-            you can find the sign-up link in the oTree documentation.
-        </div>
-    {% else %}
-        <div class="alert alert-success">
-            Sentry is configured.
-        </div>
-    {% endif %}
-
     {% if not auth_level_ok %}
         <div class="alert alert-danger">
             <strong>No password protection</strong>

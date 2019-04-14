@@ -136,7 +136,7 @@ class ParticipantBot(test.Client):
         '''convenience method for testing'''
         self.open_start_url()
         for submission in self.submits_generator:
-            self.submit(submission)
+            self.submit(**submission)
 
     def assert_html_ok(self, submission):
         if submission['check_html']:
@@ -208,15 +208,14 @@ class ParticipantBot(test.Client):
         self.response = self.get(self.url, follow=True)
         return is_wait_page(self.response)
 
-    def submit(self, submission):
-        post_data = submission['post_data']
+    def submit(self, *, post_data, must_fail=False, timeout_happened=False, **kwargs):
         pretty_post_data = bot_prettify_post_data(post_data)
         log_string = self.path
         if pretty_post_data:
             log_string += ', {}'.format(pretty_post_data)
-        if post_data.get('must_fail'):
+        if must_fail:
             log_string += ', SubmissionMustFail'
-        if post_data.get('timeout_happened'):
+        if timeout_happened:
             log_string += ', timeout_happened'
         logger.info(log_string)
         self.response = self.post(self.url, post_data, follow=True)

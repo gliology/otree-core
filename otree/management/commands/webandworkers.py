@@ -71,26 +71,22 @@ class Command(BaseCommand):
             '--dev-https', action='store_true', dest='dev_https', default=False,
             help=ahelp)
 
-
-    def handle(self, *args, **options):
-        self.verbosity = options.get('verbosity', 1)
+    def handle(self, *args, addr=None, port=None, addrport=None, verbosity=1, **options):
+        self.verbosity = verbosity
         self.logger = setup_logger('django.channels', self.verbosity)
         self.honcho = OTreeHonchoManager()
-        self.setup_honcho(options)
+        self.setup_honcho(addr=addr, port=port, addrport=addrport)
         self.honcho.loop()
         sys.exit(self.honcho.returncode)
 
-    def setup_honcho(self, options):
+    def setup_honcho(self, *, addrport, addr, port):
 
-        if options.get('addrport'):
-            m = re.match(naiveip_re, options['addrport'])
+        if addrport:
+            m = re.match(naiveip_re, addrport)
             if m is None:
                 raise CommandError('"%s" is not a valid port number '
-                                   'or address:port pair.' % options['addrport'])
+                                   'or address:port pair.' % addrport)
             addr, _, _, _, port = m.groups()
-        else:
-            addr = options['addr']
-            port = options['port']
         addr = addr or DEFAULT_ADDR
         port = port or os.environ.get('PORT') or DEFAULT_PORT
 
