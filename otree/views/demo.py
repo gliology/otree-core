@@ -6,6 +6,7 @@ from django.urls import reverse
 import vanilla
 from otree.session import SESSION_CONFIGS_DICT
 from otree.common_internal import create_session_and_redirect
+import os
 
 
 class DemoIndex(vanilla.TemplateView):
@@ -19,7 +20,6 @@ class DemoIndex(vanilla.TemplateView):
         intro_html = (
             getattr(settings, 'DEMO_PAGE_INTRO_HTML', '') or
             getattr(settings, 'DEMO_PAGE_INTRO_TEXT', ''))
-        context = super().get_context_data(**kwargs)
 
         session_info = []
         for session_config in SESSION_CONFIGS_DICT.values():
@@ -36,21 +36,27 @@ class DemoIndex(vanilla.TemplateView):
                 }
             )
 
-        context.update({
-            'session_info': session_info,
-            'title': title,
-            'intro_html': intro_html,
-            'is_debug': settings.DEBUG,
-        })
-        return context
+        if os.environ.get('OTREEHUB_PUB'):
+            otreehub_app_name = os.environ.get('OTREEHUB_APP_NAME')
+            otreehub_url = f'https://www.otreehub.com/projects/{otreehub_app_name}/'
+        else:
+            otreehub_url = ''
+
+        return super().get_context_data(
+            session_info=session_info,
+            title=title,
+            intro_html=intro_html,
+            is_debug=settings.DEBUG,
+            otreehub_url=otreehub_url,
+            **kwargs
+        )
 
 
 class CreateDemoSession(vanilla.GenericView):
 
-    url_pattern = r"^demo/(?P<session_config>.+)/$"
+    url_pattern = r"^demo/(?P<session_config_name>.+)/$"
 
-    def dispatch(self, request, *args, **kwargs):
-        session_config_name = kwargs['session_config']
+    def dispatch(self, request, session_config_name):
         try:
             session_config = SESSION_CONFIGS_DICT[session_config_name]
         except KeyError:

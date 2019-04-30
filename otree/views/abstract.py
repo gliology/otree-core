@@ -237,8 +237,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
     @method_decorator(never_cache)
     @method_decorator(cache_control(must_revalidate=True, max_age=0,
                                     no_cache=True, no_store=True))
-    def dispatch(self, *args, **kwargs):
-        participant_code = kwargs.pop(constants.participant_code)
+    def dispatch(self, request, participant_code, **kwargs):
 
         if otree.common_internal.USE_REDIS:
             lock = redis_lock.Lock(
@@ -636,15 +635,6 @@ class FormPageOrInGameWaitPage(vanilla.View):
             # super() is a bit slower but only gets run during __init__
             super().__setattr__(attr, value)
 
-    def _force_setattr(self, attr: str, value):
-        '''maybe better to use whitelist rather than this;
-        that keeps all the code in 1 place'''
-        orig = self._is_frozen
-        self._is_frozen = False
-        try:
-            setattr(self, attr, value)
-        finally:
-            self._is_frozen = orig
 
 class Page(FormPageOrInGameWaitPage):
 
@@ -682,6 +672,7 @@ class Page(FormPageOrInGameWaitPage):
         return self.form_fields
 
     def _get_form_model(self):
+        # TODO: move this to checks framework?
         form_model = self.form_model
         if isinstance(form_model, str):
             if form_model == 'player':
@@ -843,6 +834,7 @@ class Page(FormPageOrInGameWaitPage):
         try:
             self.before_next_page()
         except Exception as exc:
+            # why not raise ResponseForException?
             return response_for_exception(self.request, exc)
 
         if self.participant.is_browser_bot:
@@ -1022,17 +1014,14 @@ _MSG_Undefined_GetPlayersForGroup = (
 )
 
 _MSG_Undefined_AfterAllPlayersArrive_Player = (
-    'self.player and self.participant cannot be referenced '
-    'inside after_all_players_arrive, '
-    'which is executed only once '
-    'for the entire group.'
+    'self.player and self.participant do not exist in after_all_players_arrive. '
+    'You should use self.group.get_players() instead.'
 )
 
 _MSG_Undefined_AfterAllPlayersArrive_Group = (
-    'self.group cannot be referenced inside after_all_players_arrive '
-    'if wait_for_all_groups=True, '
-    'because after_all_players_arrive() is executed only once '
-    'for all groups in the subsession.'
+    'self.group does not exist in after_all_players_arrive '
+    'if wait_for_all_groups=True. '
+    'You should use self.subsession.get_groups() instead.'
 )
 
 class Undefined_AfterAllPlayersArrive_Player:
@@ -1601,23 +1590,24 @@ class AdminSessionPageMixin:
         return r"^{}/(?P<code>[a-z0-9]+)/$".format(cls.__name__)
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({
-            'session': self.session,
-            'is_debug': settings.DEBUG,
-            'request': self.request,
-        })
-        return context
+        kwargs.update(
+            session=self.session,
+            is_debug=settings.DEBUG,
+            request=self.request,
+        )
+        kwargs.update(self.vars_for_template())
+        return super().get_context_data(**kwargs)
+
+    def vars_for_template(self):
+        return {}
 
     def get_template_names(self):
         return ['otree/admin/{}.html'.format(self.__class__.__name__)]
 
-    def dispatch(self, request, *args, **kwargs):
-        session_code = kwargs['code']
+    def dispatch(self, request, code, **kwargs):
         self.session = get_object_or_404(
-            otree.models.Session, code=session_code)
-        return super().dispatch(
-            request, *args, **kwargs)
+            otree.models.Session, code=code)
+        return super().dispatch(request, **kwargs)
 
     def get_form_class(self):
         """A drop-in replacement for

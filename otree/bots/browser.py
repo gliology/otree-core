@@ -196,7 +196,6 @@ def ping(redis_conn, *, timeout):
             'If you want to use browser bots, '
             'you need to be running the botworker '
             '(which is started automatically if you run "otree runprodserver" '
-            'or "otree timeoutworker"). '
             'Otherwise, set ("use_browser_bots": False) in the session config '
             'in settings.py.'
         )

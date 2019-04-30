@@ -10,8 +10,8 @@ class Command(startproject.Command):
     help = ("Creates a new oTree project.")
 
     def add_arguments(self, parser):
-        '''need this so we can test startproject automatically'''
         super().add_arguments(parser)
+        '''need this so we can test startproject automatically'''
         parser.add_argument(
             '--noinput', action='store_false', dest='interactive',
             default=True)
@@ -43,8 +43,8 @@ class Command(startproject.Command):
             project_template_path = os.path.join(
                 os.path.dirname(otree.__file__), 'project_template')
 
-        if options.get('template', None) is None:
-            options['template'] = project_template_path
+        options['template'] = project_template_path
+
         try:
             super().handle(*args, **options)
         except CommandError as exc:

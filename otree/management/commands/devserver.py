@@ -6,12 +6,11 @@ import sys
 import termcolor
 import time
 import traceback
+from unittest.mock import patch
 from django.conf import settings
 from django.core.management import call_command
 from pathlib import Path
 from django.apps import apps
-
-from otree.common_internal import capture_stdout
 
 from . import runserver
 
@@ -98,7 +97,7 @@ class Command(runserver.Command):
             # or raise CommandError.
             # if someone needs to see the details of makemigrations,
             # they can do "otree makemigrations".
-            with capture_stdout():
+            with patch('sys.stdout.write'):
                 call_command('makemigrations', '--noinput', *migrations_modules.keys())
         except SystemExit as exc:
             # SystemExit will be raised if NonInteractiveMigrationQuestioner
@@ -120,9 +119,9 @@ class Command(runserver.Command):
         importlib.invalidate_caches()
 
         try:
-            # see above comment about makemigrations and capture_stdout.
+            # see above comment about makemigrations and capturing stdout.
             # it applies to migrate command also.
-            with capture_stdout():
+            with patch('sys.stdout.write'):
                 # call_command does not add much overhead (0.1 seconds typical)
                 call_command('migrate', '--noinput')
         except Exception as exc:

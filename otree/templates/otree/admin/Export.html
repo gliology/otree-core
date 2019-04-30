@@ -99,6 +99,13 @@
             {% endfor %}
             </tbody>
         </table>
+
+        <p>
+            If the above links don't work for you, you can try the URLs
+            /ExportWide/ and /ExportApp/your_app_name/
+            For xlsx, add ?xlsx=1 to the URL.
+        </p>
+
         <h3>Time spent on each page</h3>
         <p><a href="{% url 'ExportTimeSpent' %}">
             <img src='{% static "glyphicons/download-alt.png" %}'>
