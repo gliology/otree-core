@@ -6,6 +6,8 @@ import otree.common_internal
 from channels import channel_layers
 import logging
 from otree import common_internal
+import random
+import os
 
 class Command(runserver.Command):
 
@@ -30,6 +32,16 @@ class Command(runserver.Command):
 
         # so we know not to use Huey
         otree.common_internal.USE_REDIS = False
+
+        # for performance,
+        # only run checks when the server starts, not when it reloads
+        # (RUN_MAIN is set by Django autoreloader).
+        if not os.environ.get('RUN_MAIN'):
+            try:
+                self.check(display_num_errors=True)
+            except Exception as exc:
+                common_internal.print_colored_traceback_and_exit(exc)
+
         super().handle(*args, **options)
 
     def inner_run(self, *args, **options):
@@ -50,11 +62,6 @@ class Command(runserver.Command):
         self.channel_layer.router.check_default(
             http_consumer=self.get_consumer(*args, **options),
         )
-        # Run checks
-        try:
-            self.check(display_num_errors=True)
-        except Exception as exc:
-            common_internal.print_colored_traceback_and_exit(exc)
 
         addr = '[%s]' % self.addr if self._raw_ipv6 else self.addr
         if addr == '127.0.0.1':
