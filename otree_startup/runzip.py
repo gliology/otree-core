@@ -26,10 +26,11 @@ def main(remaining_argv):
     stdout_write(
         'There may be a newer version of the runzip command. '
         'Make sure you are upgraded to the latest version of oTree.'
-        )
+    )
     try:
         if remaining_argv:
-            exit_code = run_single_zipfile(remaining_argv[0])
+            [path] = remaining_argv
+            exit_code = run_single_zipfile(path)
         else:
             exit_code = autoreload_for_new_zipfiles()
         # the rest is adapted from django autoreload, not sure why it's done
@@ -42,7 +43,7 @@ def main(remaining_argv):
         pass
 
 
-def run_single_zipfile(fn: str):
+def run_single_zipfile(fn: str) -> int:
     project = Project(Path(fn))
     project.unzip_to_tempdir()
     project.start()
@@ -52,8 +53,8 @@ def run_single_zipfile(fn: str):
 
 
 MSG_NO_OTREEZIP_YET = 'No *.otreezip file found in this folder yet, waiting...'
-MSG_FOUND_NEWER_OTREEZIP = 'Newer project found: {}'
-
+MSG_FOUND_NEWER_OTREEZIP = 'Newer project found'
+MSG_RUNNING_OTREEZIP_NAME = "Running {}"
 
 def autoreload_for_new_zipfiles() -> int:
     project = get_newest_project()
@@ -71,6 +72,7 @@ def autoreload_for_new_zipfiles() -> int:
         while True:
             if newer_project:
                 project = newer_project
+            stdout_write(MSG_RUNNING_OTREEZIP_NAME.format(project.zipname()))
             project.unzip_to_tempdir()
             if tempdirs:
                 project.take_db_from_previous(tempdirs[-1].name)
@@ -91,7 +93,7 @@ def autoreload_for_new_zipfiles() -> int:
                         newer_project = latest_project
                         # use stdout.write because logger is not configured
                         # (django setup has not even been run)
-                        stdout_write(MSG_FOUND_NEWER_OTREEZIP.format(newer_project.zipname()))
+                        stdout_write(MSG_FOUND_NEWER_OTREEZIP)
                         break
             finally:
                 project.terminate()
@@ -133,7 +135,7 @@ class Project:
     def terminate(self):
         return self._proc.terminate()
 
-    def wait(self):
+    def wait(self) -> int:
         return self._proc.wait()
 
     def take_db_from_previous(self, other_tmpdir: str):

@@ -237,8 +237,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
     @method_decorator(never_cache)
     @method_decorator(cache_control(must_revalidate=True, max_age=0,
                                     no_cache=True, no_store=True))
-    def dispatch(self, *args, **kwargs):
-        participant_code = kwargs.pop(constants.participant_code)
+    def dispatch(self, request, participant_code, **kwargs):
 
         if otree.common_internal.USE_REDIS:
             lock = redis_lock.Lock(
@@ -553,8 +552,6 @@ class FormPageOrInGameWaitPage(vanilla.View):
         pass
 
     def _get_next_page_index_if_skipping_apps(self):
-        # FIXME: to enable app_after_this_page, remove this return
-        return
         # don't run it if the page is not displayed, because:
         # (1) it's consistent with other functions like before_next_page, vars_for_template
         # (2) then when we do
@@ -638,15 +635,6 @@ class FormPageOrInGameWaitPage(vanilla.View):
             # super() is a bit slower but only gets run during __init__
             super().__setattr__(attr, value)
 
-    def _force_setattr(self, attr: str, value):
-        '''maybe better to use whitelist rather than this;
-        that keeps all the code in 1 place'''
-        orig = self._is_frozen
-        self._is_frozen = False
-        try:
-            setattr(self, attr, value)
-        finally:
-            self._is_frozen = orig
 
 class Page(FormPageOrInGameWaitPage):
 
@@ -846,6 +834,7 @@ class Page(FormPageOrInGameWaitPage):
         try:
             self.before_next_page()
         except Exception as exc:
+            # why not raise ResponseForException?
             return response_for_exception(self.request, exc)
 
         if self.participant.is_browser_bot:
@@ -1601,23 +1590,30 @@ class AdminSessionPageMixin:
         return r"^{}/(?P<code>[a-z0-9]+)/$".format(cls.__name__)
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({
-            'session': self.session,
-            'is_debug': settings.DEBUG,
-            'request': self.request,
-        })
+        context = super().get_context_data(
+            session=self.session,
+            is_debug=settings.DEBUG,
+            request=self.request,
+            **kwargs)
+        # vars_for_template has highest priority
+        context.update(self.vars_for_template())
         return context
+
+    def vars_for_template(self):
+        '''
+        simpler to use vars_for_template, but need to use get_context_data when:
+        -   you need access to the context produced by the parent class,
+            such as the form
+        '''
+        return {}
 
     def get_template_names(self):
         return ['otree/admin/{}.html'.format(self.__class__.__name__)]
 
-    def dispatch(self, request, *args, **kwargs):
-        session_code = kwargs['code']
+    def dispatch(self, request, code, **kwargs):
         self.session = get_object_or_404(
-            otree.models.Session, code=session_code)
-        return super().dispatch(
-            request, *args, **kwargs)
+            otree.models.Session, code=code)
+        return super().dispatch(request, **kwargs)
 
     def get_form_class(self):
         """A drop-in replacement for

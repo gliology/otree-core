@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import os
 import sys
+from sys import exit as sys_exit
 
-from honcho.manager import Manager
+from honcho.manager import Manager as HonchoManager
 from channels.log import setup_logger
 from django.core.management.base import BaseCommand
 
@@ -13,32 +14,31 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         BaseCommand.add_arguments(self, parser)
 
-    def get_env(self, options):
-        return os.environ.copy()
-
-    def handle(self, *args, **options):
-        self.verbosity = options.get('verbosity', 1)
+    def handle(self, *args, verbosity=1, **options):
+        self.verbosity = verbosity
         self.logger = setup_logger('django.channels', self.verbosity)
-        manager = self.get_honcho_manager(options)
+        manager = self.get_honcho_manager()
         manager.loop()
-        sys.exit(manager.returncode)
+        sys_exit(manager.returncode)
 
-    def get_honcho_manager(self, options):
+    def get_honcho_manager(self):
 
-        manager = Manager()
+        env_copy = os.environ.copy()
+
+        manager = HonchoManager()
 
         # if I change these, I need to modify the ServerCheck also
         manager.add_process(
             'botworker',
             'otree botworker',
             quiet=False,
-            env=os.environ.copy()
+            env=env_copy,
         )
         manager.add_process(
             'timeoutworkeronly',
             'otree timeoutworkeronly',
             quiet=False,
-            env=os.environ.copy()
+            env=env_copy,
         )
 
         return manager

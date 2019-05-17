@@ -61,12 +61,9 @@ class ModelFormMetaclass(django.forms.models.ModelFormMetaclass):
     `formfield_callback`.
     """
     def __new__(mcs, name, bases, attrs):
-        if 'formfield_callback' not in attrs:
-            attrs['formfield_callback'] = formfield_callback
+        attrs.setdefault('formfield_callback', formfield_callback)
         return super(ModelFormMetaclass, mcs).__new__(
             mcs, name, bases, attrs)
-
-
 
 
 class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
@@ -77,7 +74,7 @@ class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
                 if callable(meth):
                     return meth
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, view=None, **kwargs):
         """Special handling for 'choices' argument, BooleanFields, and
         initial choice: If the user explicitly specifies a None choice
         (which is usually  rendered as '---------'), we should always respect
@@ -95,7 +92,7 @@ class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
 
         """
         # first extract the view instance
-        self.view = kwargs.pop("view", None)
+        self.view = view
 
         super().__init__(*args, **kwargs)
 

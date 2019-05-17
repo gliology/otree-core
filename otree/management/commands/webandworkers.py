@@ -31,16 +31,11 @@ class OTreeHonchoManager(honcho.manager.Manager):
     def add_otree_process(self, name, cmd):
         self.add_process(name, cmd, env=os.environ.copy(), quiet=False)
 
-def twisted_ssl_file_path(filename):
-    otree_dir = os.path.dirname(otree.__file__)
-    pth = os.path.join(otree_dir, 'certs', filename)
-    return pth.replace('\\', '/').replace(':', '\\:')
 
 class Command(BaseCommand):
     help = 'Run otree web services for the production environment.'
 
     def add_arguments(self, parser):
-        BaseCommand.add_arguments(self, parser)
 
         parser.add_argument('addrport', nargs='?',
             help='Optional port number, or ipaddr:port')
@@ -64,33 +59,23 @@ class Command(BaseCommand):
         parser.add_argument(
             '--port', action='store', type=int, dest='port', default=None,
             help=ahelp)
-        ahelp = (
-            'Run an SSL server directly in Daphne with a self-signed cert/key'
-        )
-        parser.add_argument(
-            '--dev-https', action='store_true', dest='dev_https', default=False,
-            help=ahelp)
 
-
-    def handle(self, *args, **options):
-        self.verbosity = options.get('verbosity', 1)
+    def handle(self, *args, addr=None, port=None, addrport=None, verbosity=1, **options):
+        self.verbosity = verbosity
         self.logger = setup_logger('django.channels', self.verbosity)
         self.honcho = OTreeHonchoManager()
-        self.setup_honcho(options)
+        self.setup_honcho(addr=addr, port=port, addrport=addrport)
         self.honcho.loop()
         sys.exit(self.honcho.returncode)
 
-    def setup_honcho(self, options):
+    def setup_honcho(self, *, addrport, addr, port):
 
-        if options.get('addrport'):
-            m = re.match(naiveip_re, options['addrport'])
+        if addrport:
+            m = re.match(naiveip_re, addrport)
             if m is None:
                 raise CommandError('"%s" is not a valid port number '
-                                   'or address:port pair.' % options['addrport'])
+                                   'or address:port pair.' % addrport)
             addr, _, _, _, port = m.groups()
-        else:
-            addr = options['addr']
-            port = options['port']
         addr = addr or DEFAULT_ADDR
         port = port or os.environ.get('PORT') or DEFAULT_PORT
 

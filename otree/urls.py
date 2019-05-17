@@ -50,16 +50,11 @@ def view_classes_from_module(module_name):
     ]
 
 
-def url_patterns_from_game_module(module_name, name_in_url):
+def url_patterns_from_app_pages(module_name, name_in_url):
     views_module = import_module(module_name)
 
-    all_views = [
-        ViewCls
-        for _, ViewCls in inspect.getmembers(views_module)
-        if hasattr(ViewCls, 'url_pattern')]
-
     view_urls = []
-    for ViewCls in all_views:
+    for ViewCls in views_module.page_sequence:
 
         url_pattern = ViewCls.url_pattern(name_in_url)
         url_name = ViewCls.url_name()
@@ -70,16 +65,7 @@ def url_patterns_from_game_module(module_name, name_in_url):
     return view_urls
 
 
-def url_patterns_from_module(module_name):
-    """automatically generates URLs for all Views in the module,
-    So that you don't need to enumerate them all in urlpatterns.
-    URLs take the form "gamename/ViewName".
-    See the method url_pattern() for more info
-
-    So call this function in your urls.py and pass it the names of all
-    Views modules as strings.
-
-    """
+def url_patterns_from_builtin_module(module_name: str):
 
     all_views = view_classes_from_module(module_name)
 
@@ -172,16 +158,16 @@ def get_urlpatterns():
         used_names_in_url.add(name_in_url)
 
         views_module = common_internal.get_pages_module(app_name)
-        urlpatterns += url_patterns_from_game_module(
+        urlpatterns += url_patterns_from_app_pages(
             views_module.__name__, name_in_url)
 
 
-    urlpatterns += url_patterns_from_module('otree.views.participant')
-    urlpatterns += url_patterns_from_module('otree.views.demo')
-    urlpatterns += url_patterns_from_module('otree.views.admin')
-    urlpatterns += url_patterns_from_module('otree.views.room')
-    urlpatterns += url_patterns_from_module('otree.views.mturk')
-    urlpatterns += url_patterns_from_module('otree.views.export')
+    urlpatterns += url_patterns_from_builtin_module('otree.views.participant')
+    urlpatterns += url_patterns_from_builtin_module('otree.views.demo')
+    urlpatterns += url_patterns_from_builtin_module('otree.views.admin')
+    urlpatterns += url_patterns_from_builtin_module('otree.views.room')
+    urlpatterns += url_patterns_from_builtin_module('otree.views.mturk')
+    urlpatterns += url_patterns_from_builtin_module('otree.views.export')
 
     urlpatterns += extensions_urlpatterns()
     urlpatterns += extensions_export_urlpatterns()

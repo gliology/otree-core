@@ -183,75 +183,50 @@ class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
 Model = OTreeModel
 
 
+def fix_choices_arg(kwargs):
+    '''allows the programmer to define choices as a list of values rather
+    than (value, display_value)
+
+    '''
+    choices = kwargs.get('choices')
+    if not choices:
+        return
+    choices = expand_choice_tuples(choices)
+    kwargs['choices'] = choices
+
+
 class _OtreeModelFieldMixin(object):
-    def fix_choices_arg(self, kwargs):
-        '''allows the programmer to define choices as a list of values rather
-        than (value, display_value)
-
-        '''
-        choices = kwargs.get('choices')
-        if not choices:
-            return
-        choices = expand_choice_tuples(choices)
-        kwargs['choices'] = choices
-
-    def set_otree_properties(self, kwargs):
-
-        # Give a `widget` argument to a model field in order to override the
-        # default widget used for this field in a model form.
-
-        # The given widget will only be used when you subclass your model form from
-        # otree.forms.forms.BaseModelForm.
-
-        self.widget = kwargs.pop('widget', None)
-        self.doc = kwargs.pop('doc', None)
-        self.min = kwargs.pop('min', None)
-        self.max = kwargs.pop('max', None)
 
     def __init__(
-            # list args explicitly so they show up in IDE autocomplete.
-            # Hide the ones that oTree users will rarely need, like
-            # db_index, primary_key, etc...
             self,
             *,
-            choices=None,
-            widget=None,
             initial=None,
             label=None,
-            doc='',
             min=None,
             max=None,
-            blank=False,
+            doc='',
+            widget=None,
             **kwargs):
 
-        # ...but put them all back into kwargs so that there is a consistent
-        # interface to work with them
-        kwargs.update(dict(
-            choices=choices,
-            widget=widget,
-            initial=initial,
-            label=label,
-            doc=doc,
-            min=min,
-            max=max,
-            blank=blank,
-        ))
+        self.widget = widget
+        self.doc = doc
+        self.min = min
+        self.max = max
 
-        self.set_otree_properties(kwargs)
-        self.fix_choices_arg(kwargs)
+        fix_choices_arg(kwargs)
 
         kwargs.setdefault('help_text', '')
         kwargs.setdefault('null', True)
 
         # to be more consistent with {% formfield %}
         # this is more intuitive for newbies
-        kwargs.setdefault('verbose_name', kwargs.pop('label'))
+        kwargs.setdefault('verbose_name', label)
 
         # "initial" is an alias for default. in the context of oTree, 'initial'
         # is a more intuitive name. (since the user never instantiates objects
         # themselves. also, "default" could be misleading -- people could think
         # it's the default choice in the form
-        kwargs.setdefault('default', kwargs.pop('initial'))
+        kwargs.setdefault('default', initial)
 
         # if default=None, Django will omit the blank choice from form widget
         # https://code.djangoproject.com/ticket/10792
@@ -339,10 +314,6 @@ class BooleanField(_OtreeModelFieldMixin, models.NullBooleanField):
     def __init__(self,
                  *,
                  choices=None,
-                 widget=None,
-                 initial=None,
-                 label=None,
-                 doc='',
                  **kwargs):
         # 2015-1-19: why is this here? isn't this the default behavior?
         # 2013-1-26: ah, because we don't want the "----" (None) choice
@@ -358,15 +329,8 @@ class BooleanField(_OtreeModelFieldMixin, models.NullBooleanField):
         # checkbox input is used.
         self._blank_is_explicit = 'blank' in kwargs
 
-        kwargs.setdefault('help_text', '')
-        kwargs.setdefault('null', True)
-
         super().__init__(
             choices=choices,
-            widget=widget,
-            initial=initial,
-            label=label,
-            doc=doc,
             **kwargs)
 
         # you cant override "blank" or you will destroy the migration system
@@ -414,11 +378,6 @@ class StringField(_OtreeModelFieldMixin, models.CharField):
     def __init__(
             self,
             *,
-            choices=None,
-            widget=None,
-            initial=None,
-            label=None,
-            doc='',
             # varchar max length doesn't affect performance or even storage
             # size; it's just for validation. so, to be easy to use,
             # there is no reason for oTree to set a short default length
@@ -427,20 +386,10 @@ class StringField(_OtreeModelFieldMixin, models.CharField):
             # because oTree only uses indexes for fields defined in otree-core,
             # which have explicit max_lengths anyway.
             max_length=10000,
-            blank=False,
             **kwargs):
 
-        kwargs.setdefault('help_text', '')
-        kwargs.setdefault('null', True)
-
         super().__init__(
-            choices=choices,
-            widget=widget,
-            initial=initial,
-            label=label,
-            doc=doc,
             max_length=max_length,
-            blank=blank,
             **kwargs)
 
     auto_submit_default = ''

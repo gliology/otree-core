@@ -22,13 +22,39 @@ from django.utils import autoreload, six
 # confused me, it was overwriting django.conf.settings above
 # https://docs.python.org/3/reference/import.html#submodules
 from otree_startup.settings import augment_settings
-import otree
+from otree import __version__
 from . import runzip
 
 # REMEMBER TO ALSO UPDATE THE PROJECT TEMPLATE
 from otree_startup.settings import get_default_settings
 
 logger = logging.getLogger(__name__)
+
+
+MAIN_HELP_TEXT = '''
+Type 'otree help <subcommand>' for help on a specific subcommand.
+
+Available subcommands:
+
+browser_bots
+create_session
+devserver
+django_test
+resetdb
+runprodserver
+runprodserver1of2
+runprodserver2of2
+runzip
+shell
+startapp
+startproject
+test
+unzip
+update_my_code
+upgrade_my_code
+webandworkers
+zip
+'''
 
 
 def execute_from_command_line(*args, **kwargs):
@@ -68,7 +94,9 @@ def execute_from_command_line(*args, **kwargs):
 
     if subcommand == 'runzip':
         runzip.main(argv[2:])
-        sys.exit(0)
+        # better to return than sys.exit because testing is complicated
+        # with sys.exit -- if you mock it, then the function keeps executing.
+        return
 
     # Add the current directory to sys.path so that Python can find
     # the settings module.
@@ -86,9 +114,11 @@ def execute_from_command_line(*args, **kwargs):
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
     DJANGO_SETTINGS_MODULE = os.environ['DJANGO_SETTINGS_MODULE']
 
+    # help and --help must have settings configured, so that otree can be in
+    # INSTALLED_APPS, so those management commands are available.
     if subcommand in [
         'startproject',
-        'help', 'version', '--help', '--version', '-h',
+        'version', '--version', '-h',
         'compilemessages', 'makemessages',
         'upgrade_my_code', 'update_my_code',
         'unzip', 'zip',
@@ -147,12 +177,12 @@ def execute_from_command_line(*args, **kwargs):
         do_django_setup()
 
     if subcommand in ['help', '--help', '-h'] and len(argv) == 2:
-        sys.stdout.write(main_help_text() + '\n')
+        sys.stdout.write(MAIN_HELP_TEXT)
     elif subcommand == 'help' and len(argv) >= 3:
         command_to_explain = argv[2]
         fetch_command(command_to_explain).print_help('otree', command_to_explain)
     elif subcommand in ("version", "--version"):
-        sys.stdout.write(otree.__version__ + '\n')
+        sys.stdout.write(__version__ + '\n')
         try:
             pypi_updates_cli()
         except:
@@ -192,33 +222,6 @@ def do_django_setup():
         import colorama
         colorama.init(autoreset=True)
         print_colored_traceback_and_exit(exc)
-
-
-def main_help_text() -> str:
-    """
-    Returns the script's main help text, as a string.
-    """
-    usage = [
-        "",
-        "Type 'otree help <subcommand>' for help on a specific subcommand.",
-        "",
-        "Available subcommands:",
-    ]
-    commands_dict = defaultdict(lambda: [])
-    for name, app in six.iteritems(get_commands()):
-        if app == 'django.core':
-            app = 'django'
-        else:
-            app = app.rpartition('.')[-1]
-        commands_dict[app].append(name)
-    style = color_style()
-    for app in sorted(commands_dict.keys()):
-        usage.append("")
-        usage.append(style.NOTICE("[%s]" % app))
-        for name in sorted(commands_dict[app]):
-            usage.append("    %s" % name)
-
-    return '\n'.join(usage)
 
 
 def fetch_command(subcommand: str) -> BaseCommand:
@@ -278,7 +281,7 @@ def check_pypi_for_updates() -> dict:
 
     semver_re = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
 
-    installed_dotted = otree.__version__
+    installed_dotted = __version__
     installed_match = semver_re.match(installed_dotted)
 
     if installed_match:
@@ -346,14 +349,14 @@ def pypi_updates_cli():
 PYPI_CHECK_UPDATES = True
 
 
+def highlight(string):
+    from termcolor import colored
+    return colored(string, 'white', 'on_blue')
+
+
 def print_colored_traceback_and_exit(exc):
     import traceback
-    from termcolor import colored
     import sys
-
-
-    def highlight(string):
-        return colored(string, 'white', 'on_blue')
 
     # before we used BASE_DIR but apparently that setting was not set yet
     # (not sure why)
@@ -362,7 +365,7 @@ def print_colored_traceback_and_exit(exc):
     # the list of commands was not loaded.
     current_dir = os.getcwd()
 
-    frames = traceback.extract_tb(sys.exc_info()[2])
+    frames = traceback.extract_tb(exc.__traceback__)
     new_frames = []
     for frame in frames:
         filename, lineno, name, line = frame
@@ -380,4 +383,5 @@ def print_colored_traceback_and_exit(exc):
     lines += final_lines
     for line in lines:
         sys.stdout.write(line)
+
     sys.exit(-1)
