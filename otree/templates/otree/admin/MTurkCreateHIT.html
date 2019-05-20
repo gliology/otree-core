@@ -23,13 +23,13 @@
                 replace <code>otree==N.N.N</code> with <code>otree[mturk]==N.N.N</code>.
                 This will install oTree along with extra MTurk-specific packages.
             </td>
-            <td>{% if boto3_installed %}Yes{% else %}No{% endif %}</td>
+            <td>{{ boto3_installed|yesno }}</td>
         </tr>
 
         <tr>
             <td>Set the settings <code>AWS_ACCESS_KEY_ID</code> and
             <code>AWS_SECRET_ACCESS_KEY</code></td>
-            <td>{% if aws_keys_exist %}Yes{% else %}No{% endif %}</td>
+            <td>{{ aws_keys_exist|yesno }}</td>
         </tr>
         <tr>
             <td>
@@ -52,7 +52,7 @@
                     -->
                 </ol>
             </td>
-            <td>{% if https %}Yes{% else %}No{% endif %}</td>
+            <td>{{ https|yesno }}</td>
         </tr>
     </table>
 

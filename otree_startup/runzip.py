@@ -26,7 +26,7 @@ def main(remaining_argv):
     stdout_write(
         'There may be a newer version of the runzip command. '
         'Make sure you are upgraded to the latest version of oTree.'
-        )
+    )
     try:
         if remaining_argv:
             [path] = remaining_argv

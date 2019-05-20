@@ -1590,15 +1590,21 @@ class AdminSessionPageMixin:
         return r"^{}/(?P<code>[a-z0-9]+)/$".format(cls.__name__)
 
     def get_context_data(self, **kwargs):
-        kwargs.update(
+        context = super().get_context_data(
             session=self.session,
             is_debug=settings.DEBUG,
             request=self.request,
-        )
-        kwargs.update(self.vars_for_template())
-        return super().get_context_data(**kwargs)
+            **kwargs)
+        # vars_for_template has highest priority
+        context.update(self.vars_for_template())
+        return context
 
     def vars_for_template(self):
+        '''
+        simpler to use vars_for_template, but need to use get_context_data when:
+        -   you need access to the context produced by the parent class,
+            such as the form
+        '''
         return {}
 
     def get_template_names(self):

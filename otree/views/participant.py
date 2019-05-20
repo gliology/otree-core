@@ -129,11 +129,15 @@ class MTurkStart(vanilla.View):
         assignment_id = self.request.GET['assignmentId']
         worker_id = self.request.GET['workerId']
         qualification_id = self.session.config['mturk_hit_settings'].get('grant_qualification_id')
-        if qualification_id:
+        use_sandbox=self.session.mturk_use_sandbox
+        if qualification_id and not use_sandbox:
+            # if using sandbox, there is no point in granting quals.
+            # https://groups.google.com/forum/#!topic/otree/aAmqTUF-b60
+
             # don't pass request arg, because we don't want to show a message.
             # using the fully qualified name because that seems to make mock.patch work
             mturk_client = otree.views.mturk.get_mturk_client(
-                use_sandbox=self.session.mturk_use_sandbox)
+                use_sandbox=use_sandbox)
             # seems OK to assign this multiple times
             mturk_client.associate_qualification_with_worker(
                 QualificationTypeId=qualification_id,

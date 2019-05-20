@@ -177,10 +177,14 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
 
         mturk_settings = self.session.config['mturk_hit_settings']
 
+        keywords = mturk_settings['keywords']
+        if isinstance(keywords, (list, tuple)):
+            keywords = ', '.join(keywords)
+
         initial = {
             'title': mturk_settings['title'],
             'description': mturk_settings['description'],
-            'keywords': ', '.join(mturk_settings['keywords']),
+            'keywords': keywords,
             'money_reward': self.session.config['participation_fee'],
             'use_sandbox': True,
             'minutes_allotted_per_assignment': (
@@ -196,15 +200,13 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         parsed_url = urlparse(url)
         https = parsed_url.scheme == 'https'
 
-        context = self.get_context_data(form=form)
-        context.update(
+        context = self.get_context_data(
+            form=form,
             boto3_installed=self.boto3_installed,
             https=https,
             aws_keys_exist=self.aws_keys_exist,
             mturk_ready=self.aws_keys_exist and self.boto3_installed and https,
-            runserver=('runserver' in sys.argv) or ('devserver' in sys.argv),
-            secured_url=urlunparse(parsed_url._replace(scheme='https')),
-            missing_next_button_warning=MTurkValidator(self.session).validation_message()
+            missing_next_button_warning=MTurkValidator(self.session).validation_message(),
         )
 
         return self.render_to_response(context)
@@ -217,8 +219,9 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         if not form.is_valid():
             return self.form_invalid(form)
         session = self.session
-        use_sandbox = 'use_sandbox' in form.data
-        # session can't be created
+        cleaned_data = form.cleaned_data
+
+        use_sandbox = bool(cleaned_data['use_sandbox'])
         if (not self.in_public_domain(request, **kwargs) and
            not use_sandbox):
                 msg = (
@@ -242,7 +245,7 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             urlparse(url_landing_page)._replace(scheme='https'))
 
         # TODO: validate that there is enough money for the hit
-        money_reward = form.cleaned_data['money_reward']
+        money_reward = cleaned_data['money_reward']
 
         # assign back to participation_fee, in case it was changed
         # in the form
@@ -260,51 +263,33 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
 
         qualifications = mturk_settings.get('qualification_requirements')
 
-        if qualifications and not isinstance(qualifications[0], dict):
-            raise ValueError(
-                'settings.py: You need to upgrade your MTurk qualification_requirements '
-                'to the boto3 format. See the documentation.'
-            )
-
         mturk_hit_parameters = {
-            'Title': form.cleaned_data['title'],
-            'Description': form.cleaned_data['description'],
-            'Keywords': form.cleaned_data['keywords'],
+            'Title': cleaned_data['title'],
+            'Description': cleaned_data['description'],
+            'Keywords': cleaned_data['keywords'],
             'Question': external_question,
-            'MaxAssignments': form.cleaned_data['assignments'],
+            'MaxAssignments': cleaned_data['assignments'],
             'Reward': str(float(money_reward)),
             'QualificationRequirements': qualifications,
-            'AssignmentDurationInSeconds': 60*form.cleaned_data['minutes_allotted_per_assignment'],
-            'LifetimeInSeconds': int(60*60*form.cleaned_data['expiration_hours']),
+            'AssignmentDurationInSeconds': 60*cleaned_data['minutes_allotted_per_assignment'],
+            'LifetimeInSeconds': int(60*60*cleaned_data['expiration_hours']),
             # prevent duplicate HITs
             'UniqueRequestToken':'otree_{}'.format(session.code),
         }
 
         with MTurkClient(use_sandbox=use_sandbox, request=request) as mturk_client:
             if qualification_id:
+                # make sure this qualification actually exists
                 try:
                     mturk_client.get_qualification_type(
                         QualificationTypeId=qualification_id)
                 # it's RequestError, but
                 except Exception as exc:
-                    if use_sandbox:
-                        sandbox_note = (
-                            'You are currently using the sandbox, so you '
-                            'can only grant qualifications that were '
-                            'also created in the sandbox.')
-                    else:
-                        sandbox_note = (
-                            'You are using the MTurk live site, so you '
-                            'can only grant qualifications that were '
-                            'also created on the live site, and not the '
-                            'MTurk sandbox.')
                     msg = (
                         "In settings.py you specified qualification ID '{qualification_id}' "
-                        "MTurk returned the following error: [{exc}] "
-                        "Note: {sandbox_note}".format(
+                        "MTurk returned the following error: [{exc}] ".format(
                             qualification_id=qualification_id,
-                            exc=exc,
-                            sandbox_note=sandbox_note))
+                            exc=exc))
                     messages.error(request, msg)
                     return redirect('MTurkCreateHIT', session.code)
 
@@ -325,7 +310,7 @@ class MTurkSessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
         session = self.session
         published = bool(session.mturk_HITId)
         if not published:
-            return super().get_context_data(published=False, **kwargs)
+            return dict(published=False)
         with MTurkClient(use_sandbox=session.mturk_use_sandbox, request=self.request) as mturk_client:
             workers_by_status = get_workers_by_status(
                 mturk_client,
@@ -360,14 +345,34 @@ class PayMTurk(vanilla.View):
         successful_payments = 0
         failed_payments = 0
         mturk_client = get_mturk_client(use_sandbox=session.mturk_use_sandbox)
+        payment_page_response = redirect('MTurkSessionPayments', session.code)
         # use worker ID instead of assignment ID. Because 2 workers can have
         # the same assignment (if 1 starts it then returns it). we can't really
         # block that.
         # however, we can ensure that 1 worker does not get 2 assignments,
         # by enforcing that the same worker is always assigned to the same participant.
-        for p in session.participant_set.filter(
+        participants = session.participant_set.filter(
             mturk_worker_id__in=request.POST.getlist('workers')
-        ):
+        )
+
+        required_balance = Decimal(
+            len(participants) * session.config['participation_fee']
+            + sum(p.payoff_in_real_world_currency() for p in participants)
+        )
+
+        available_balance = Decimal(
+            mturk_client.get_account_balance()['AvailableBalance']
+        )
+
+        if available_balance < required_balance:
+            msg = (
+                f'Insufficient balance: you have ${available_balance:.2f}, '
+                f'but paying the selected participants costs ${required_balance:.2f}.'
+            )
+            messages.error(request, msg)
+            return payment_page_response
+
+        for p in participants:
             # need the try/except so that we try to pay the rest of the participants
             payoff = p.payoff_in_real_world_currency()
 
@@ -401,7 +406,7 @@ class PayMTurk(vanilla.View):
             messages.warning(request, msg)
         else:
             messages.success(request, msg)
-        return redirect('MTurkSessionPayments', session.code)
+        return payment_page_response
 
 
 class RejectMTurk(vanilla.View):

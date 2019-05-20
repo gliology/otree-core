@@ -14,6 +14,7 @@ import vanilla
 from django.conf import settings
 from django.contrib import messages
 from django.urls import reverse
+from django.template.loader import select_template
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, \
     Http404
 from django.shortcuts import get_object_or_404, redirect
@@ -583,14 +584,20 @@ class AdminReport(AdminSessionPageMixin, vanilla.TemplateView):
         # determine whether to display debug tables
         self.is_debug = settings.DEBUG
 
+        app_label = subsession._meta.app_config.label
+        user_template = select_template([
+            f'{app_label}/admin_report.html',
+            f'{app_label}/AdminReport.html',
+        ])
+
         context = super().get_context_data(
             subsession=subsession,
             Constants=models_module.Constants,
-            session=self.session,
-            user_template='{}/AdminReport.html'.format(
-                subsession._meta.app_config.label),
+            user_template=user_template,
             **kwargs
         )
+        # it's passed by parent class
+        assert 'session' in context
 
         # this should take priority, in the event of a clash between
         # a user-defined var and a built-in one

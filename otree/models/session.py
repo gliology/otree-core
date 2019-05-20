@@ -16,7 +16,7 @@ import time
 
 from otree.db import models
 from otree.models_concrete import ParticipantToPlayerLookup, RoomToSession
-from django.template.loader import get_template
+from django.template.loader import select_template
 from django.template import TemplateDoesNotExist
 from .varsmixin import ModelWithVars
 
@@ -267,11 +267,16 @@ class Session(ModelWithVars):
             models_module = otree.common_internal.get_models_module(app_name)
             app_label = get_app_label_from_name(app_name)
             try:
-                get_template('{}/AdminReport.html'.format(app_label))
-                admin_report_app_names.append(app_name)
-                num_rounds_list.append(models_module.Constants.num_rounds)
+                select_template([
+                    f'{app_label}/admin_report.html',
+                    f'{app_label}/AdminReport.html',
+                ])
             except TemplateDoesNotExist:
                 pass
+            else:
+                admin_report_app_names.append(app_name)
+                num_rounds_list.append(models_module.Constants.num_rounds)
+
         self._admin_report_app_names = ';'.join(admin_report_app_names)
         self._admin_report_num_rounds = ';'.join(str(n) for n in num_rounds_list)
 
