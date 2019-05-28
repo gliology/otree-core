@@ -278,20 +278,6 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         }
 
         with MTurkClient(use_sandbox=use_sandbox, request=request) as mturk_client:
-            if qualification_id:
-                # make sure this qualification actually exists
-                try:
-                    mturk_client.get_qualification_type(
-                        QualificationTypeId=qualification_id)
-                # it's RequestError, but
-                except Exception as exc:
-                    msg = (
-                        "In settings.py you specified qualification ID '{qualification_id}' "
-                        "MTurk returned the following error: [{exc}] ".format(
-                            qualification_id=qualification_id,
-                            exc=exc))
-                    messages.error(request, msg)
-                    return redirect('MTurkCreateHIT', session.code)
 
             hit = mturk_client.create_hit(**mturk_hit_parameters)['HIT']
 
