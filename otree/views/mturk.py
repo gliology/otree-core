@@ -261,8 +261,6 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         </ExternalQuestion>
         '''.format(secured_url_landing_page, mturk_settings['frame_height'])
 
-        qualifications = mturk_settings.get('qualification_requirements')
-
         mturk_hit_parameters = {
             'Title': cleaned_data['title'],
             'Description': cleaned_data['description'],
@@ -270,12 +268,17 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             'Question': external_question,
             'MaxAssignments': cleaned_data['assignments'],
             'Reward': str(float(money_reward)),
-            'QualificationRequirements': qualifications,
             'AssignmentDurationInSeconds': 60*cleaned_data['minutes_allotted_per_assignment'],
             'LifetimeInSeconds': int(60*60*cleaned_data['expiration_hours']),
             # prevent duplicate HITs
             'UniqueRequestToken':'otree_{}'.format(session.code),
         }
+
+        if not use_sandbox:
+            # drop requirements checks in sandbox mode.
+            mturk_hit_parameters['QualificationRequirements'] = (
+                mturk_settings.get('qualification_requirements', [])
+            )
 
         with MTurkClient(use_sandbox=use_sandbox, request=request) as mturk_client:
 
