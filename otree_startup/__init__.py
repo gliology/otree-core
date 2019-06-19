@@ -118,7 +118,7 @@ def execute_from_command_line(*args, **kwargs):
     # INSTALLED_APPS, so those management commands are available.
     if subcommand in [
         'startproject',
-        'version', '--version', '-h',
+        'version', '--version',
         'compilemessages', 'makemessages',
         'upgrade_my_code', 'update_my_code',
         'unzip', 'zip',

@@ -230,10 +230,6 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
                     '</h1>')
                 return HttpResponseServerError(msg)
         mturk_settings = session.config['mturk_hit_settings']
-        qualification_id = mturk_settings.get(
-            'grant_qualification_id', None)
-        # verify that specified qualification type
-        # for preventing retakes exists on mturk server
 
         url_landing_page = self.request.build_absolute_uri(
             reverse('MTurkLandingPage', args=(session.code,)))
@@ -344,9 +340,13 @@ class PayMTurk(vanilla.View):
             mturk_worker_id__in=request.POST.getlist('workers')
         )
 
+        # we require only that there's enough for paying the bonuses,
+        # because the participation fee (reward) is already deducted from
+        # available balance and held in escrow. (see forum post from 2019-06-19)
+        # The 1.2 is because of the 20% surcharge to bonuses, as described here:
+        # https://requester.mturk.com/pricing
         required_balance = Decimal(
-            len(participants) * session.config['participation_fee']
-            + sum(p.payoff_in_real_world_currency() for p in participants)
+            sum(p.payoff_in_real_world_currency() for p in participants) * 1.2
         )
 
         available_balance = Decimal(
