@@ -21,6 +21,8 @@ and password on your local oTree installation match that
 on the server.
 """
 
+logger = logging.getLogger(__name__)
+
 class OSEnum(Enum):
     windows = 'windows'
     mac = 'mac'
@@ -60,6 +62,9 @@ class URLs:
     browser_bots_start = reverse('BrowserBotStartLink')
 
 
+WEBSOCKET_COMPLETED_MESSAGE = b'closed_by_browser_launcher'
+
+
 class OtreeWebSocketClient(WebSocketClient):
 
     def __init__(self, *args, session_size, **kwargs):
@@ -69,13 +74,31 @@ class OtreeWebSocketClient(WebSocketClient):
         super().__init__(*args, **kwargs)
 
     def received_message(self, message):
+        '''
+        This is called automatically when the client receives a message
+        '''
         code = message
         if code not in self.seen_participant_codes:
             self.seen_participant_codes.add(code)
             self.participants_finished += 1
             if self.participants_finished == self.session_size:
-                self.close(reason='success')
+                self.close(reason=WEBSOCKET_COMPLETED_MESSAGE)
 
+    def closed(self, code, reason=None):
+        '''
+        make sure the websocket closed properly,
+        not because of server-side exception etc.
+        '''
+        if reason != WEBSOCKET_COMPLETED_MESSAGE:
+            logger.error(
+                f'Lost connection with server.' 
+                f'code: {code}, reason: "{reason}".'
+                'Check the oTree server logs for errors.'
+            )
+            # don't know why, but this is not actually exiting,
+            # even though it's in the same process.
+            # even putting a breakpoint here just gets skipped past.
+            sys.exit(-1)
 
 
 def run_websocket_client_until_finished(*, websocket_url, session_size) -> float:
@@ -84,6 +107,7 @@ def run_websocket_client_until_finished(*, websocket_url, session_size) -> float
     ws_client = OtreeWebSocketClient(websocket_url, session_size=session_size)
     ws_client.connect()
     ws_client.run_forever()
+    print('os.getpid()', os.getpid())
     return round(time.time() - bot_start_time, 1)
 
 

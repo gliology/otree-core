@@ -1,6 +1,6 @@
 {% load otree staticfiles %}
 
-<form action="" method="post" role="form" class="form" id="form">
+<form id="form">
     {% csrf_token %}
 
     {% formfield form.session_config %}
@@ -21,13 +21,19 @@
             {% endfor %}
             <p class="help-block">{{ form.num_participants.help_text }}</p>
         </div>
+        {{ form.is_mturk }}
     </div>
 
-    <input class="btn btn-primary next-button"
+    <div>
+    <input class="btn btn-primary"
            value="Create"
+           id="btn-create-session"
            type="submit">
-
-    <br><br>
+    </div>
+    <br>
+    <div id="create-session-wait" class="alert alert-info" style="display:none">Please wait</div>
+    <div id="create-session-error" class="alert alert-danger" style="display:none"></div>
+    <br>
         {% for config in configs %}
 
             <div class="edit-config"
@@ -75,6 +81,7 @@
 </form>
 
 <script>
+
     function showSessionConfigInfo(sessionconfigname) {
         $('.summary').hide();
         $('.edit-config').hide();
@@ -96,5 +103,50 @@
         $('#id_session_config').change(function () {
             showSessionConfigInfo($(this).val());
         })
+
+        let $createSessionError = $("#create-session-error");
+        let $createSessionWait = $("#create-session-wait");
+
+        let ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
+        let ws_path = `${ws_scheme}://${window.location.host}/create_session/`;
+        let socket = new ReconnectingWebSocket(ws_path);
+
+        $('#btn-create-session').click(function(e) {
+            $createSessionError.hide();
+            $createSessionWait.show();
+
+            let ary = $('#form').serializeArray();
+            let form_data = {};
+            for (let entry of ary) {
+                form_data[entry.name] = entry.value;
+            }
+            socket.send(JSON.stringify(form_data));
+            e.preventDefault();
+        });
+
+        // handle incoming messages
+        socket.onmessage = function (message) {
+            $createSessionWait.hide();
+            let data = JSON.parse(message.data);
+            if (data.traceback) {
+                $createSessionError.text(data.error);
+                $createSessionError.append('<pre>' + data.traceback + '</pre>');
+                $createSessionError.show();
+            }
+            else if (data.validation_errors) {
+                $createSessionError.text(JSON.stringify(data.validation_errors));
+                $createSessionError.show();
+            }
+            else if (data.session_url) {
+                // because the user could press back button later
+                $createSessionError.hide();
+                $createSessionWait.hide();
+                window.location.href = data.session_url;
+            }
+            else {
+                $createSessionError.text("Unexpected error: " + message.data);
+            }
+        }
     });
+
 </script>

@@ -77,7 +77,7 @@ $(function() {
             <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown">
             </button>
             <div class="dropdown-menu" role="menu">
-                <a class="dropdown-item" href="{% url 'CreateSession' %}?mturk=1">For MTurk</a>
+                <a class="dropdown-item" href="{% url 'CreateSession' %}?is_mturk=1">For MTurk</a>
             </div>
         </div>
     </form>
@@ -161,10 +161,10 @@ $(function() {
                     <a href="{% url 'SessionData' s.code %}" class="btn btn-sm" role="button">
                         <img src='{% static "glyphicons/list-alt.png" %}'> Data
                     </a>
-                    <a href="{% if s.is_for_mturk %}{% url 'MTurkSessionPayments' s.code %}{% else %}{% url 'SessionPayments' s.code %}{% endif %}" class="btn btn-sm" role="button">
+                    <a href="{% if s.is_mturk %}{% url 'MTurkSessionPayments' s.code %}{% else %}{% url 'SessionPayments' s.code %}{% endif %}" class="btn btn-sm" role="button">
                         <img src='{% static "glyphicons/usd.png" %}'> Payments
                     </a>
-                    {% if s.is_for_mturk %}
+                    {% if s.is_mturk %}
                         <a href="{% url 'MTurkCreateHIT' s.code %}"
                            class="btn btn-sm {% if s.mturk_is_active %}btn-success{% endif %}" role="button">
                             <img src='{% static "glyphicons/cloud.png" %}'> MTurk&nbsp;&nbsp;&nbsp;

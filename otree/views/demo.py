@@ -5,7 +5,6 @@ from django.urls import reverse
 
 import vanilla
 from otree.session import SESSION_CONFIGS_DICT
-from otree.common_internal import create_session_and_redirect
 import os
 
 
@@ -52,22 +51,13 @@ class DemoIndex(vanilla.TemplateView):
         )
 
 
-class CreateDemoSession(vanilla.GenericView):
+class CreateDemoSession(vanilla.TemplateView):
 
+    template_name = 'otree/admin/CreateDemoSession.html'
     url_pattern = r"^demo/(?P<session_config_name>.+)/$"
 
-    def dispatch(self, request, session_config_name):
-        try:
-            session_config = SESSION_CONFIGS_DICT[session_config_name]
-        except KeyError:
-            msg = 'Session config "{}" not found in settings.SESSION_CONFIGS.'
-            raise ValueError(msg.format(session_config_name)) from None
-        session_kwargs = {
-            'is_demo': True,
-            'session_config_name': session_config_name,
-            'num_participants': session_config['num_demo_participants']
-        }
-
-        use_browser_bots = session_config.get('use_browser_bots', False)
-        return create_session_and_redirect(
-            session_kwargs, use_browser_bots=use_browser_bots)
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(
+            session_config_name=self.kwargs['session_config_name'],
+            **kwargs,
+        )

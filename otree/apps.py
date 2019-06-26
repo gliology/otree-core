@@ -65,10 +65,12 @@ def monkey_patch_db_cursor():
                     # all the ProgrammingError and OperationalError
                     # instances I've seen so far are related to resetdb,
                     # except for "database is locked"
+                    print('#####db error')
                     tb = sys.exc_info()[2]
 
                     if 'locked' in str(exc):
                         advice = SQLITE_LOCKING_ADVICE
+                        import django.db.transaction
                     else:
                         advice = 'try resetting the database ("otree resetdb")'
 

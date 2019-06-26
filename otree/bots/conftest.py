@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-# for py.test.
-# this doesnt work if the module is under otree.bots, so i put it here
-from otree.session import SESSION_CONFIGS_DICT
+"""
+Conftest module to be used with bots, not the tests themselves.
+"""
 
 
 def pytest_addoption(parser):

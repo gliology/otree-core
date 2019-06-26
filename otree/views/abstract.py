@@ -14,6 +14,9 @@ from typing import List, Union
 
 import channels
 import otree.channels.utils as channel_utils
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
 import redis_lock
 import vanilla
 from django.conf import settings
@@ -1493,9 +1496,11 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 group_id_in_subsession=group.id_in_subsession,
             )
 
-        channels.Group(channels_group_name).send(
-            {'text': json.dumps(
-                {'status': 'ready'})}
+        channel_utils.sync_group_send(
+            channels_group_name,
+            {
+                'type': 'wait_page_ready',
+            }
         )
 
     def socket_url(self):

@@ -5,6 +5,9 @@ import logging
 import channels
 import json
 from django.urls import reverse
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from otree.channels.utils import auto_advance_group
 
 from otree import constants_internal
 import otree.common_internal
@@ -44,8 +47,6 @@ class Session(ModelWithVars):
     experimenter_name = models.CharField(
         max_length=300, null=True, blank=True,
         help_text='For internal record-keeping')
-
-    ready_for_browser = models.BooleanField(default=False)
 
     code = models.CharField(
         default=random_chars_8,
@@ -91,8 +92,6 @@ class Session(ModelWithVars):
     _anonymous_code = models.CharField(
         default=random_chars_10, max_length=10, null=False, db_index=True)
 
-    _pre_create_id = models.CharField(max_length=255, db_index=True, null=True)
-
     def use_browser_bots(self):
         return self.participant_set.filter(is_browser_bot=True).exists()
 
@@ -118,7 +117,7 @@ class Session(ModelWithVars):
         but still useful internally (like data export)'''
         return self.config['real_world_currency_per_point']
 
-    def is_for_mturk(self):
+    def is_mturk(self):
         return (not self.is_demo) and (self.mturk_num_participants > 0)
 
     def get_subsessions(self):
@@ -229,16 +228,14 @@ class Session(ModelWithVars):
                 logging.exception("Failed to advance participants.")
                 raise
 
-
             # do the auto-advancing here,
             # rather than in increment_index_in_pages,
             # because it's only needed here.
-            channels.Group(
-                'auto-advance-{}'.format(p.code)
-            ).send(
-                {'text': json.dumps(
-                    {'auto_advanced': True})}
+            otree.channels.utils.sync_group_send(
+                auto_advance_group(p.code),
+                {'type': 'auto_advanced'}
             )
+
 
     def get_room(self):
         from otree.room import ROOM_DICT

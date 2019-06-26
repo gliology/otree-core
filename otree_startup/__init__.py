@@ -51,8 +51,6 @@ startproject
 test
 unzip
 update_my_code
-upgrade_my_code
-webandworkers
 zip
 '''
 

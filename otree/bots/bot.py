@@ -89,6 +89,7 @@ class ParticipantBot(test.Client):
         if load_player_bots:
             for lookup in lookups:
                 app_name = lookup.app_name
+
                 bots_module = get_bots_module(app_name)
                 player_bot = bots_module.PlayerBot(
                     lookup=lookup, case_number=case_number,

@@ -107,17 +107,16 @@ def get_default_settings(user_settings: dict):
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
     BASE_DIR = user_settings.get('BASE_DIR', '')
 
-    default_settings.update({
-        'DEBUG': os.environ.get('OTREE_PRODUCTION') in [None, '', '0'],
-        'AWS_ACCESS_KEY_ID': os.environ.get('AWS_ACCESS_KEY_ID'),
-        'AWS_SECRET_ACCESS_KEY': os.environ.get('AWS_SECRET_ACCESS_KEY'),
-        'AUTH_LEVEL': os.environ.get('OTREE_AUTH_LEVEL'),
-        'DATABASES': {
+    default_settings.update(
+        DEBUG=os.environ.get('OTREE_PRODUCTION') in [None, '', '0'],
+        AWS_ACCESS_KEY_ID=os.environ.get('AWS_ACCESS_KEY_ID'),
+        AWS_SECRET_ACCESS_KEY=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+        AUTH_LEVEL=os.environ.get('OTREE_AUTH_LEVEL'), DATABASES={
             'default': dj_database_url.config(
                 default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
             )
         },
-        'HUEY': {
+        HUEY={
             'name': 'otree-huey',
             'connection': {
                 'url': REDIS_URL,
@@ -134,87 +133,44 @@ def get_default_settings(user_settings: dict):
                 'loglevel': 'warning',
             },
         },
-        # set to True so that if there is an error in an {% include %}'d
-        # template, it doesn't just fail silently. instead should raise
-        # an error (and send through Sentry etc)
-        'STATIC_ROOT': os.path.join(BASE_DIR, '__temp_static_root'),
-        'STATIC_URL': '/static/',
-        'STATICFILES_STORAGE': (
+        STATIC_ROOT=os.path.join(BASE_DIR, '__temp_static_root'),
+        STATIC_URL='/static/',
+        STATICFILES_STORAGE=(
             'whitenoise.django.GzipManifestStaticFilesStorage'
         ),
-        'ROOT_URLCONF': 'otree.urls',
-
-        'TIME_ZONE': 'UTC',
-        'USE_TZ': True,
-        'ALLOWED_HOSTS': ['*'],
-
-        'LOGGING': logging,
-
-        'FORM_RENDERER':  'django.forms.renderers.TemplatesSetting',
-
-        'REAL_WORLD_CURRENCY_CODE': 'USD',
-        'REAL_WORLD_CURRENCY_DECIMAL_PLACES': 2,
-        'USE_POINTS': True,
-        'POINTS_DECIMAL_PLACES': 0,
-
-        # INSTALLED_APPS is required somehow to see if settings.configured()
-        # alse we should encourage it to be defined in project, because it helps
-        # pycharm autocomplete
-
-        #'INSTALLED_APPS': ['otree'],
-
-        'ADMIN_PASSWORD': os.environ.get('OTREE_ADMIN_PASSWORD', ''),
-        # eventually can remove this,
-        # when it's present in otree-library
-        # that most people downloaded
-        'USE_L10N': True,
-        'SECURE_PROXY_SSL_HEADER': ('HTTP_X_FORWARDED_PROTO', 'https'),
-
-        # The project can override the routing.py used as entry point by
-        # setting CHANNEL_ROUTING.
-
-        'CHANNEL_LAYERS': {
+        ROOT_URLCONF='otree.urls',
+        TIME_ZONE='UTC',
+        USE_TZ=True,
+        ALLOWED_HOSTS=['*'],
+        LOGGING=logging,
+        FORM_RENDERER='django.forms.renderers.TemplatesSetting',
+        REAL_WORLD_CURRENCY_CODE='USD',
+        REAL_WORLD_CURRENCY_DECIMAL_PLACES=2,
+        USE_POINTS=True,
+        POINTS_DECIMAL_PLACES=0,
+        ADMIN_PASSWORD=os.environ.get('OTREE_ADMIN_PASSWORD', ''),
+        USE_L10N=True,
+        SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'),
+        ASGI_APPLICATION="otree.channels.routing.application",
+        CHANNEL_LAYERS={
             'default': {
-                "BACKEND": "otree.channels.asgi_redis.RedisChannelLayer",
+                "BACKEND": "channels_redis.core.RedisChannelLayer",
                 "CONFIG": {
                     "hosts": [REDIS_URL],
                 },
-                'ROUTING': user_settings.get(
-                    'CHANNEL_ROUTING',
-                    'otree.channels.routing.channel_routing'),
             },
-            # note: if I start using ChannelsLiveServerTestCase again,
-            # i might have to move this out,
-            # but because it doesn't work with multiple
-            # channel layers.
             'inmemory': {
-                "BACKEND": "asgiref.inmemory.ChannelLayer",
-                'ROUTING': user_settings.get(
-                    'CHANNEL_ROUTING',
-                    'otree.channels.routing.channel_routing'),
+                "BACKEND": "channels.layers.InMemoryChannelLayer",
             },
         },
-
-        # for convenience within oTree
-        'REDIS_URL': REDIS_URL,
-
-        # since workers on Amazon MTurk can return the hit
-        # we need extra participants created on the
-        # server.
-        # The following setting is ratio:
-        # num_participants_server / num_participants_mturk
-        'MTURK_NUM_PARTICIPANTS_MULTIPLE': 2,
-        'LOCALE_PATHS': [
+        REDIS_URL=REDIS_URL,
+        MTURK_NUM_PARTICIPANTS_MULTIPLE=2,
+        LOCALE_PATHS=[
             os.path.join(user_settings.get('BASE_DIR', ''), 'locale')
         ],
-
-        # ideally this would be a per-app setting, but I don't want to
-        # pollute Constants. It doesn't make as much sense per session config,
-        # so I'm just going the simple route and making it a global setting.
-        'BOTS_CHECK_HTML': True,
-    })
+        BOTS_CHECK_HTML=True
+    )
     return default_settings
-
 
 
 class InvalidVariableError(Exception):
@@ -365,9 +321,9 @@ def augment_settings(settings: dict):
         DEFAULT_MIDDLEWARE,
         settings.get('MIDDLEWARE_CLASSES'))
 
-    augmented_settings = {
-        'INSTALLED_APPS': new_installed_apps,
-        'TEMPLATES': [{
+    augmented_settings = dict(
+        INSTALLED_APPS=new_installed_apps,
+        TEMPLATES=[{
             'BACKEND': 'django.template.backends.django.DjangoTemplates',
             'DIRS': new_template_dirs,
             'OPTIONS': {
@@ -403,14 +359,14 @@ def augment_settings(settings: dict):
                     'django.template.context_processors.static',
                     'django.contrib.messages.context_processors.messages',
                     'django.template.context_processors.request',
-                 )
+                )
             },
         }],
-        'STATICFILES_DIRS': new_staticfiles_dirs,
-        'MIDDLEWARE': new_middleware,
-        'INSTALLED_OTREE_APPS': all_otree_apps,
-        'MESSAGE_TAGS': {messages.ERROR: 'danger'},
-        'LOGIN_REDIRECT_URL': 'Sessions',
-    }
+        STATICFILES_DIRS=new_staticfiles_dirs,
+        MIDDLEWARE=new_middleware,
+        INSTALLED_OTREE_APPS=all_otree_apps,
+        MESSAGE_TAGS={messages.ERROR: 'danger'},
+        LOGIN_REDIRECT_URL='Sessions'
+    )
 
     settings.update(augmented_settings)

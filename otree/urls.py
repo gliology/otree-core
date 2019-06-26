@@ -1,18 +1,15 @@
 from otree.extensions import get_extensions_modules, get_extensions_data_export_views
 import inspect
 from importlib import import_module
-from django.templatetags.static import static
 from django.conf import urls
-
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.views.generic.base import RedirectView
 from django.conf import settings
-
 from django.contrib.auth.decorators import login_required
 from otree import common_internal
-from django.http import HttpResponse
 
-STUDY_UNRESTRICTED_VIEWS = {
+
+ALWAYS_UNRESTRICTED = {
     'AssignVisitorToRoom',
     'InitializeParticipant',
     'MTurkLandingPage',
@@ -24,7 +21,7 @@ STUDY_UNRESTRICTED_VIEWS = {
 }
 
 
-DEMO_UNRESTRICTED_VIEWS = STUDY_UNRESTRICTED_VIEWS.union({
+UNRESTRICTED_IN_DEMO_MODE = ALWAYS_UNRESTRICTED.union({
     'AdminReport',
     'AdvanceSession',
     'CreateDemoSession',
@@ -35,7 +32,6 @@ DEMO_UNRESTRICTED_VIEWS = STUDY_UNRESTRICTED_VIEWS.union({
     'SessionPayments',
     'SessionData',
     'SessionStartLinks',
-    'WaitUntilSessionCreated',
 })
 
 
@@ -76,15 +72,19 @@ def url_patterns_from_builtin_module(module_name: str):
         url_name = getattr(ViewCls, 'url_name', ViewCls.__name__)
 
         if settings.AUTH_LEVEL == 'STUDY':
-            unrestricted = url_name in STUDY_UNRESTRICTED_VIEWS
+            unrestricted = url_name in ALWAYS_UNRESTRICTED
         elif settings.AUTH_LEVEL == 'DEMO':
-            unrestricted = url_name in DEMO_UNRESTRICTED_VIEWS
+            unrestricted = url_name in UNRESTRICTED_IN_DEMO_MODE
         else:
             unrestricted = True
 
         if unrestricted:
             as_view = ViewCls.as_view()
         else:
+            # i want to use
+            # staff_member_required decorator
+            # but then .test_auth_level fails on client.get():
+            # NoReverseMatch: 'admin' is not a registered namespace
             as_view = login_required(ViewCls.as_view())
 
         url_pattern = ViewCls.url_pattern

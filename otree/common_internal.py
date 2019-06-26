@@ -11,8 +11,7 @@ import uuid
 from collections import OrderedDict
 from importlib import import_module
 from io import StringIO
-
-import channels
+from channels.layers import get_channel_layer
 import otree.channels.utils as channel_utils
 import six
 from django.apps import apps
@@ -167,20 +166,6 @@ def validate_alphanumeric(identifier, identifier_description):
             identifier
         )
     )
-
-
-def create_session_and_redirect(session_kwargs, *, use_browser_bots):
-    pre_create_id = uuid.uuid4().hex
-    session_kwargs['pre_create_id'] = pre_create_id
-    channels_group_name = channel_utils.create_session_group_name(
-        pre_create_id)
-    channels.Channel('otree.create_session').send({
-        'kwargs': session_kwargs,
-        'channels_group_name': channels_group_name,
-        'use_browser_bots': use_browser_bots,
-    })
-
-    return redirect('WaitUntilSessionCreated', pre_create_id)
 
 
 EMPTY_ADMIN_USERNAME_MSG = 'settings.ADMIN_USERNAME is empty'

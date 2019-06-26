@@ -103,7 +103,7 @@ def run_bots(session: Session, case_number=None):
 # in this module
 @pytest.mark.django_db(transaction=True)
 def test_all_bots_for_session_config(
-        session_config_name, num_participants, *, export_path=None):
+        session_config_name, num_participants, export_path):
     """
     this means all configs and test cases are in 1 big test case.
     so if 1 fails, the others will not get run.
@@ -117,6 +117,9 @@ def test_all_bots_for_session_config(
 
     for config_name in session_config_names:
         config = SESSION_CONFIGS_DICT[config_name]
+
+        bot_modules = [f'{app_name}.tests' for app_name in config['app_sequence']]
+        pytest.register_assert_rewrite(*bot_modules)
 
         num_bot_cases = config.get_num_bot_cases()
         for case_number in range(num_bot_cases):

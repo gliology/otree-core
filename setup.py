@@ -2,6 +2,7 @@ import os
 import sys
 from setuptools import setup, find_packages
 import shutil
+from pathlib import Path
 
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
@@ -18,11 +19,19 @@ with open('requirements.txt', encoding='utf-8') as f:
 with open('requirements_mturk.txt', encoding='utf-8') as f:
     required_mturk = f.read().splitlines()
 
+# TEMP: Use Twisted from master for bugfix.
+required = [
+    x for x in required
+    if not x.startswith("Twisted")
+] + [
+    "Twisted @ https://github.com/twisted/twisted/archive/4bceaac10570db717ee34a7cf63a5220881ab728.tar.gz#egg=Twisted",
+]
 
 
 if sys.argv[-1] == 'publish':
 
-    shutil.rmtree('dist')
+    if Path('dist').is_dir():
+        shutil.rmtree('dist')
     for cmd in [
         "python setup.py sdist",
         "twine upload dist/*",
@@ -39,7 +48,6 @@ if sys.argv[-1] == 'publish':
 
 if sys.version_info < (3, 6):
     sys.exit('Error: This version of oTree requires Python 3.6 or higher')
-
 
 setup(
     name='otree',

@@ -3,7 +3,7 @@ import os
 import sys
 from collections import OrderedDict
 
-
+from channels.layers import get_channel_layer
 import channels
 import otree.bots.browser
 import otree.channels.utils as channel_utils
@@ -21,7 +21,7 @@ from django.shortcuts import get_object_or_404, redirect
 from otree import forms
 from otree.common import RealWorldCurrency
 from otree.common_internal import (
-    create_session_and_redirect, missing_db_tables,
+    missing_db_tables,
     get_models_module, get_app_label_from_name, DebugTable,
 )
 from otree.forms import widgets
@@ -52,11 +52,23 @@ class CreateSessionForm(forms.Form):
     session_config = forms.ChoiceField(
         choices=session_config_choices, required=True)
 
-    num_participants = forms.IntegerField()
+    num_participants = forms.IntegerField(required=False)
+    is_mturk = forms.BooleanField(
+        widget=widgets.HiddenInput,
+        initial=False,
+        required=False
+    )
+    room_name = forms.CharField(
+        initial=None,
+        widget=widgets.HiddenInput,
+        required=False
+    )
 
-    def __init__(self, *args, for_mturk, **kwargs):
+    def __init__(self, *args, is_mturk=False, room_name=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if for_mturk:
+        self.fields['room_name'].initial = room_name
+        if is_mturk:
+            self.fields['is_mturk'].initial = True
             self.fields['num_participants'].label = "Number of MTurk workers"
             self.fields['num_participants'].help_text = (
                 'Since workers can return the HIT or drop out, '
@@ -71,143 +83,35 @@ class CreateSessionForm(forms.Form):
         else:
             self.fields['num_participants'].label = "Number of participants"
 
-    def clean_num_participants(self):
-        session_config_name = self.cleaned_data.get('session_config')
+    def clean(self):
+        super().clean()
+        if self.errors:
+            return
+        session_config_name = self.cleaned_data['session_config']
 
-        # I think when this is checked, it's possible that basic validation
-        # for session_config_name was not done yet.
-        # when I tested it was None
-        # but maybe it could also be the empty string because that's what's
-        # explicitly put above.
-        if session_config_name:
-            lcm = SESSION_CONFIGS_DICT[session_config_name].get_lcm()
-            num_participants = self.cleaned_data['num_participants']
-            if num_participants % lcm:
-                raise forms.ValidationError(
-                    'Please enter a valid number of participants.'
-                )
-            return num_participants
+        config = SESSION_CONFIGS_DICT[session_config_name]
+        lcm = config.get_lcm()
+        num_participants = self.cleaned_data.get('num_participants')
+        if num_participants is None or num_participants % lcm:
+            raise forms.ValidationError(
+                'Please enter a valid number of participants.'
+            )
 
 
-class CreateSession(vanilla.FormView):
-    form_class = CreateSessionForm
+class CreateSession(vanilla.TemplateView):
     template_name = 'otree/admin/CreateSession.html'
-
     url_pattern = r"^create_session/$"
 
-    def dispatch(self, request):
-        # splinter makes request.GET.get('mturk') == ['1\\']
-        # no idea why
-        # so just see if it's non-empty
-        self.for_mturk = bool(request.GET.get('mturk'))
-        return super().dispatch(request)
-
     def get_context_data(self, **kwargs):
-        return super().get_context_data(
+        x= super().get_context_data(
             configs=SESSION_CONFIGS_DICT.values(),
+            # splinter makes request.GET.get('mturk') == ['1\\']
+            # no idea why
+            # so just see if it's non-empty
+            form=CreateSessionForm(is_mturk=bool(self.request.GET.get('is_mturk'))),
             **kwargs
         )
-
-    def get_form(self, data=None, files=None):
-        return super().get_form(data, files, for_mturk=self.for_mturk)
-
-    def form_valid(self, form):
-
-        session_config_name = form.cleaned_data['session_config']
-        session_kwargs = {
-            'session_config_name': session_config_name,
-            'for_mturk': self.for_mturk
-        }
-        if self.for_mturk:
-            session_kwargs['num_participants'] = (
-                form.cleaned_data['num_participants'] *
-                settings.MTURK_NUM_PARTICIPANTS_MULTIPLE
-            )
-
-        else:
-            session_kwargs['num_participants'] = (
-                form.cleaned_data['num_participants'])
-
-        # TODO:
-        # Refactor when we upgrade to push
-        if hasattr(self, "room"):
-            session_kwargs['room_name'] = self.room.name
-
-        post_data = self.request.POST
-        config = SESSION_CONFIGS_DICT[session_config_name]
-
-        edited_session_config_fields = {}
-
-        for field in config.editable_fields():
-            old_value = config[field]
-            html_field_name = config.html_field_name(field)
-
-            # int/float/decimal are set to required in HTML
-            # bool:
-            # - if unchecked, its key will be missing.
-            # - if checked, its value will be 'on'.
-            # str:
-            # - if blank, its value will be ''
-            new_value_str = post_data.get(html_field_name)
-            # don't use isinstance because that will catch bool also
-            if type(old_value) is int:
-                # in case someone enters 1.0 instead of 1
-                new_value = int(float(new_value_str))
-            else:
-                new_value = type(old_value)(new_value_str)
-            if old_value != new_value:
-                edited_session_config_fields[field] = new_value
-
-        # need to convert to float or string in order to serialize
-        # through channels
-        for k in ['participation_fee', 'real_world_currency_per_point']:
-            if k in edited_session_config_fields:
-                edited_session_config_fields[k] = float(
-                    edited_session_config_fields[k])
-        session_kwargs['edited_session_config_fields'] = edited_session_config_fields
-
-
-        use_browser_bots = edited_session_config_fields.get('use_browser_bots')
-        if use_browser_bots is None:
-            use_browser_bots = config.get('use_browser_bots', False)
-
-        return create_session_and_redirect(
-            session_kwargs, use_browser_bots=use_browser_bots)
-
-
-class WaitUntilSessionCreated(GenericWaitPageMixin, vanilla.GenericView):
-
-    url_pattern = r"^WaitUntilSessionCreated/(?P<pre_create_id>.+)/$"
-
-    title_text = 'creating_session'
-    body_text = ''
-
-    def _is_ready(self):
-        try:
-            self.session = Session.objects.get(
-                _pre_create_id=self._pre_create_id,
-                ready_for_browser=True
-            )
-            return True
-        except Session.DoesNotExist:
-            return False
-
-    def _response_when_ready(self):
-        session = self.session
-        session_home_url = 'MTurkCreateHIT' if session.is_for_mturk() else 'SessionStartLinks'
-        # 2017-09-30: deleted a line about split screen here, because
-        # the only way to get split screen is to first open the session links
-        # page, then switch to split-screen mode
-        return redirect(session_home_url, session.code)
-
-    def dispatch(self, request, pre_create_id):
-        self._pre_create_id = pre_create_id
-        if self._is_ready():
-            return self._response_when_ready()
-        return self._get_wait_page()
-
-    def socket_url(self):
-        return channel_utils.wait_for_session_path(self._pre_create_id)
+        return x
 
 
 class SessionSplitScreen(AdminSessionPageMixin, vanilla.TemplateView):
@@ -676,8 +580,11 @@ class CreateBrowserBotsSession(vanilla.View):
             # maybe for consistency with get_or_create
             defaults={'code': session.code}
         )
-        channels.Group('browser_bot_wait').send(
-            {'text': json.dumps({'status': 'session_ready'})}
+        channel_utils.sync_group_send(
+            'browser_bot_wait',
+            {
+                'type': 'browserbot_sessionready'
+            }
         )
 
         return HttpResponse(session.code)

@@ -6,8 +6,9 @@ from django.http import HttpResponseRedirect, JsonResponse
 from otree.channels import utils as channel_utils
 from otree.models_concrete import ParticipantRoomVisit
 from otree.room import ROOM_DICT
-from otree.views.admin import CreateSession
+from otree.views.admin import CreateSessionForm
 from django.shortcuts import redirect
+from otree.session import SESSION_CONFIGS_DICT
 
 class Rooms(vanilla.TemplateView):
     template_name = 'otree/admin/Rooms.html'
@@ -18,13 +19,16 @@ class Rooms(vanilla.TemplateView):
         return {'rooms': ROOM_DICT.values()}
 
 
-class RoomWithoutSession(CreateSession):
+class RoomWithoutSession(vanilla.TemplateView):
+    '''similar to CreateSession view'''
+
     template_name = 'otree/admin/RoomWithoutSession.html'
     room = None
 
     url_pattern = r"^room_without_session/(?P<room_name>.+)/$"
 
     def dispatch(self, request, room_name):
+        self.room_name = room_name
         self.room = ROOM_DICT[room_name]
         if self.room.has_session():
             return redirect('RoomWithSession', room_name)
@@ -32,9 +36,11 @@ class RoomWithoutSession(CreateSession):
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(
+            configs=SESSION_CONFIGS_DICT.values(),
             participant_urls=self.room.get_participant_urls(self.request),
             room_wide_url=self.room.get_room_wide_url(self.request),
             room=self.room,
+            form=CreateSessionForm(room_name=self.room_name),
             collapse_links=True,
             **kwargs
         )

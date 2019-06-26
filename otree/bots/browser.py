@@ -18,6 +18,8 @@ from .bot import ParticipantBot
 import random
 
 from otree.models import Session
+from channels.layers import get_channel_layer
+
 
 REDIS_KEY_PREFIX = 'otree-bots'
 
@@ -299,5 +301,11 @@ def initialize_session(**kwargs):
 
 def send_completion_message(*, session_code, participant_code):
     group_name = channel_utils.browser_bots_launcher_group(session_code)
-    # don't need to put in JSON since it's just a participant code
-    channels.Group(group_name).send({'text': participant_code})
+
+    channel_utils.sync_group_send(
+        group_name,
+        {
+            'text': participant_code,
+            'type': 'send_completion_message'
+        }
+    )
