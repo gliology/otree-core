@@ -62,6 +62,7 @@ Twisted>=19.2.1
 txaio==18.8.1
 unicodecsv==0.14.1
 urllib3==1.25.3
+uvicorn==0.8.1
 whitenoise==3.2.1
 ws4py==0.3.5
 XlsxWriter==0.9.3
