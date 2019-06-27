@@ -195,10 +195,9 @@ class WaitPage(_OTreeJsonWebsocketConsumer):
         self.send_json({'status': 'ready'})
 
 
-class AutoAdvance(_OTreeJsonWebsocketConsumer):
+class DetectAutoAdvance(_OTreeJsonWebsocketConsumer):
 
-    # consider some additional restrictions
-    unrestricted_when = 'UNRESTRICTED_IN_DEMO_MODE'
+    unrestricted_when = ALWAYS_UNRESTRICTED
 
     def clean_kwargs(self, params):
         participant_code, page_index = params.split(',')
@@ -226,6 +225,7 @@ class AutoAdvance(_OTreeJsonWebsocketConsumer):
 
     def auto_advanced(self, event=None):
         self.send_json({'auto_advanced': True})
+
 
 class BaseCreateSession(_OTreeJsonWebsocketConsumer):
 

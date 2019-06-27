@@ -19,7 +19,7 @@ websocket_routes = [
     ),
     url(
         r'^auto_advance/(?P<params>[\w,]+)/$',
-        consumers.AutoAdvance,
+        consumers.DetectAutoAdvance,
     ),
     url(
         r'^create_session/$',

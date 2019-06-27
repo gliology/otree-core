@@ -28,10 +28,10 @@ incremental==17.5.0
 IPy==0.83
 lxml==4.3.3
 # msgpack-python was renamed to msgpack.
-# supposedly installing version 0.5.0 allows
+# supposedly installing version 0.5.6 allows
 # a smooth upgrade to msgpack
 # (though i still had problems)
-msgpack-python==0.5.0
+msgpack-python==0.5.6
 numpy==1.16.4
 otree-boto2-shim==0.3.2
 otree-core==0.0.0b1
