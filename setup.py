@@ -19,14 +19,6 @@ with open('requirements.txt', encoding='utf-8') as f:
 with open('requirements_mturk.txt', encoding='utf-8') as f:
     required_mturk = f.read().splitlines()
 
-# TEMP: Use Twisted from master for bugfix.
-required = [
-    x for x in required
-    if not x.startswith("Twisted")
-] + [
-    "Twisted @ https://github.com/twisted/twisted/archive/4bceaac10570db717ee34a7cf63a5220881ab728.tar.gz#egg=Twisted",
-]
-
 
 if sys.argv[-1] == 'publish':
 

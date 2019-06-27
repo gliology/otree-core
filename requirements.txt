@@ -27,6 +27,11 @@ idna==2.8
 incremental==17.5.0
 IPy==0.83
 lxml==4.3.3
+# msgpack-python was renamed to msgpack.
+# supposedly installing version 0.5.0 allows
+# a smooth upgrade to msgpack
+# (though i still had problems)
+msgpack-python==0.5.0
 numpy==1.16.4
 otree-boto2-shim==0.3.2
 otree-core==0.0.0b1
@@ -47,7 +52,13 @@ sentry-sdk==0.7.9
 six==1.12.0
 splinter==0.8.0
 termcolor==1.1.0
-Twisted==19.2.0.dev0
+# Twisted 19.2.1 does not have our fix for #6032
+# so we should install a higher version if possible,
+# but we can settle for 19.2.1 for now.
+# easier than having a github dependency, because then we get:
+# "Packages installed from PyPI cannot depend on packages
+# which are not also hosted on PyPI."
+Twisted>=19.2.1
 txaio==18.8.1
 unicodecsv==0.14.1
 urllib3==1.25.3
