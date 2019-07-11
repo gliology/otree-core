@@ -63,7 +63,9 @@
     $(document).ready(function () {
         let ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
         let ws_path = `${ws_scheme}://${window.location.host}/create_demo_session/`;
-        let socket = new ReconnectingWebSocket(ws_path);
+        // use WebSocket instead of ReconnectingWebsocket, because if an error is raised,
+        // the server drops the socket and we shouldn't reconnect.
+        let socket = new WebSocket(ws_path);
         let $createSessionError = $("#create-session-error");
 
         let session_config_name = '{{ session_config_name }}';

@@ -28,7 +28,6 @@ class Command(BaseCommand):
         msg = (
             f'Unzipped file. Enter this:\n'
             f'cd {esc_fn(output_folder)}\n'
-            "then run 'pip3 install -r requirements.txt' to install this project's dependencies."
         )
 
         logger.info(msg)
@@ -83,7 +82,7 @@ def auto_named_output_folder(zip_file_name) -> str:
 def unzip(zip_file: str, output_folder):
     if os.path.isfile('settings.py') and os.path.isfile('manage.py'):
         logger.error(
-            'You are trying to create a project but it seems you are '
+            'You are trying to unzip a project but it seems you are '
             'already in a project folder (found settings.py and manage.py).'
         )
         sys.exit(-1)

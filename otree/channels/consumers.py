@@ -17,7 +17,6 @@ from otree.common_internal import (
     get_models_module
 )
 import otree.channels.utils as channel_utils
-from otree.channels.utils import sync_group_send
 from otree.models_concrete import (
     ParticipantRoomVisit,
     BrowserBotsLauncherSessionCode)
@@ -29,8 +28,6 @@ import base64
 import datetime
 from django.conf import settings
 from django.shortcuts import reverse
-from functools import partial
-from asgiref.sync import async_to_sync
 from otree.views.admin import CreateSessionForm
 from otree.session import SESSION_CONFIGS_DICT
 
@@ -53,8 +50,11 @@ class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
     '''
 
     def group_send_channel(self, type: str, groups=None, **event):
+        print('in group_send_channel')
         for group in (groups or self.groups):
             channel_utils.sync_group_send(group, {'type': type, **event})
+            #print('call_args', channel_utils.sync_group_send.call_args)
+            #assert channel_utils.sync_group_send.call_args
 
     def clean_kwargs(self, **kwargs):
         '''
@@ -93,7 +93,7 @@ class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
         auth_required = (
             (not self.unrestricted_when) and AUTH_LEVEL
             or
-            self.unrestricted_when == 'UNRESTRICTED_IN_DEMO_MODE' and AUTH_LEVEL == 'STUDY'
+            self.unrestricted_when == UNRESTRICTED_IN_DEMO_MODE and AUTH_LEVEL == 'STUDY'
         )
 
         if auth_required and not self.scope['user'].is_staff:
@@ -124,7 +124,7 @@ class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
 
 class GroupByArrivalTime(_OTreeJsonWebsocketConsumer):
 
-    unrestricted_when = 'ALWAYS_UNRESTRICTED'
+    unrestricted_when = ALWAYS_UNRESTRICTED
 
     def clean_kwargs(self, params):
         session_pk, page_index, app_name, player_id = params.split(',')
@@ -160,7 +160,7 @@ class GroupByArrivalTime(_OTreeJsonWebsocketConsumer):
 
 class WaitPage(_OTreeJsonWebsocketConsumer):
 
-    unrestricted_when = 'ALWAYS_UNRESTRICTED'
+    unrestricted_when = ALWAYS_UNRESTRICTED
 
     def clean_kwargs(self, params):
         session_pk, page_index, group_id_in_subsession = params.split(',')
@@ -261,7 +261,7 @@ class BaseCreateSession(_OTreeJsonWebsocketConsumer):
 
 class CreateDemoSession(BaseCreateSession):
 
-    unrestricted_when = 'UNRESTRICTED_IN_DEMO_MODE'
+    unrestricted_when = UNRESTRICTED_IN_DEMO_MODE
 
     def post_receive_json(self, form_data: dict):
         session_config_name = form_data['session_config']
@@ -497,7 +497,7 @@ class BrowserBotsLauncher(_OTreeJsonWebsocketConsumer):
 
 class BrowserBot(_OTreeJsonWebsocketConsumer):
 
-    unrestricted_when = 'ALWAYS_UNRESTRICTED'
+    unrestricted_when = ALWAYS_UNRESTRICTED
 
     def group_name(self):
         return 'browser_bot_wait'
@@ -544,7 +544,6 @@ class ChatConsumer(_OTreeJsonWebsocketConsumer):
         self.send_json(list(history))
 
     def post_receive_json(self, content, channel, participant_id):
-
         # in the Channels docs, the example has a separate msg_consumer
         # channel, so this can be done asynchronously.
         # but i think the perf is probably good enough.
@@ -558,7 +557,6 @@ class ChatConsumer(_OTreeJsonWebsocketConsumer):
             body=body,
             participant_id=participant_id
         )
-
 
         self.group_send_channel('chat_sendmessages', chats=[chat_message])
 

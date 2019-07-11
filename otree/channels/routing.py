@@ -59,7 +59,7 @@ websocket_routes = [
     url(
         r'^no_op/$',
         consumers.NoOp,
-    )
+    ),
 ]
 
 
