@@ -18,9 +18,7 @@ $(document).ready(function () {
     var socket;
 
     function initWebSocket() {
-        var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-        var ws_path = ws_scheme + '://' + window.location.host + socketUrl;
-        socket = new ReconnectingWebSocket(ws_path);
+        socket = makeReconnectingWebSocket(socketUrl);
 
         // <disconnected-alert>
         var alertStyle = document.querySelector('#disconnected-alert').style;

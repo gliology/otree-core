@@ -56,11 +56,16 @@ else:
 
 class Command(runserver.Command):
 
+    inside_runzip = False
+
     def add_arguments(self, parser):
         super().add_arguments(parser)
+        parser.add_argument(
+            '--inside-runzip', action='store_true', dest='inside_runzip', default=False,
+        )
+    def inner_run(self, *args, inside_runzip, **options):
 
-    def inner_run(self, *args, **options):
-
+        self.inside_runzip = inside_runzip
         self.handle_migrations()
 
         super().inner_run(*args, **options)
@@ -145,12 +150,14 @@ class Command(runserver.Command):
     def print_error_and_exit(self, advice):
         '''this won't actually exit because we can't kill the autoreload process'''
         self.stdout.write('\n')
-        show_error_details = self.verbosity >= PRINT_DETAILS_VERBOSITY_LEVEL
+        is_verbose = self.verbosity >= PRINT_DETAILS_VERBOSITY_LEVEL
+        show_error_details = is_verbose or self.inside_runzip
         if show_error_details:
             traceback.print_exc()
         else:
             self.stdout.write('An error occurred.')
-        termcolor.cprint(advice, 'white', 'on_red')
+        if not self.inside_runzip:
+            termcolor.cprint(advice, 'white', 'on_red')
         if not show_error_details:
             self.stdout.write(ADVICE_PRINT_DETAILS)
         sys.exit(0)

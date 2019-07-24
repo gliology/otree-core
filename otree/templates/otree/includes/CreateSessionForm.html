@@ -106,10 +106,7 @@
 
         let $createSessionError = $("#create-session-error");
         let $createSessionWait = $("#create-session-wait");
-
-        let ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-        let ws_path = `${ws_scheme}://${window.location.host}/create_session/`;
-        let socket = new ReconnectingWebSocket(ws_path);
+        let socket = makeReconnectingWebSocket("/create_session/");
 
         $('#btn-create-session').click(function(e) {
             $createSessionError.hide();

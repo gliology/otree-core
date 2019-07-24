@@ -121,7 +121,7 @@ class Project:
 
     def start(self):
         self._proc = subprocess.Popen(
-            [sys.executable, 'manage.py', 'devserver', '--noreload'],
+            [sys.executable, 'manage.py', 'devserver', '--noreload', '--inside-runzip'],
             cwd=self.tmpdir.name,
             env=os.environ.copy(),
         )

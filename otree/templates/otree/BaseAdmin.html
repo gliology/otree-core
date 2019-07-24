@@ -47,9 +47,7 @@ $(function () {
     var disconnectionSocket;
 
     function setupDisconnectedAlert() {
-        var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-        var ws_path = ws_scheme + '://' + window.location.host + '/no_op/';
-        disconnectionSocket = new ReconnectingWebSocket(ws_path);
+        disconnectionSocket = makeReconnectingWebSocket('/no_op/');
         var socket = disconnectionSocket;
 
         var alertStyle = document.querySelector('#disconnected-alert').style;
@@ -108,5 +106,13 @@ $(function () {
     </div>
     <br/>
 </div>
-{% endblock %}
-<!--end body_main-->
+{% comment %}
+  this exists so that if there is an error in oTree's channel consumers,
+  such as data export or rooms, the user gets some notification rather than it silently
+  failing.
+  don't put it in global base template even though it could be useful there too,
+  because we don't want to pollute "view source"
+  in user-defined pages
+{% endcomment %}
+<div id='websocket-server-error' class="top-left-fixed-alert" style="visibility: hidden"></div>
+{% endblock body_main %}

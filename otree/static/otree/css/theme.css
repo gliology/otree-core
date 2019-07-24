@@ -101,7 +101,7 @@ table.table-debug td.debug-var-value {
     max-width: 0px;
 }
 
-#disconnected-alert {
+.top-left-fixed-alert {
     position: fixed;
     top: 0;
     left: 0;
@@ -111,3 +111,5 @@ table.table-debug td.debug-var-value {
     /* need to be on top of bs4 navbar which is 1030 */
     z-index: 1100;
 }
+
+

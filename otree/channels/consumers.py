@@ -50,7 +50,6 @@ class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
     '''
 
     def group_send_channel(self, type: str, groups=None, **event):
-        print('in group_send_channel')
         for group in (groups or self.groups):
             channel_utils.sync_group_send(group, {'type': type, **event})
             #print('call_args', channel_utils.sync_group_send.call_args)
@@ -623,6 +622,7 @@ class ExportData(_OTreeJsonWebsocketConsumer):
         )
         # this doesn't go through channel layer, so it is probably safer
         # in terms of sending large data
+
         self.send_json(content)
 
     def connection_groups(self, **kwargs):

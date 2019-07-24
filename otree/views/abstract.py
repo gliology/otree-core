@@ -75,16 +75,15 @@ TECHNICAL_500_AUTORELOAD_JS = b'''
         visibility: hidden;
     }
 </style>
-<div id='disconnected-alert' style="visibility: hidden">Lost server connection...</div>
-<script src="/static/otree/js/reconnecting-websocket.js" type="text/javascript">
-</script>
+<div id='disconnected-alert' class="top-left-fixed-alert" style="visibility: hidden">Lost server connection...</div>
+<script src="/static/otree/js/reconnecting-websocket-iife.min.js" type="text/javascript"></script>
+<script src="/static/otree/js/jquery-3.2.1.min.js"></script>
+<script src="/static/otree/js/common.js" type="text/javascript"></script>
 <script>
     var disconnectionSocket;
-
+    
     function setupDisconnectedAlert() {
-        var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-        var ws_path = ws_scheme + '://' + window.location.host + '/no_op/';
-        disconnectionSocket = new ReconnectingWebSocket(ws_path);
+        disconnectionSocket = makeReconnectingWebSocket('/no_op/');
         var socket = disconnectionSocket;
 
         var alertStyle = document.querySelector('#disconnected-alert').style;
@@ -99,6 +98,7 @@ TECHNICAL_500_AUTORELOAD_JS = b'''
     setupDisconnectedAlert();
 </script>
 '''
+
 
 def response_for_exception(request, exc):
     '''simplified from Django 1.11 source.
@@ -115,7 +115,9 @@ def response_for_exception(request, exc):
     response = handle_uncaught_exception(
         request, get_resolver(get_urlconf()), exc_info)
     if settings.DEBUG:
-        response.content += TECHNICAL_500_AUTORELOAD_JS
+        response_content = response.content.split(b'<div id="requestinfo">')[0]
+        response_content += TECHNICAL_500_AUTORELOAD_JS
+        response.content = response_content
 
     # Force a TemplateResponse to be rendered.
     if not getattr(response, 'is_rendered', True) and callable(getattr(response, 'render', None)):
