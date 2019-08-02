@@ -203,15 +203,6 @@ def ping(redis_conn, *, timeout):
         )
 
 
-def ping_bool(redis_conn, *, timeout):
-    '''version of ping that returns True/False rather than raising'''
-    try:
-        ping(redis_conn, timeout=timeout)
-        return True
-    except BotWorkerPingError:
-        return False
-
-
 def load_redis_response_dict(response_bytes: bytes):
     response = json.loads(response_bytes.decode('utf-8'))
     # response_error only exists if using Redis.

@@ -42,13 +42,9 @@ class InvalidWebSocketParams(Exception):
 
 
 class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
-    '''
-    THIS IS NOT PUBLIC API.
-    Third party apps should not subclass this.
-    Either copy this class into your code,
-    or subclass directly from JsonWebsocketConsumer,
-    '''
-
+    """
+    This is not public API, might change at any time.
+    """
     def group_send_channel(self, type: str, groups=None, **event):
         for group in (groups or self.groups):
             channel_utils.sync_group_send(group, {'type': type, **event})

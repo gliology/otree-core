@@ -53,13 +53,7 @@ sentry-sdk==0.7.9
 six==1.12.0
 splinter==0.8.0
 termcolor==1.1.0
-# Twisted 19.2.1 does not have our fix for #6032
-# so we should install a higher version if possible,
-# but we can settle for 19.2.1 for now.
-# easier than having a github dependency, because then we get:
-# "Packages installed from PyPI cannot depend on packages
-# which are not also hosted on PyPI."
-Twisted>=19.2.1
+Twisted>=19.7.0rc1
 txaio==18.8.1
 unicodecsv==0.14.1
 urllib3==1.25.3

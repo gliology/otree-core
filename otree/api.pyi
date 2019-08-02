@@ -211,7 +211,6 @@ class BaseGroup:
     subsession = None  # type: BaseSubsession
     round_number = None  # type: int
 
-    def set_players(self, players_list: List[BasePlayer]): pass
     def get_players(self) -> List[BasePlayer]: pass
     def get_player_by_role(self, role) -> BasePlayer: pass
     def get_player_by_id(self, id_in_group) -> BasePlayer: pass

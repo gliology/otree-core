@@ -69,16 +69,12 @@ class CreateSessionForm(forms.Form):
         self.fields['room_name'].initial = room_name
         if is_mturk:
             self.fields['is_mturk'].initial = True
-            self.fields['num_participants'].label = "Number of MTurk workers"
+            self.fields['num_participants'].label = "Number of MTurk workers (assignments)"
             self.fields['num_participants'].help_text = (
-                'Since workers can return the HIT or drop out, '
+                'Since workers can return an assignment or drop out, '
                 'some "spare" participants will be created: '
-                'the oTree session will have '
-                '{} times more participants than the MTurk HIT. '
-                'The number you enter in this field is number of '
-                'workers required for your HIT.'.format(
-                    settings.MTURK_NUM_PARTICIPANTS_MULTIPLE
-                )
+                f'the oTree session will have {settings.MTURK_NUM_PARTICIPANTS_MULTIPLE}'
+                '{} times more participant objects than the number you enter here.'
             )
         else:
             self.fields['num_participants'].label = "Number of participants"
@@ -514,26 +510,14 @@ class ServerCheck(vanilla.TemplateView):
 
     url_pattern = r"^server_check/$"
 
-    def worker_is_running(self):
-        if otree.common_internal.USE_REDIS:
-            redis_conn = otree.common_internal.get_redis_conn()
-            return otree.bots.browser.ping_bool(redis_conn, timeout=2)
-        else:
-            # the timeoutworker relies on Redis (Huey),
-            # so if Redis is not being used, the timeoutworker is not functional
-            return False
-
     def get_context_data(self, **kwargs):
         return super().get_context_data(
             sqlite=settings.DATABASES['default']['ENGINE'].endswith('sqlite3'),
             debug=settings.DEBUG,
             auth_level=settings.AUTH_LEVEL,
             auth_level_ok=settings.AUTH_LEVEL in {'DEMO', 'STUDY'},
-            heroku='heroku' in self.request.get_host(),
-            runserver=('runserver' in sys.argv) or ('devserver' in sys.argv),
             db_synced=not missing_db_tables(),
             pypi_results=check_pypi_for_updates(),
-            worker_is_running=self.worker_is_running(),
             **kwargs
         )
 
