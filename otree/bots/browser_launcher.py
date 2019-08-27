@@ -82,7 +82,7 @@ class OtreeWebSocketClient(WebSocketClient):
             self.seen_participant_codes.add(code)
             self.participants_finished += 1
             if self.participants_finished == self.session_size:
-                self.close(reason=WEBSOCKET_COMPLETED_MESSAGE)
+                self.close(reason=WEBSOCKET_COMPLETED_MESSAGE, code=1000)
 
     def closed(self, code, reason=None):
         '''
@@ -107,7 +107,6 @@ def run_websocket_client_until_finished(*, websocket_url, session_size) -> float
     ws_client = OtreeWebSocketClient(websocket_url, session_size=session_size)
     ws_client.connect()
     ws_client.run_forever()
-    print('os.getpid()', os.getpid())
     return round(time.time() - bot_start_time, 1)
 
 

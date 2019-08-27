@@ -22,6 +22,8 @@ django-slowtests==1.1.1
 django-vanilla-views==1.0.4
 honcho==0.7.1
 huey==1.10.2
+Hypercorn==0.8.1
+hyperframe==5.2.0
 hyperlink==19.0.0
 idna==2.8
 incremental==17.5.0
@@ -33,10 +35,10 @@ msgpack==0.6.1
 # a smooth upgrade to msgpack
 # (though i still had problems)
 msgpack-python==0.5.6
-numpy==1.16.4
 otree-boto2-shim==0.3.2
 otree-core==0.0.0b1
 otree-save-the-change==1.1.3
+priority==1.3.0
 py==1.8.0
 pytest==4.6.3
 pytest-django==3.5.0
@@ -57,8 +59,8 @@ Twisted>=19.7.0rc1
 txaio==18.8.1
 unicodecsv==0.14.1
 urllib3==1.25.3
-uvicorn==0.8.1
 whitenoise==3.2.1
 ws4py==0.3.5
+wsproto==0.14.1
 XlsxWriter==0.9.3
 zope.interface==4.6.0

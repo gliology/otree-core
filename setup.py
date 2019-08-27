@@ -38,8 +38,8 @@ if sys.argv[-1] == 'publish':
     sys.exit()
 
 
-if sys.version_info < (3, 6):
-    sys.exit('Error: This version of oTree requires Python 3.6 or higher')
+if sys.version_info < (3, 7):
+    sys.exit('Error: This version of oTree requires Python 3.7 or higher')
 
 setup(
     name='otree',

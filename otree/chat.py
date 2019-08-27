@@ -45,7 +45,7 @@ def chat_template_tag(context, *, channel=UNDEFINED, nickname=UNDEFINED):
 
     socket_path = channel_utils.chat_path(prefixed_channel, participant.id)
 
-    vars_for_js = {
+    chat_vars_for_js = {
         'socket_path': socket_path,
         'channel': prefixed_channel,
         'participant_id': participant.id,
@@ -56,6 +56,6 @@ def chat_template_tag(context, *, channel=UNDEFINED, nickname=UNDEFINED):
         'nickname_i_see_for_myself': _("{nickname} (Me)").format(nickname=nickname)
     }
 
-    context['vars_for_js'] = vars_for_js
+    context['chat_vars_for_js'] = chat_vars_for_js
 
     return context

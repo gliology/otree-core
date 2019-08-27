@@ -21,12 +21,15 @@ naiveip_re = re.compile(r"""^(?:
 DEFAULT_PORT = "8000"
 DEFAULT_ADDR = '0.0.0.0'
 
-# "You'll need to run uvicorn from the command line if you want multi-workers with windows."
+# hypercorn/uvicorn don't support multiple workers on windows.
+# daphne doesn't support multiple workers at all.
+# https://github.com/django/channels/issues/960
+# https://gitlab.com/pgjones/hypercorn/issues/84
 # https://github.com/encode/uvicorn/issues/342#issuecomment-480230739
 if sys.platform.startswith("win"):
-    NUM_UVICORNS = 1
+    NUM_WORKERS = 1
 else:
-    NUM_UVICORNS = 3
+    NUM_WORKERS = 3
 
 def get_ssl_file_path(filename):
     otree_dir = os.path.dirname(otree.__file__)
@@ -76,12 +79,22 @@ class Command(BaseCommand):
             port = None
 
         addr = addr or DEFAULT_ADDR
-        port = port or os.environ.get('PORT') or DEFAULT_PORT
+        # Heroku uses $PORT
+        port = int(port or os.environ.get('PORT') or DEFAULT_PORT)
 
-        uvicorn_cmd = f'uvicorn --host={addr} --port={port} --workers={NUM_UVICORNS} otree_startup.asgi:application'
+        # https://github.com/encode/uvicorn/issues/185
+
+        #uvicorn_cmd = f'uvicorn --host={addr} --port={port} --workers={NUM_WORKERS} otree_startup.asgi:application --log-level=debug'
+        #uvicorn_cmd += ' --ws=wsproto'
+        uvicorn_cmd = f'hypercorn -b {addr}:{port} --workers={NUM_WORKERS} otree_startup.asgi:application'
 
         if dev_https:
-            uvicorn_cmd += ' --ssl-keyfile="{}" --ssl-certfile="{}"'.format(
+            # Because of HSTS, Chrome and other browsers will "get stuck" forcing HTTPS,
+            # which makes it impossible to run regular devserver again on that port
+            if int(port) == 8000:
+                self.stderr.write('ERROR: oTree cannot use HTTPS on port 8000. Please specify a different port.')
+                raise SystemExit(-1)
+            uvicorn_cmd += ' --keyfile="{}" --certfile="{}"'.format(
                 get_ssl_file_path('development.key'),
                 get_ssl_file_path('development.crt'),
             )

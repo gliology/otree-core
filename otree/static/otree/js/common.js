@@ -1,8 +1,8 @@
 function makeReconnectingWebSocket(path) {
     // https://github.com/pladaria/reconnecting-websocket/issues/91#issuecomment-431244323
-    let ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-    let ws_path = `${ws_scheme}://${window.location.host}${path}`;
-    let socket = new ReconnectingWebSocket(ws_path, '', {minReconnectionDelay: 1});
+    var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
+    var ws_path = `${ws_scheme}://${window.location.host}${path}`;
+    var socket = new ReconnectingWebSocket(ws_path, '', {minReconnectionDelay: 1});
     socket.onclose = function (e) {
         if (e.code === 1011) {
             // this may or may not exist in child pages.

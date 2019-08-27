@@ -314,29 +314,29 @@ class FormPageOrInGameWaitPage(vanilla.View):
 
     def get_context_data(self, **context):
 
-        context.update({
-            'view': self,
-            # 2017-08-22: why do we need this?
-            'object': getattr(self, 'object', None),
-            'player': self.player,
-            'group': self.group,
-            'subsession': self.subsession,
-            'session': self.session,
-            'participant': self.participant,
-            'Constants': self._Constants,
+        context.update(
+            view=self,
+            object=getattr(self, 'object', None),
+            player=self.player,
+            group=self.group,
+            subsession=self.subsession,
+            session=self.session,
+            participant=self.participant,
+            Constants=self._Constants,
+            timer_text=getattr(self, 'timer_text', None)
+        )
 
-            # doesn't exist on wait pages, so need getattr
-            'timer_text': getattr(self, 'timer_text', None)
-        })
 
-        vars_for_template = {}
         views_module = otree.common_internal.get_pages_module(
             self.subsession._meta.app_config.name)
         if hasattr(views_module, 'vars_for_all_templates'):
-            vars_for_template.update(views_module.vars_for_all_templates(self) or {})
+            vars_for_template = views_module.vars_for_all_templates(self)
+        else:
+            vars_for_template = {}
 
         try:
             user_vars = self.vars_for_template()
+            context['js_vars'] = self.js_vars()
         except:
             raise ResponseForException
 
@@ -359,6 +359,9 @@ class FormPageOrInGameWaitPage(vanilla.View):
         )
 
     def vars_for_template(self):
+        return {}
+
+    def js_vars(self):
         return {}
 
     def _get_debug_tables(self, vars_for_template):

@@ -79,9 +79,6 @@ class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
     # so we need to make our own
     # https://github.com/django/channels/issues/1241
     def connect(self):
-        # need to accept no matter what, so we can at least send
-        # an error message
-        self.accept()
 
         AUTH_LEVEL = settings.AUTH_LEVEL
 
@@ -92,13 +89,14 @@ class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
         )
 
         if auth_required and not self.scope['user'].is_staff:
-            msg = 'rejected un-authenticated access to websocket'
+            msg = 'rejected un-authenticated access to websocket path {}'.format(self.scope['path'])
             logger.warning(msg)
-            # it's good to send an explanation so we understand e.g.
-            # test failures
-            self.send_json({'unauthenticated_websocket': msg})
-            return
+            # consider also self.accept() then send error message then self.close(code=1008)
+            # this only affects otree core websockets.
         else:
+            # need to accept no matter what, so we can at least send
+            # an error message
+            self.accept()
             self.post_connect(**self.cleaned_kwargs)
 
     def post_connect(self, **kwargs):
@@ -336,6 +334,9 @@ class CreateSession(BaseCreateSession):
             config.get('use_browser_bots', False)
         )
 
+        # if room_name is missing, it will be empty string
+        room_name = form.cleaned_data['room_name'] or None
+
         self.create_session_then_send_start_link(
             session_config_name=session_config_name,
             num_participants=num_participants,
@@ -343,9 +344,9 @@ class CreateSession(BaseCreateSession):
             is_mturk=is_mturk,
             edited_session_config_fields=edited_session_config_fields,
             use_browser_bots=use_browser_bots,
+            room_name=room_name,
         )
 
-        room_name = form.cleaned_data['room_name']
         if room_name:
             self.group_send_channel(
                 type='room_session_ready',
@@ -480,7 +481,9 @@ class RoomParticipant(_OTreeJsonWebsocketConsumer):
 
 class BrowserBotsLauncher(_OTreeJsonWebsocketConsumer):
 
-    unrestricted_when = None
+    # OK to be unrestricted because this websocket doesn't create the session,
+    # or do anything sensitive.
+    unrestricted_when = ALWAYS_UNRESTRICTED
 
     def group_name(self, session_code):
         return channel_utils.browser_bots_launcher_group(session_code)
@@ -627,3 +630,24 @@ class ExportData(_OTreeJsonWebsocketConsumer):
 
 class NoOp(WebsocketConsumer):
     pass
+
+
+class LifespanApp:
+    '''
+    temporary shim for https://github.com/django/channels/issues/1216
+    needed so that hypercorn doesn't display an error.
+    this uses ASGI 2.0 format, not the newer 3.0 single callable
+    '''
+
+    def __init__(self, scope):
+        self.scope = scope
+
+    async def __call__(self, receive, send):
+        if self.scope['type'] == 'lifespan':
+            while True:
+                message = await receive()
+                if message['type'] == 'lifespan.startup':
+                    await send({'type': 'lifespan.startup.complete'})
+                elif message['type'] == 'lifespan.shutdown':
+                    await send({'type': 'lifespan.shutdown.complete'})
+                    return
