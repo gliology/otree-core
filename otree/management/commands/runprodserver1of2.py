@@ -84,9 +84,9 @@ class Command(BaseCommand):
 
         # https://github.com/encode/uvicorn/issues/185
 
-        #uvicorn_cmd = f'uvicorn --host={addr} --port={port} --workers={NUM_WORKERS} otree_startup.asgi:application --log-level=debug'
-        #uvicorn_cmd += ' --ws=wsproto'
-        uvicorn_cmd = f'hypercorn -b {addr}:{port} --workers={NUM_WORKERS} otree_startup.asgi:application'
+        #asgi_server_cmd = f'uvicorn --host={addr} --port={port} --workers={NUM_WORKERS} otree_startup.asgi:application --log-level=debug'
+        #asgi_server_cmd += ' --ws=wsproto'
+        asgi_server_cmd = f'hypercorn -b {addr}:{port} --workers={NUM_WORKERS} otree_startup.asgi:application'
 
         if dev_https:
             # Because of HSTS, Chrome and other browsers will "get stuck" forcing HTTPS,
@@ -94,15 +94,15 @@ class Command(BaseCommand):
             if int(port) == 8000:
                 self.stderr.write('ERROR: oTree cannot use HTTPS on port 8000. Please specify a different port.')
                 raise SystemExit(-1)
-            uvicorn_cmd += ' --keyfile="{}" --certfile="{}"'.format(
+            asgi_server_cmd += ' --keyfile="{}" --certfile="{}"'.format(
                 get_ssl_file_path('development.key'),
                 get_ssl_file_path('development.crt'),
             )
 
-        logger.info(uvicorn_cmd)
+        logger.info(asgi_server_cmd)
 
         honcho = self.honcho
         honcho.add_otree_process(
-            'uvicorn',
-            uvicorn_cmd
+            'asgiserver',
+            asgi_server_cmd
         )

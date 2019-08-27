@@ -38,6 +38,7 @@ if sys.argv[-1] == 'publish':
     sys.exit()
 
 
+# 3.7 because of hypercorn
 if sys.version_info < (3, 7):
     sys.exit('Error: This version of oTree requires Python 3.7 or higher')
 
