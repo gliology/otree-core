@@ -52,7 +52,7 @@ def collapse_to_unique_list(*args):
     return combined
 
 
-def get_default_settings(user_settings: dict):
+def get_default_settings(user_settings: dict, *, use_redis_layer):
     '''
     doesn't mutate user_settings, just reads from it
     because some settings depend on others
@@ -107,6 +107,18 @@ def get_default_settings(user_settings: dict):
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
     BASE_DIR = user_settings.get('BASE_DIR', '')
 
+    if use_redis_layer:
+        channel_layer = {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+            }
+        }
+    else:
+        channel_layer = {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+
     default_settings.update(
         DEBUG=os.environ.get('OTREE_PRODUCTION') in [None, '', '0'],
         AWS_ACCESS_KEY_ID=os.environ.get('AWS_ACCESS_KEY_ID'),
@@ -152,17 +164,7 @@ def get_default_settings(user_settings: dict):
         USE_L10N=True,
         SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'),
         ASGI_APPLICATION="otree.channels.routing.application",
-        CHANNEL_LAYERS={
-            'default': {
-                "BACKEND": "channels_redis.core.RedisChannelLayer",
-                "CONFIG": {
-                    "hosts": [REDIS_URL],
-                },
-            },
-            'inmemory': {
-                "BACKEND": "channels.layers.InMemoryChannelLayer",
-            },
-        },
+        CHANNEL_LAYERS={'default': channel_layer},
         REDIS_URL=REDIS_URL,
         MTURK_NUM_PARTICIPANTS_MULTIPLE=2,
         LOCALE_PATHS=[
@@ -238,9 +240,9 @@ def validate_user_settings(settings: dict):
             raise ValueError(f'settings.py: setting {SETTING} cannot be None.')
 
 
-def augment_settings(settings: dict):
+def augment_settings(settings: dict, use_redis_layer):
     validate_user_settings(settings)
-    default_settings = get_default_settings(settings)
+    default_settings = get_default_settings(settings, use_redis_layer=use_redis_layer)
     for k, v in default_settings.items():
         settings.setdefault(k, v)
 

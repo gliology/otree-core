@@ -336,7 +336,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
 
         try:
             user_vars = self.vars_for_template()
-            context['js_vars'] = self.js_vars()
+            context['javascript_vars'] = self.javascript_vars().items()
         except:
             raise ResponseForException
 
@@ -361,7 +361,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
     def vars_for_template(self):
         return {}
 
-    def js_vars(self):
+    def javascript_vars(self):
         return {}
 
     def _get_debug_tables(self, vars_for_template):

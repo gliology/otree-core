@@ -121,7 +121,7 @@ def execute_from_command_line(*args, **kwargs):
         'upgrade_my_code', 'update_my_code',
         'unzip', 'zip',
     ]:
-        django_settings.configure(**get_default_settings({}))
+        django_settings.configure(**get_default_settings({}, use_redis_layer=False))
     else:
         try:
             configure_settings(DJANGO_SETTINGS_MODULE)
@@ -193,7 +193,7 @@ class ImportSettingsError(ImportError):
     pass
 
 
-def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings'):
+def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings', use_redis_layer=False):
     try:
         user_settings_module = import_module(DJANGO_SETTINGS_MODULE)
     except ImportError:
@@ -206,7 +206,7 @@ def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings'):
         if setting_name.isupper():
             setting_value = getattr(user_settings_module, setting_name)
             user_settings_dict[setting_name] = setting_value
-    augment_settings(user_settings_dict)
+    augment_settings(user_settings_dict, use_redis_layer=use_redis_layer)
     django_settings.configure(**user_settings_dict)
 
 

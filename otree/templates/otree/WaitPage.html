@@ -1,6 +1,6 @@
 {% extends 'otree/Base.html' %}
 {% load i18n %}
-{% load staticfiles %}
+{% load otree %}
 {% block head_title %}{{ title_text }}{% endblock %}
 
 {% block internal_styles %}
@@ -36,9 +36,8 @@
         }
     </style>
 {% endblock %}
-
-{% block body_main %}
-
+{% comment %}this template is used by rooms, where javascript_vars does not exist{% endcomment %}
+{% block body_main %}{% for varname,value in javascript_vars|default:None %}<script>let {{ varname }} = {{ value|json }};</script>{% endfor %}
 <div class="otree-wait-page container">
     <div class="card">
         <h4 class="otree-wait-page__title card-header">

@@ -4,7 +4,7 @@ import django
 from channels.routing import get_default_application
 from . import configure_settings
 
-configure_settings()
+configure_settings(use_redis_layer=True)
 django.setup()
 application = get_default_application()
 

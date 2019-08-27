@@ -75,10 +75,6 @@ class Command(BaseCommand):
         these are optimizations that are mostly redundant with what
         runtests.py does.
         '''
-        # use in-memory.
-        # this is the simplest way to patch tests to use in-memory,
-        # while still using Redis in production
-        settings.CHANNEL_LAYERS['default'] = settings.CHANNEL_LAYERS['inmemory']
         # so we know not to use Huey
         otree.common_internal.USE_REDIS = False
 
