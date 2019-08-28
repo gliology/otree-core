@@ -6,7 +6,7 @@ function makeReconnectingWebSocket(path) {
     socket.onclose = function (e) {
         if (e.code === 1011) {
             // this may or may not exist in child pages.
-            let serverErrorDiv = document.getElementById("websocket-server-error");
+            var serverErrorDiv = document.getElementById("websocket-server-error");
             if (serverErrorDiv) {
                 // better to put the message here rather than the div, otherwise it's confusing when
                 // you do "view source" and there's an error message.
@@ -40,8 +40,8 @@ function makeReconnectingWebSocket(path) {
         // submission.
         $('#form').submit(function () {
             $('.otree-btn-next').each(function () {
-                let nextButton = this;
-                let originalState = nextButton.disabled;
+                var nextButton = this;
+                var originalState = nextButton.disabled;
                 nextButton.disabled = true;
                 setTimeout(function () {
                     // restore original state.

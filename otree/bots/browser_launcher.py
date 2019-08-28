@@ -63,7 +63,7 @@ class URLs:
 
 
 WEBSOCKET_COMPLETED_MESSAGE = b'closed_by_browser_launcher'
-
+WEBSOCKET_1000 = 1000
 
 class OtreeWebSocketClient(WebSocketClient):
 
@@ -82,16 +82,17 @@ class OtreeWebSocketClient(WebSocketClient):
             self.seen_participant_codes.add(code)
             self.participants_finished += 1
             if self.participants_finished == self.session_size:
-                self.close(reason=WEBSOCKET_COMPLETED_MESSAGE, code=1000)
+                self.close(reason=WEBSOCKET_COMPLETED_MESSAGE, code=WEBSOCKET_1000)
 
     def closed(self, code, reason=None):
         '''
         make sure the websocket closed properly,
         not because of server-side exception etc.
         '''
-        if reason != WEBSOCKET_COMPLETED_MESSAGE:
+        # i used to check "reason", but for some reason it's always an empty string.
+        if code != WEBSOCKET_1000:
             logger.error(
-                f'Lost connection with server.' 
+                f'Lost connection with server. ' 
                 f'code: {code}, reason: "{reason}".'
                 'Check the oTree server logs for errors.'
             )

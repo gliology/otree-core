@@ -4,7 +4,7 @@ import sys
 import logging
 
 import honcho.manager
-
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 import otree
@@ -98,6 +98,12 @@ class Command(BaseCommand):
                 get_ssl_file_path('development.key'),
                 get_ssl_file_path('development.crt'),
             )
+            # When the user submits AJAX such as AdvanceSlowest, Django gives REASON_BAD_REFERER.
+            # because the referer is localhost:8003 and good_hosts just has 127.0.0.1.
+            # could add localhost to CSRF_TRUSTED_ORIGINS, but that needs to be done
+            # inside the asgi server process. i don't want to modify that setting globally
+            # because that might have bad implications.
+            # simplest workaround is to tell users to go to 127.0.0.1 instead of localhost.
 
         logger.info(asgi_server_cmd)
 
