@@ -65,11 +65,6 @@ websocket_routes = [
 
 extensions_modules = get_extensions_modules('routing')
 for extensions_module in extensions_modules:
-    if hasattr(extensions_module, 'channel_routing'):
-        raise Exception(
-            f'The extension {extensions_module} is built for an older version '
-            'of oTree (2.2). You should remove it from your EXTENSION_APPS setting.'
-        )
     websocket_routes += getattr(extensions_module, 'websocket_routes', [])
 
 

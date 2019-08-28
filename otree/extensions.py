@@ -1,6 +1,7 @@
 from importlib import import_module
 from django.conf import settings
 import importlib.util
+import sys
 
 
 """
@@ -56,6 +57,11 @@ not just data export.)
 
 """
 
+from logging import getLogger
+logger = getLogger(__name__)
+
+class ImportExtensionError(Exception): pass
+
 def get_extensions_modules(submodule_name):
     modules = []
     extension_apps = getattr(settings, 'EXTENSION_APPS', [])
@@ -68,7 +74,17 @@ def get_extensions_modules(submodule_name):
         submodule_dotted = '{}.{}'.format(package_dotted, submodule_name)
         # need to check if base package exists; otherwise we get ImportError
         if find_spec(package_dotted) and find_spec(submodule_dotted):
-            module = import_module(submodule_dotted)
+            try:
+                module = import_module(submodule_dotted)
+            except Exception:
+                # otree_tools gave:
+                # ImportError: cannot import name 'route_class' from 'channels.routing'
+                # don't say that it's a compat issue because it could be anything
+                # (e.g. extension not installed)
+                raise ImportExtensionError(
+                    f'Error while loading {app_name}. '
+                    'See above for more details.'
+                )
             modules.append(module)
     return modules
 
