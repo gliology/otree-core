@@ -75,8 +75,6 @@ class Command(BaseCommand):
         these are optimizations that are mostly redundant with what
         runtests.py does.
         '''
-        # so we know not to use Huey
-        otree.common_internal.USE_REDIS = False
 
         # To make tests run faster, autorefresh should be set to True
         # http://whitenoise.evans.io/en/latest/django.html#whitenoise-makes-my-tests-run-slow

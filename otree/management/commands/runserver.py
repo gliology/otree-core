@@ -35,9 +35,6 @@ class Command(runserver.Command):
             'django.template.loaders.app_directories.Loader',
         ]
 
-        # so we know not to use Huey
-        otree.common_internal.USE_REDIS = False
-
         # for performance,
         # only run checks when the server starts, not when it reloads
         # (RUN_MAIN is set by Django autoreloader).

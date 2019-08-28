@@ -37,10 +37,21 @@ if sys.argv[-1] == 'publish':
 
     sys.exit()
 
-
 # 3.7 because of hypercorn
+
+MSG_PY_VERSION = f"""
+Error: This version of oTree requires Python 3.7 or higher.
+
+If you're seeing this message on oTree Hub, 
+upgrade oTree locally and run "otree zip" again.
+
+If using Heroku without oTree Hub, you should create a runtime.txt 
+as described in the Heroku documentation.
+"""
+
 if sys.version_info < (3, 7):
-    sys.exit('Error: This version of oTree requires Python 3.7 or higher')
+    sys.exit(MSG_PY_VERSION)
+
 
 setup(
     name='otree',

@@ -23,10 +23,10 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 from huey.contrib.djhuey import HUEY
 from six.moves import urllib
-from django.shortcuts import redirect
+import os
 
 # set to False if using runserver
-USE_REDIS = True
+USE_REDIS = bool(os.environ.get('OTREE_USE_REDIS', ''))
 
 # these locks need to be here rather than views.abstract or views.participant
 # because they need to be imported when the main thread runs.

@@ -52,7 +52,7 @@ def collapse_to_unique_list(*args):
     return combined
 
 
-def get_default_settings(user_settings: dict, *, use_redis_layer):
+def get_default_settings(user_settings: dict):
     '''
     doesn't mutate user_settings, just reads from it
     because some settings depend on others
@@ -107,7 +107,7 @@ def get_default_settings(user_settings: dict, *, use_redis_layer):
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
     BASE_DIR = user_settings.get('BASE_DIR', '')
 
-    if use_redis_layer:
+    if os.environ.get('OTREE_USE_REDIS'):
         channel_layer = {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
@@ -240,9 +240,9 @@ def validate_user_settings(settings: dict):
             raise ValueError(f'settings.py: setting {SETTING} cannot be None.')
 
 
-def augment_settings(settings: dict, use_redis_layer):
+def augment_settings(settings: dict):
     validate_user_settings(settings)
-    default_settings = get_default_settings(settings, use_redis_layer=use_redis_layer)
+    default_settings = get_default_settings(settings)
     for k, v in default_settings.items():
         settings.setdefault(k, v)
 
