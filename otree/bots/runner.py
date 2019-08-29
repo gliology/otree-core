@@ -98,7 +98,8 @@ def run_bots(session: Session, case_number=None):
     runner = SessionBotRunner(bots=bot_list)
     runner.play()
 
-
+# i used to use @pytest.mark.filterwarnings('ignore', category=RemovedInDjango20Warning)
+# but easier to use --disable-warnings to make sure they're all gone
 # function name needs to start with "test" for pytest to discover it
 # in this module
 @pytest.mark.django_db(transaction=True)
@@ -116,7 +117,11 @@ def test_all_bots_for_session_config(
         session_config_names = SESSION_CONFIGS_DICT.keys()
 
     for config_name in session_config_names:
-        config = SESSION_CONFIGS_DICT[config_name]
+        try:
+            config = SESSION_CONFIGS_DICT[config_name]
+        except KeyError:
+            # important to alert the user, since people might be trying to enter app names.
+            raise Exception(f"No session config with name '{config_name}'.") from None
 
         bot_modules = [f'{app_name}.tests' for app_name in config['app_sequence']]
         pytest.register_assert_rewrite(*bot_modules)

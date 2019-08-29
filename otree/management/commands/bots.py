@@ -104,7 +104,8 @@ class Command(BaseCommand):
         argv = [
             otree.bots.runner.__file__,
             '-s',
-            '--tb', 'short'
+            '--tb', 'short',
+            '--disable-warnings',
         ]
         if verbosity == 0:
             argv.append('--quiet')
