@@ -1,4 +1,3 @@
-import glob
 import inspect
 import io
 import os
@@ -9,8 +8,6 @@ from importlib import import_module
 from django.apps import apps
 from django.conf import settings
 from django.core.checks import register, Error, Warning
-from django.template import Template
-from django.template import TemplateSyntaxError
 import django.db.models.fields
 from otree.api import (
     BasePlayer, BaseGroup, BaseSubsession, Currency, WaitPage, Page)
@@ -231,21 +228,6 @@ def constants(helper: AppCheckHelper, **kwargs):
         )
 
 
-def orphan_methods(helper: AppCheckHelper, **kwargs):
-    '''i saw several people making this mistake in the workshop'''
-    pages_module = common_internal.get_pages_module(helper.app_config.name)
-    for method_name in ['vars_for_template', 'is_displayed',
-                        'after_all_players_arrive']:
-        if hasattr(pages_module, method_name):
-            helper.add_error(
-                'pages.py has a function {} that is not inside a class.'.format(
-                    method_name),
-                numeric_id=70
-            )
-
-    return
-
-
 def pages_function(helper: AppCheckHelper, **kwargs):
     pages_module = common_internal.get_pages_module(helper.app_config.name)
     views_or_pages = pages_module.__name__.split('.')[-1]
@@ -399,109 +381,6 @@ def ensure_no_misspelled_attributes(ViewCls: type, helper: AppCheckHelper):
             helper.add_error(msg.format(**fmt_kwargs), numeric_id)
 
 
-def template_content_is_in_blocks(template_name: str, helper: AppCheckHelper):
-    from otree.checks.templates import get_unreachable_content
-    from otree.checks.templates import has_valid_encoding
-    from otree.checks.templates import format_source_snippet
-
-    # Only test files that are valid templates.
-    if not has_valid_encoding(template_name):
-        return
-
-    try:
-        with io.open(template_name, 'r', encoding='utf8') as f:
-
-            # when we upgraded to Django 1.11, we got an error
-            # if someone used "{% include %}" with a relative
-            # path (like ../Foo.html):
-            # File "c:\otree\ve_dj11\lib\site-packages\django\template\loader_tags.py", line 278, in construct_relative_path
-            #  posixpath.dirname(current_template_name.lstrip('/')),
-            # AttributeError: 'NoneType' object has no attribute 'lstrip'
-            # can fix this by passing a dummy 'Origin' param.
-            # i tried also with Engin.get_default().from_string(template_name),
-            # but got the same error.
-            class Origin:
-                name = ''
-                template_name = ''
-
-            compiled_template = Template(f.read(), origin=Origin)
-    except (IOError, OSError, TemplateSyntaxError):
-        # When we used Django 1.8
-        # we used to show the line from the source that caused the error,
-        # but django_template_source was removed at some point,
-        # so it's better to let the yellow error page show the error nicely
-        return
-
-    def format_content(text):
-        text = text.strip()
-        lines = text.splitlines()
-        lines = ['> {0}'.format(line) for line in lines]
-        return '\n'.join(lines)
-
-    contents = get_unreachable_content(compiled_template)
-
-    content_bits = '\n\n'.join(
-        format_content(bit)
-        for bit in contents)
-    # note: this seems to not detect unreachable content
-    # if the template has a relative include,
-    # like {% include "../Foo.html" %}
-    # not sure why, but that's not common usage.
-    if contents:
-        helper.add_error(
-            'Template contains the following text outside of a '
-            '{% block %}. This text will never be displayed.'
-            '\n\n' + content_bits,
-            # why do we do this? isn't template_name already the full path?
-            obj=os.path.join(helper.app_config.label,
-                             helper.get_rel_path(template_name)),
-            numeric_id=7)
-
-
-def templates_valid(helper: AppCheckHelper, **kwargs):
-    for template_name in helper.get_template_names():
-        template_content_is_in_blocks(template_name, helper)
-
-
-def no_model_class_references(helper: AppCheckHelper, **kwargs):
-    models_path = helper.get_path('models.py')
-
-    from otree.checks.templates import has_valid_encoding
-
-    # Only test files that are valid templates.
-    if not has_valid_encoding(models_path):
-        return
-
-    try:
-        with io.open(models_path, 'r', encoding='utf8') as f:
-            content = f.read()
-    except (IOError, OSError):
-        # when would these errors occur?
-        # (this was originally copied from template check)
-        return
-
-    allowed_attr_names = ['add_to_class', 'objects']
-    matches = re.finditer(r'(Player|Group|Subsession)\.(\w+)', content)
-
-    for m in matches:
-        matched_text = m.group(0)
-        ModelName = m.group(1)
-        attr_name = m.group(2)
-        if attr_name in allowed_attr_names:
-            continue
-        position = m.start(0)
-        num_newlines = content[:position].count('\n')
-        line_number = num_newlines + 1
-        first_letter_uppercase = ModelName[0]
-        helper.add_error(
-            f'models.py contains a reference to "{matched_text}" around line {line_number}. '
-            f'You should not refer to {ModelName} with an uppercase {ModelName[0]}, '
-            f'because that refers to the whole class, '
-            f'rather than any individual {ModelName.lower()}. '
-            'Learn about how to access instances using "self".',
-            numeric_id=120)
-
-
 def unique_sessions_names(helper: AppCheckHelper, **kwargs):
     already_seen = set()
     for st in settings.SESSION_CONFIGS:
@@ -577,10 +456,7 @@ def register_system_checks():
         files,
         constants,
         pages_function,
-        templates_valid,
         template_encoding,
-        orphan_methods,
-        no_model_class_references,
     ]:
         check_function = make_check_function(func)
         register(check_function)
