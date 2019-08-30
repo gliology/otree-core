@@ -118,6 +118,7 @@ def execute_from_command_line(*args, **kwargs):
         'startproject',
         'version', '--version',
         'compilemessages', 'makemessages',
+        'upgrade_my_code', 'update_my_code',
         'unzip', 'zip',
     ]:
         django_settings.configure(**get_default_settings({}))

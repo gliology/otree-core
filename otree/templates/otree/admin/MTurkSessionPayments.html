@@ -101,7 +101,7 @@
                         </tr>
                     {% endfor %}
                 </table>
-                <div class="btn-group">
+                <div class="btn-group" style="float: right;">
                     <button type="button"
                             class="btn btn-primary"
                             data-toggle="modal"
@@ -119,6 +119,8 @@
                         Reject
                     </button>
                 </div>
+                                    <!--Modal windows to confirm payment/rejection -->
+                <!-- Removed fade because the delay seemed to be interfering with PhantomJS -->
                 <div class="modal" id="mturk-pay" tabindex="-1" role="dialog">
                     <div class="modal-dialog">
                         <div class="modal-content bg-warning">
@@ -282,6 +284,5 @@
             {% endif %}
         </div>
     {% endif %}
-    <br>
     {% include "otree/includes/messages.html" %}
 {% endblock %}

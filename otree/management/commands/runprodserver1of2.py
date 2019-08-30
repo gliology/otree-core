@@ -85,8 +85,8 @@ class Command(BaseCommand):
         # https://github.com/encode/uvicorn/issues/185
 
         #asgi_server_cmd = f'uvicorn --host={addr} --port={port} --workers={NUM_WORKERS} otree_startup.asgi:application --log-level=debug'
-        # keep-alive is needed, otherwise pages that take more than 5 seconds to load will trigger h13
-        asgi_server_cmd = f'hypercorn -b {addr}:{port} --workers={NUM_WORKERS} --keep-alive=35 otree_startup.asgi:application'
+        #asgi_server_cmd += ' --ws=wsproto'
+        asgi_server_cmd = f'hypercorn -b {addr}:{port} --workers={NUM_WORKERS} otree_startup.asgi:application'
 
         if dev_https:
             # Because of HSTS, Chrome and other browsers will "get stuck" forcing HTTPS,
