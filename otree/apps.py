@@ -44,6 +44,7 @@ def monkey_patch_db_cursor():
 
 
     # In Django 2.0, this method is renamed to _execute.
+    # but seems to still work in 2.2?
     def execute(self, sql, params=None):
         self.db.validate_no_broken_transaction()
         with self.db.wrap_database_errors:

@@ -135,8 +135,6 @@ def get_urlpatterns():
 
     urlpatterns = [
         urls.url(r'^$', RedirectView.as_view(url='/demo', permanent=True)),
-        # TODO: in Django 2+, use this instead of login stuff:
-        # path('accounts/', include('django.contrib.auth.urls')),
         urls.url(
             r'^accounts/login/$',
             LoginView.as_view(),

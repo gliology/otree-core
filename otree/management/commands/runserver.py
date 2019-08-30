@@ -26,15 +26,6 @@ class Command(runserver.Command):
         from otree.common_internal import release_any_stale_locks
         release_any_stale_locks()
 
-        # don't use cached template loader, so that users can refresh files
-        # and see the update.
-        # kind of a hack to patch it here and to refer it as [0],
-        # but can't think of a better way.
-        settings.TEMPLATES[0]['OPTIONS']['loaders'] = [
-            'django.template.loaders.filesystem.Loader',
-            'django.template.loaders.app_directories.Loader',
-        ]
-
         # for performance,
         # only run checks when the server starts, not when it reloads
         # (RUN_MAIN is set by Django autoreloader).

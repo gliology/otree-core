@@ -15,6 +15,7 @@ logger = logging.getLogger('otree')
 MSG_RESETDB_SUCCESS_FOR_HUB = 'Created new tables and columns.'
 MSG_DB_ENGINE_FOR_HUB = 'Database engine'
 
+
 def db_label_and_drop_cmd(db_engine: str) -> Tuple[str, str]:
     db_engine_lower = db_engine.lower()
     if 'oracle' in db_engine_lower:
@@ -104,16 +105,10 @@ class Command(BaseCommand):
 
         tables = self._get_tables()
 
-        # use a transaction to prevent the DB from getting in an erroneous
-        # state, which can result in a different error message when resetdb
-        # is run again, making the original error hard to trace.
-        with transaction.atomic(
-                savepoint=connection.features.can_rollback_ddl
-        ):
-            logger.info(f"Dropping {len(tables)} tables...")
-            self._drop_tables(tables, drop_cmd_template)
+        logger.info(f"Dropping {len(tables)} tables...")
+        self._drop_tables(tables, drop_cmd_template)
 
-            migrate_db(options)
+        migrate_db(options)
 
         # mention the word 'columns' here, so people make the connection
         # between columns and resetdb, so that when they get a 'no such column'
