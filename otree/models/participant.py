@@ -1,5 +1,4 @@
 
-from django.db.models import permalink, Sum
 from django.urls import reverse
 
 import otree.common_internal
@@ -8,8 +7,10 @@ from otree.common_internal import random_chars_8
 from otree.db import models
 from otree.models_concrete import ParticipantToPlayerLookup
 from .varsmixin import ModelWithVars
+import model_utils
 
 class Participant(ModelWithVars):
+    _ft = model_utils.FieldTracker()
 
     class Meta:
         ordering = ['pk']

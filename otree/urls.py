@@ -122,22 +122,27 @@ def extensions_export_urlpatterns():
     return view_urls
 
 
-def get_urlpatterns():
+import django.contrib.auth.views as auth_views
 
-    from django.contrib.auth.views import login, logout
+class LoginView(auth_views.LoginView):
+    template_name = 'otree/login.html'
+
+class LogoutView(auth_views.LogoutView):
+    next_page = 'DemoIndex'
+
+
+def get_urlpatterns():
 
     urlpatterns = [
         urls.url(r'^$', RedirectView.as_view(url='/demo', permanent=True)),
         urls.url(
             r'^accounts/login/$',
-            login,
-            {'template_name': 'otree/login.html'},
+            LoginView.as_view(),
             name='login',
         ),
         urls.url(
             r'^accounts/logout/$',
-            logout,
-            {'next_page': 'DemoIndex'},
+            LogoutView.as_view(),
             name='logout',
         ),
     ]

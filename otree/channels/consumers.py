@@ -45,11 +45,9 @@ class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
     """
     This is not public API, might change at any time.
     """
-    def group_send_channel(self, type: str, groups:list, event):
+    def group_send_channel(self, type: str, groups:list, event:dict):
         for group in groups:
             channel_utils.sync_group_send(group, {'type': type, **event})
-            #print('call_args', channel_utils.sync_group_send.call_args)
-            #assert channel_utils.sync_group_send.call_args
 
     def clean_kwargs(self, **kwargs):
         '''
@@ -351,7 +349,7 @@ class CreateSession(BaseCreateSession):
             self.group_send_channel(
                 type='room_session_ready',
                 groups=[channel_utils.room_participants_group_name(room_name)],
-                event={},
+                event={}
             )
 
 
@@ -416,7 +414,7 @@ class RoomParticipant(_OTreeJsonWebsocketConsumer):
             self.send_json({'error': 'Invalid room name "{}".'.format(room_name)})
             return
         if room.has_session():
-            self.room_session_ready({})
+            self.room_session_ready()
         else:
             try:
                 ParticipantRoomVisit.objects.create(
@@ -475,7 +473,7 @@ class RoomParticipant(_OTreeJsonWebsocketConsumer):
         admin_group = channel_utils.room_admin_group_name(room_name)
         channel_utils.sync_group_send(admin_group, event)
 
-    def room_session_ready(self, event):
+    def room_session_ready(self, event=None):
         self.send_json({'status': 'session_ready'})
 
 
@@ -556,11 +554,7 @@ class ChatConsumer(_OTreeJsonWebsocketConsumer):
             participant_id=participant_id
         )
 
-        self.group_send_channel(
-            'chat_sendmessages',
-            groups=self.groups,
-            event=dict(chats=[chat_message])
-        )
+        self.group_send_channel('chat_sendmessages', groups=self.groups, event={'chats': [chat_message]})
 
         ChatMessage.objects.create(
             participant_id=participant_id,

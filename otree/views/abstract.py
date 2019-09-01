@@ -20,7 +20,7 @@ from channels.layers import get_channel_layer
 import redis_lock
 import vanilla
 from django.conf import settings
-from django.core.urlresolvers import resolve
+from django.urls import resolve
 from django.db.models import Max, Min
 from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.shortcuts import get_object_or_404

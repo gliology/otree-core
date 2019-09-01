@@ -20,7 +20,7 @@ class _BaseMoneyInput(forms.NumberInput):
         context['currency_symbol'] = self.CURRENCY_SYMBOL
         return context
 
-    def _format_value(self, value):
+    def format_value(self, value):
         if isinstance(value, (Currency, RealWorldCurrency)):
             value = Decimal(value)
         return force_text(value)
@@ -57,14 +57,14 @@ class Slider(forms.NumberInput):
         try:
             # fix bug where currency "step" values were ignored.
             step = kwargs['attrs']['step']
-            kwargs['attrs']['step'] = self._format_value(step)
+            kwargs['attrs']['step'] = self.format_value(step)
         except KeyError:
             pass
         if show_value is not None:
             self.show_value = show_value
         super().__init__(*args, **kwargs)
 
-    def _format_value(self, value):
+    def format_value(self, value):
         if isinstance(value, (Currency, RealWorldCurrency)):
             value = Decimal(value)
         return force_text(value)

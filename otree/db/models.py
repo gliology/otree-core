@@ -16,7 +16,7 @@ import otree.common
 from otree.common_internal import (
     expand_choice_tuples, get_app_label_from_import_path)
 from otree.constants_internal import field_required_msg
-from otree_save_the_change.mixins import SaveTheChange
+
 
 # this is imported from other modules
 from .serializedfields import _PickleField
@@ -82,14 +82,13 @@ def make_get_display(field):
     return get_FIELD_display
 
 
-class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
+class OTreeModel(IdMapModel, metaclass=OTreeModelBase):
 
     class Meta:
         abstract = True
 
     def __repr__(self):
         return '<{} pk={}>'.format(self.__class__.__name__, self.pk)
-
 
     _is_frozen = False
     NoneType = type(None)
@@ -178,6 +177,13 @@ class OTreeModel(SaveTheChange, IdMapModel, metaclass=OTreeModelBase):
         else:
             # super() is a bit slower but only gets run during __init__
             super().__setattr__(field_name, value)
+
+
+    def save(self, *args, **kwargs):
+        # Use with FieldTracker
+        if self.pk and hasattr(self, '_ft') and 'update_fields' not in kwargs:
+            kwargs['update_fields'] = [k for k in self._ft.changed()]
+        super().save(*args, **kwargs)
 
 
 Model = OTreeModel
@@ -275,7 +281,7 @@ class BaseCurrencyField(
             return None
         return Decimal(self.to_python(value))
 
-    def from_db_value(self, value, expression, connection, context):
+    def from_db_value(self, value, expression, connection):
         return self.to_python(value)
 
 
@@ -414,10 +420,6 @@ class EmailField(_OtreeModelFieldMixin, models.EmailField):
 
 
 class FileField(_OtreeModelFieldMixin, models.FileField):
-    pass
-
-
-class FilePathField(_OtreeModelFieldMixin, models.FilePathField):
     pass
 
 

@@ -23,7 +23,6 @@ try:
 except ImportError:
     boto3 = None
 
-import IPy
 
 import otree
 from otree import forms
@@ -157,14 +156,11 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         host = request.get_host().lower()
         if ":" in host:
             host = host.split(":", 1)[0]
-        if host == "localhost":
+        if host in ["localhost", '127.0.0.1']:
             return False
-        try:
-            ip = IPy.IP(host)
-            return ip.iptype() == "PUBLIC"
-        except ValueError:
-            # probably is a public domain
-            return True
+        # IPy had a compat problem with py 3.8.
+        # in the future, could move some IPy code here.
+        return True
 
     # make these class attributes so they can be mocked
     aws_keys_exist = bool(

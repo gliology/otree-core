@@ -148,7 +148,7 @@ def get_default_settings(user_settings: dict):
         STATIC_ROOT=os.path.join(BASE_DIR, '__temp_static_root'),
         STATIC_URL='/static/',
         STATICFILES_STORAGE=(
-            'whitenoise.django.GzipManifestStaticFilesStorage'
+            'whitenoise.storage.CompressedManifestStaticFilesStorage'
         ),
         ROOT_URLCONF='otree.urls',
         TIME_ZONE='UTC',
@@ -268,7 +268,7 @@ def augment_settings(settings: dict):
         'django.contrib.sessions',
         'django.contrib.messages',
         # need to keep this around indefinitely for all the people who
-        # have {% load staticfiles %}
+        # have {% load static %}
         'django.contrib.staticfiles',
         'channels',
         'huey.contrib.djhuey',
@@ -321,41 +321,18 @@ def augment_settings(settings: dict):
 
     new_middleware = collapse_to_unique_list(
         DEFAULT_MIDDLEWARE,
-        settings.get('MIDDLEWARE_CLASSES'))
+        settings.get('MIDDLEWARE'))
 
     augmented_settings = dict(
         INSTALLED_APPS=new_installed_apps,
         TEMPLATES=[{
             'BACKEND': 'django.template.backends.django.DjangoTemplates',
             'DIRS': new_template_dirs,
+            'APP_DIRS': True,
             'OPTIONS': {
-                # 2016-10-08: setting template debug back to True,
-                # because if an included template has an error, we need
-                # to surface the error, rather than not showing the template.
-                # that's how I set it in d1cd00ebfd43c7eff408dea6363fd14bb90e7c06,
-                # but then in 2c10188b33f2ac36c046f4f0f8764e15d6a6fa81,
-                # i set this to False, but I'm not sure why and there is no
-                # note in the commit explaining why.
                 'debug': True,
                 'string_if_invalid': InvalidTemplateVariable("%s"),
-
-                # in Django 1.11, the cached template loader is applied
-                # automatically if template 'debug' is False,
-                # but for now we need 'debug' True because otherwise
-                # {% include %} fails silently.
-                # in django 2.1, we can remove:
-                # - the explicit 'debug': True
-                # - 'loaders' below
-                # - the patch in runserver.py
-                # as long as we set 'APP_DIRS': True
-                'loaders': [
-                    ('django.template.loaders.cached.Loader', [
-                        'django.template.loaders.filesystem.Loader',
-                        'django.template.loaders.app_directories.Loader',
-                    ]),
-                ],
                 'context_processors': (
-                    # default ones in Django 1.8
                     'django.contrib.auth.context_processors.auth',
                     'django.template.context_processors.media',
                     'django.template.context_processors.static',

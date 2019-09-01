@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 
 from otree.common_internal import (
+    add_field_tracker,
     get_models_module, in_round, in_rounds)
 
 from otree.db import models
 from otree.models.fieldchecks import ensure_field
-from django.db import models as djmodels
+
 
 
 class BasePlayer(models.Model):
@@ -114,4 +115,6 @@ class BasePlayer(models.Model):
             app_label=cls._meta.app_label)
         group_field = models.ForeignKey(group_model, null=True, on_delete=models.CASCADE)
         ensure_field(cls, 'group', group_field)
+        import model_utils
 
+        add_field_tracker(cls)

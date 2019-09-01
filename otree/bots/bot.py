@@ -9,7 +9,7 @@ from six.moves.html_parser import HTMLParser
 
 from otree.models_concrete import ParticipantToPlayerLookup
 from django import test
-from django.core.urlresolvers import resolve
+from django.urls import resolve
 from django.conf import settings
 from otree.currency import Currency
 from django.apps import apps

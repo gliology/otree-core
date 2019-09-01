@@ -1,11 +1,10 @@
 import logging
-import six
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.db import connection, transaction
-import django.apps
+from dataclasses import dataclass
 
 from otree import common_internal
 from typing import Tuple, List
@@ -15,14 +14,20 @@ logger = logging.getLogger('otree')
 MSG_RESETDB_SUCCESS_FOR_HUB = 'Created new tables and columns.'
 MSG_DB_ENGINE_FOR_HUB = 'Database engine'
 
-def db_label_and_drop_cmd(db_engine: str) -> Tuple[str, str]:
+@dataclass
+class DBDeletionInfo:
+    db_engine: str
+    table_delete_command: str
+
+
+def db_label_and_drop_cmd(db_engine: str) -> DBDeletionInfo:
     db_engine_lower = db_engine.lower()
     if 'oracle' in db_engine_lower:
-        return ('Oracle', 'DROP TABLE "{table}" CASCADE CONSTRAINTS;')
+        return DBDeletionInfo('Oracle', 'DROP TABLE "{table}" CASCADE CONSTRAINTS;')
     if 'postgres' in db_engine_lower:
-        return ('Postgres', 'DROP TABLE "{table}" CASCADE;')
+        return DBDeletionInfo('Postgres', 'DROP TABLE "{table}" CASCADE;')
     if 'mysql' in db_engine_lower:
-        return (
+        return DBDeletionInfo(
             'MySQL',
             (
                 'SET FOREIGN_KEY_CHECKS = 0;'
@@ -32,7 +37,7 @@ def db_label_and_drop_cmd(db_engine: str) -> Tuple[str, str]:
         )
     # put this last for test coverage
     if 'sqlite3' in db_engine_lower:
-        return ('SQLite', 'DROP TABLE {table};')
+        return DBDeletionInfo('SQLite', 'DROP TABLE {table};')
     raise ValueError(
         'resetdb command does not recognize DB engine "{}"'.format(db_engine))
 
@@ -68,7 +73,7 @@ class Command(BaseCommand):
     def _confirm(self) -> bool:
         self.stdout.write(
             "This will delete and recreate your database. ")
-        answer = six.moves.input("Proceed? (y or n): ")
+        answer = input("Proceed? (y or n): ")
         if answer:
             return answer[0].lower() == 'y'
         return False
@@ -97,23 +102,33 @@ class Command(BaseCommand):
             return
 
         dbconf = settings.DATABASES['default']
-        db_engine, drop_cmd_template = db_label_and_drop_cmd(dbconf['ENGINE'])
+        drop_db_info = db_label_and_drop_cmd(dbconf['ENGINE'])
+        db_engine = drop_db_info.db_engine
+
 
         # hub depends on this string
         logger.info(f"{MSG_DB_ENGINE_FOR_HUB}: {db_engine}")
 
         tables = self._get_tables()
 
-        # use a transaction to prevent the DB from getting in an erroneous
-        # state, which can result in a different error message when resetdb
-        # is run again, making the original error hard to trace.
-        with transaction.atomic(
-                savepoint=connection.features.can_rollback_ddl
-        ):
-            logger.info(f"Dropping {len(tables)} tables...")
-            self._drop_tables(tables, drop_cmd_template)
+        logger.info(f"Dropping {len(tables)} tables...")
+        is_sqlite = 'sqlite' in db_engine.lower()
+        if is_sqlite:
+            # otherwise, when I drop tables I get:
+            # django.db.utils.IntegrityError: FOREIGN KEY constraint failed
+            # see: https://www.sqlitetutorial.net/sqlite-drop-table/
+            # potentially i could do 'DELETE FROM {table};'
+            # for each table before i drop any table,
+            # but that's more code, and I'm not sure it will work.
+            connection.disable_constraint_checking()
+        try:
+            self._drop_tables(tables, drop_db_info.table_delete_command)
+        finally:
+            if is_sqlite:
+                # maybe overkill but perhaps resetdb could be called via call_command()
+                connection.enable_constraint_checking()
 
-            migrate_db(options)
+        migrate_db(options)
 
         # mention the word 'columns' here, so people make the connection
         # between columns and resetdb, so that when they get a 'no such column'

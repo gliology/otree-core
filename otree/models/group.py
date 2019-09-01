@@ -1,7 +1,8 @@
+import otree_save_the_change.mixins
 from otree.db import models
 from otree.common_internal import (
     get_models_module, in_round, in_rounds, InvalidRoundError,
-
+    add_field_tracker
 )
 from otree.models.fieldchecks import ensure_field
 import django.core.exceptions
@@ -93,3 +94,5 @@ class BaseGroup(models.Model):
             subsession_model, on_delete=models.CASCADE
         )
         ensure_field(cls, 'subsession', subsession_field)
+
+        add_field_tracker(cls)

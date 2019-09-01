@@ -24,6 +24,8 @@ from django.utils.safestring import mark_safe
 from huey.contrib.djhuey import HUEY
 from six.moves import urllib
 import os
+import model_utils
+
 
 # set to False if using runserver
 USE_REDIS = bool(os.environ.get('OTREE_USE_REDIS', ''))
@@ -313,3 +315,10 @@ class ResponseForException(Exception):
     '''
     pass
 
+def add_field_tracker(cls):
+    # need to do it here because FieldTracker doesnt work on abstract classes
+    _ft = model_utils.FieldTracker()
+    _ft.contribute_to_class(cls, '_ft')
+    # need to call this, because class_prepared has already been fired
+    # (it is currently executing)
+    _ft.finalize_class(sender=cls)

@@ -402,7 +402,7 @@ def get_rows_for_live_update(subsession: BaseSubsession):
             for colname in columns_for_models[model_name]:
 
                 attr = getattr(model_instance, colname, '')
-                if isinstance(attr, collections.Callable):
+                if callable(attr):
                     if model_name == 'player' and colname == 'role' \
                             and model_instance.group is None:
                         attr = ''
@@ -548,7 +548,7 @@ def export_docs(fp, app_name):
                     if choices:
                         doc_dict[model_name][member_name]['choices'] = (
                             choices_readable(choices))
-                elif isinstance(member, collections.Callable):
+                elif callable(member):
                     doc_dict[model_name][member_name]['doc'] = [
                         inspect.getdoc(member)]
         return doc_dict

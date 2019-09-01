@@ -29,7 +29,10 @@ logger = logging.getLogger('otree')
 
 ADMIN_SECRET_CODE = get_admin_secret_code()
 
+import model_utils
+
 class Session(ModelWithVars):
+    _ft = model_utils.FieldTracker()
 
     class Meta:
         app_label = "otree"

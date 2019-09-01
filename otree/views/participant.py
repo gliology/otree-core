@@ -13,7 +13,7 @@ from django.http import (
     HttpResponse, HttpResponseRedirect,
     HttpResponseNotFound
 )
-from django.shortcuts import get_object_or_404, render_to_response
+from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
 from django.utils.translation import ugettext as _
 from otree.common_internal import (
@@ -257,7 +257,7 @@ class AssignVisitorToRoom(GenericWaitPageMixin, vanilla.View):
             # needs to be easy to re-enter label, in case we are in kiosk
             # mode
             if missing_label or invalid_label and not room.use_secure_urls:
-                return render_to_response(
+                return render(request,
                     "otree/RoomInputLabel.html",
                     {'invalid_label': invalid_label}
                 )
@@ -279,7 +279,7 @@ class AssignVisitorToRoom(GenericWaitPageMixin, vanilla.View):
                 # random chars in case the participant has multiple tabs open
                 self.tab_unique_id
             )
-            return render_to_response(
+            return render(request,
                 "otree/WaitPageRoom.html",
                 {
                     'view': self, 'title_text': _('Please wait'),
@@ -360,7 +360,7 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
         else:
             ctx = {'view': self, 'title_text': 'Please wait',
                    'body_text': 'Waiting for browser bots session to begin'}
-            return render_to_response("otree/WaitPage.html", ctx)
+            return render(request, "otree/WaitPage.html", ctx)
 
     def socket_url(self):
         return '/browser_bot_wait/'

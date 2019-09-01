@@ -1,18 +1,11 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import six
 from django.db.models import Prefetch
 from otree.db import models
 from otree.common_internal import (
     get_models_module, in_round, in_rounds)
 from otree import matching
 import copy
-from collections import defaultdict
-from otree.common_internal import has_group_by_arrival_time
-from django.template.loader import select_template
-from django.template import TemplateDoesNotExist, Template
-from typing import Optional
+from otree.common_internal import has_group_by_arrival_time, add_field_tracker
+
 
 class GroupMatrixError(ValueError):
     pass
@@ -248,3 +241,7 @@ class BaseSubsession(models.Model):
 
     def vars_for_admin_report(self):
         return {}
+
+    @classmethod
+    def _ensure_required_fields(cls):
+        add_field_tracker(cls)
