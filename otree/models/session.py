@@ -234,9 +234,10 @@ class Session(ModelWithVars):
             # do the auto-advancing here,
             # rather than in increment_index_in_pages,
             # because it's only needed here.
-            otree.channels.utils.sync_group_send(
-                auto_advance_group(p.code),
-                {'type': 'auto_advanced'}
+            otree.channels.utils.sync_group_send_wrapper(
+                type='auto_advanced',
+                group=auto_advance_group(p.code),
+                event={}
             )
 
 

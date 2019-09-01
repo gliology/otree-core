@@ -107,7 +107,7 @@ def response_for_exception(request, exc):
     the original exception was wrapped in, which we don't want to show to users.
         '''
     if isinstance(exc, UNHANDLED_EXCEPTIONS):
-        '''copied from Django 1.11 source, but i don't think these
+        '''copied from Django source, but i don't think these
         exceptions will actually occur.'''
         raise exc
     signals.got_request_exception.send(sender=None, request=request)
@@ -1501,11 +1501,10 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 group_id_in_subsession=group.id_in_subsession,
             )
 
-        channel_utils.sync_group_send(
-            channels_group_name,
-            {
-                'type': 'wait_page_ready',
-            }
+        channel_utils.sync_group_send_wrapper(
+            type='wait_page_ready',
+            group=channels_group_name,
+            event={}
         )
 
     def socket_url(self):

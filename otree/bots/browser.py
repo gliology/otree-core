@@ -293,10 +293,8 @@ def initialize_session(**kwargs):
 def send_completion_message(*, session_code, participant_code):
     group_name = channel_utils.browser_bots_launcher_group(session_code)
 
-    channel_utils.sync_group_send(
-        group_name,
-        {
-            'text': participant_code,
-            'type': 'send_completion_message'
-        }
+    channel_utils.sync_group_send_wrapper(
+        group=group_name,
+        type='send_completion_message',
+        event={'text': participant_code},
     )

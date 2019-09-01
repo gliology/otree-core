@@ -6,7 +6,6 @@ import traceback
 import time
 from channels.generic.websocket import (
     JsonWebsocketConsumer, WebsocketConsumer)
-from channels.consumer import SyncConsumer
 from django.core.signing import Signer, BadSignature
 import otree.session
 from otree.channels.utils import get_chat_group
@@ -45,9 +44,6 @@ class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
     """
     This is not public API, might change at any time.
     """
-    def group_send_channel(self, type: str, groups:list, event:dict):
-        for group in groups:
-            channel_utils.sync_group_send(group, {'type': type, **event})
 
     def clean_kwargs(self, **kwargs):
         '''
@@ -65,11 +61,8 @@ class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cleaned_kwargs = self.clean_kwargs(**self.scope['url_route']['kwargs'])
-        self.groups = self.connection_groups()
-
-    def connection_groups(self, **kwargs):
         group_name = self.group_name(**self.cleaned_kwargs)
-        return [group_name]
+        self.groups = [group_name] if group_name else []
 
     unrestricted_when = ''
 
@@ -220,8 +213,11 @@ class DetectAutoAdvance(_OTreeJsonWebsocketConsumer):
 
 class BaseCreateSession(_OTreeJsonWebsocketConsumer):
 
-    def connection_groups(self, **kwargs):
-        return []
+    def group_name(self, **kwargs):
+        return None
+
+    def send_response_to_browser(self, event: dict):
+        raise NotImplemented
 
     def create_session_then_send_start_link(self, use_browser_bots, **session_kwargs):
         try:
@@ -237,7 +233,7 @@ class BaseCreateSession(_OTreeJsonWebsocketConsumer):
             # full error message is printed to console (though sometimes not?)
             error_message = 'Failed to create session: "{}"'.format(e)
             traceback_str = traceback.format_exc()
-            self.send_json(dict(
+            self.send_response_to_browser(dict(
                 error=error_message,
                 traceback=traceback_str,
             ))
@@ -245,7 +241,7 @@ class BaseCreateSession(_OTreeJsonWebsocketConsumer):
 
         session_home_view = 'MTurkCreateHIT' if session.is_mturk() else 'SessionStartLinks'
 
-        self.send_json(
+        self.send_response_to_browser(
             {'session_url': reverse(session_home_view, args=[session.code])}
         )
 
@@ -253,6 +249,9 @@ class BaseCreateSession(_OTreeJsonWebsocketConsumer):
 class CreateDemoSession(BaseCreateSession):
 
     unrestricted_when = UNRESTRICTED_IN_DEMO_MODE
+
+    def send_response_to_browser(self, event: dict):
+        self.send_json(event)
 
     def post_receive_json(self, form_data: dict):
         session_config_name = form_data['session_config']
@@ -278,8 +277,8 @@ class CreateSession(BaseCreateSession):
 
     unrestricted_when = None
 
-    def connection_groups(self, **kwargs):
-        return []
+    def group_name(self, **kwargs):
+        return 'create_session'
 
     def post_receive_json(self, form_data: dict):
         form = CreateSessionForm(data=form_data)
@@ -346,11 +345,30 @@ class CreateSession(BaseCreateSession):
         )
 
         if room_name:
-            self.group_send_channel(
+            channel_utils.sync_group_send_wrapper(
                 type='room_session_ready',
-                groups=[channel_utils.room_participants_group_name(room_name)],
+                group=channel_utils.room_participants_group_name(room_name),
                 event={}
             )
+
+    def send_response_to_browser(self, event: dict):
+        '''
+        Send to a group instead of the channel only,
+        because if the websocket disconnects during creation of a large session,
+        (due to temporary network error, etc, or Heroku H15, 55 seconds without ping)
+        the user could be stuck on "please wait" forever.
+        the downside is that if two admins create sessions around the same time,
+        your page could automatically redirect to the other admin's session.
+        '''
+        [group] = self.groups
+        channel_utils.sync_group_send_wrapper(
+            type='session_created',
+            group=group,
+            event=event
+        )
+
+    def session_created(self, event):
+        self.send_json(event)
 
 
 class RoomAdmin(_OTreeJsonWebsocketConsumer):
@@ -432,10 +450,10 @@ class RoomParticipant(_OTreeJsonWebsocketConsumer):
                 # 2017-09-17: I saw the integrityerror on macOS.
                 # previously, we logged this, but i see no need to do that.
                 pass
-            channel_utils.sync_group_send(
-                channel_utils.room_admin_group_name(room_name),
-                {
-                    'type': 'roomadmin.update',
+            channel_utils.sync_group_send_wrapper(
+                type='roomadmin.update',
+                group=channel_utils.room_admin_group_name(room_name),
+                event={
                     'status': 'add_participant',
                     'participant': participant_label
                 }
@@ -458,7 +476,6 @@ class RoomParticipant(_OTreeJsonWebsocketConsumer):
             tab_unique_id=tab_unique_id).delete()
 
         event = {
-            'type': 'roomadmin.update',
             'status': 'remove_participant',
         }
         if room.has_participant_labels():
@@ -471,7 +488,7 @@ class RoomParticipant(_OTreeJsonWebsocketConsumer):
             # in JS removing a participant is idempotent
             event['participant'] = participant_label
         admin_group = channel_utils.room_admin_group_name(room_name)
-        channel_utils.sync_group_send(admin_group, event)
+        channel_utils.sync_group_send_wrapper(group=admin_group, type='roomadmin_update', event=event)
 
     def room_session_ready(self, event=None):
         self.send_json({'status': 'session_ready'})
@@ -554,7 +571,10 @@ class ChatConsumer(_OTreeJsonWebsocketConsumer):
             participant_id=participant_id
         )
 
-        self.group_send_channel('chat_sendmessages', groups=self.groups, event={'chats': [chat_message]})
+        [group] = self.groups
+        channel_utils.sync_group_send_wrapper(
+            type='chat_sendmessages', group=group, event={'chats': [chat_message]}
+        )
 
         ChatMessage.objects.create(
             participant_id=participant_id,
@@ -622,8 +642,8 @@ class ExportData(_OTreeJsonWebsocketConsumer):
 
         self.send_json(content)
 
-    def connection_groups(self, **kwargs):
-        return []
+    def group_name(self, **kwargs):
+        return None
 
 
 class NoOp(WebsocketConsumer):

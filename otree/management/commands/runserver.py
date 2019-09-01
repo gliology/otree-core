@@ -4,24 +4,15 @@ from django.conf import settings
 import otree.common_internal
 import logging
 from daphne.endpoints import build_endpoint_description_strings
-from daphne.server import Server
 import otree_startup
-from otree import common_internal
 import os
-import sys
-from channels.worker import Worker
-import threading
-from channels.layers import get_channel_layer
+
 
 class Command(runserver.Command):
 
     def handle(self, *args, **options):
 
         self.verbosity = options.get("verbosity", 1)
-
-        # i think this won't work, because channels reads this setting
-        # during django.setup()
-        #settings.CHANNEL_LAYERS['default'] = settings.CHANNEL_LAYERS['inmemory']
 
         from otree.common_internal import release_any_stale_locks
         release_any_stale_locks()

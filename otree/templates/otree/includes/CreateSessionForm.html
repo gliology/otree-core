@@ -109,8 +109,9 @@
         let $createSessionError = $("#create-session-error");
         let $createSessionWait = $("#create-session-wait");
         let socket = makeReconnectingWebSocket("/create_session/");
-
-        $('#btn-create-session').click(function (e) {
+        let $btnCreateSession = $('#btn-create-session');
+        $btnCreateSession.click(function (e) {
+            $btnCreateSession.prop('disabled', true);
             $createSessionError.hide();
             $createSessionWait.show();
 
@@ -139,9 +140,11 @@
                 $createSessionError.hide();
                 $createSessionWait.hide();
                 window.location.href = data.session_url;
+                return; // so that we don't re-enable create button
             } else {
                 $createSessionError.text("Unexpected error: " + message.data);
             }
+            $btnCreateSession.prop('disabled', false);
         }
     });
 

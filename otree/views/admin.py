@@ -564,11 +564,10 @@ class CreateBrowserBotsSession(vanilla.View):
             # maybe for consistency with get_or_create
             defaults={'code': session.code}
         )
-        channel_utils.sync_group_send(
-            'browser_bot_wait',
-            {
-                'type': 'browserbot_sessionready'
-            }
+        channel_utils.sync_group_send_wrapper(
+            type='browserbot_sessionready',
+            group='browser_bot_wait',
+            event={},
         )
 
         return HttpResponse(session.code)

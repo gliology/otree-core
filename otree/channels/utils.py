@@ -2,10 +2,16 @@ from django.core.signing import Signer
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-group_send = get_channel_layer().group_send
-send = get_channel_layer().send
-sync_group_send = async_to_sync(group_send)
-sync_send = async_to_sync(send)
+_group_send = get_channel_layer().group_send
+_sync_group_send = async_to_sync(_group_send)
+
+
+
+def sync_group_send_wrapper(*, type: str, group: str, event: dict):
+    '''make it a function that takes proper args that are intuitive.
+    enforces correct use.
+    '''
+    return _sync_group_send(group, {'type': type, **event})
 
 
 def wait_page_group_name(session_id, page_index,
