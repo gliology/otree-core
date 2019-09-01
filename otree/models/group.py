@@ -1,4 +1,3 @@
-import otree_save_the_change.mixins
 from otree.db import models
 from otree.common_internal import (
     get_models_module, in_round, in_rounds, InvalidRoundError,
