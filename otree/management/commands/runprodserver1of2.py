@@ -86,15 +86,19 @@ class Command(BaseCommand):
 
         #asgi_server_cmd = f'uvicorn --host={addr} --port={port} --workers={NUM_WORKERS} otree_startup.asgi:application --log-level=debug'
         # keep-alive is needed, otherwise pages that take more than 5 seconds to load will trigger h13
-        asgi_server_cmd = f'hypercorn -b {addr}:{port} --workers={NUM_WORKERS} --keep-alive=35 otree_startup.asgi:application'
+        #asgi_server_cmd = f'hypercorn -b {addr}:{port} --workers={NUM_WORKERS} --keep-alive=35 otree_startup.asgi:application'
+        asgi_server_cmd = f'daphne -b {addr} -p {port} otree_startup.asgi:application'
 
         if dev_https:
+            raise Exception('--dev-https is currently under construction')
             # Because of HSTS, Chrome and other browsers will "get stuck" forcing HTTPS,
             # which makes it impossible to run regular devserver again on that port
             if int(port) == 8000:
                 self.stderr.write('ERROR: oTree cannot use HTTPS on port 8000. Please specify a different port.')
                 raise SystemExit(-1)
-            asgi_server_cmd += ' --keyfile="{}" --certfile="{}"'.format(
+            # hypercorn format
+            #asgi_server_cmd += ' --keyfile="{}" --certfile="{}"'.format(
+            asgi_server_cmd += ' -e ssl:443:privateKey="{}":certKey="{}"'.format(
                 get_ssl_file_path('development.key'),
                 get_ssl_file_path('development.crt'),
             )
