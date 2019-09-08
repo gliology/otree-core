@@ -100,7 +100,7 @@ def zip_project(project_path: Path):
     if not runtime_existed:
         # don't use sys.version_info because it might be newer than what
         # heroku supports
-        runtime_txt.write_text(f'python-3.7.2')
+        runtime_txt.write_text(f'python-3.7.3')
     try:
         with tarfile.open(archive_name, 'w:gz') as tar:
             # if i omit arcname, it nests the project 2 levels deep.

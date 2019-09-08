@@ -33,13 +33,10 @@ class Command(BaseCommand):
             help='If omitted, all sessions in SESSION_CONFIGS are run'
         )
 
-        ahelp = (
-            'Number of participants. '
-            'Defaults to minimum for the session config.'
-        )
         parser.add_argument(
             'num_participants', type=int, nargs='?',
-            help=ahelp)
+            help='Number of participants (if omitted, use num_demo_participants)'
+        )
 
         # don't call it --data because then people might think that
         # that's the *input* data folder
@@ -115,7 +112,8 @@ class Command(BaseCommand):
         for k in ['session_config_name', 'num_participants', 'export_path']:
             v = options[k]
             if v:
-                argv.extend([f'--{k}', v])
+                # if i pass num_participants as an int, I get an error from argparse.
+                argv.extend([f'--{k}', str(v)])
 
         exit_code = pytest_main(argv)
 
