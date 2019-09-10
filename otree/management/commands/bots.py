@@ -103,6 +103,7 @@ class Command(BaseCommand):
             '-s',
             '--tb', 'short',
             '--disable-warnings',
+            '--show-capture', 'no'
         ]
         if verbosity == 0:
             argv.append('--quiet')

@@ -5,7 +5,9 @@ async-timeout==3.0.1
 attrs==19.1.0
 autobahn==19.6.2
 Automat==0.7.0
-certifi==2019.3.9
+# MacPython "Install certificates" command may install
+# a newer version of the certifi package, so keep it flexible.
+certifi>=2019.3.9
 cffi==1.12.3
 channels==2.2.0
 channels_redis
