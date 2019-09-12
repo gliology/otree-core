@@ -520,7 +520,7 @@ class BrowserBot(_OTreeJsonWebsocketConsumer):
         if launcher_session_info:
             self.browserbot_sessionready()
 
-    def browserbot_sessionready(self):
+    def browserbot_sessionready(self, event=None):
         self.send_json({'status': 'session_ready'})
 
 class ChatConsumer(_OTreeJsonWebsocketConsumer):

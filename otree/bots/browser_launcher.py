@@ -295,7 +295,6 @@ class Launcher:
     def create_session(
             self, session_config_name, num_participants, case_number
             ):
-
         resp = self.post(
             self.create_session_url,
             data={
