@@ -4,7 +4,7 @@ from otree.models import BaseSubsession, BaseGroup, BasePlayer  # noqa
 from otree.constants import BaseConstants  # noqa
 from otree.views import Page, WaitPage  # noqa
 from otree.common import Currency, currency_range, safe_json  # noqa
-from otree.bots import Bot, Submission, SubmissionMustFail  # noqa
+from otree.bots import Bot, Submission, SubmissionMustFail, check  # noqa
 
 models = _import_module('otree.models')
 widgets = _import_module('otree.forms.widgets')
