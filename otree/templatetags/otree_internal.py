@@ -4,9 +4,9 @@ import otree.common_internal
 
 
 NO_USER_MSG = '''
-You must set ADMIN_USERNAME and
-ADMIN_PASSWORD in settings.py
-(or disable authentication by unsetting AUTH_LEVEL).
+You must set the
+OTREE_ADMIN_PASSWORD environment variable
+(or disable authentication by unsetting OTREE_AUTH_LEVEL).
 '''
 
 

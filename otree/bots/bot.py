@@ -51,6 +51,38 @@ but these form fields were not found in the HTML of the page
 (searched for tags {tags} with name= attribute matching the field name).
 ''' + DISABLE_CHECK_HTML_INSTRUCTIONS).replace('\n', ' ').strip()
 
+class BotCheckError(AssertionError): pass
+
+def check(left_side, operator: str, right_side):
+    lhs = left_side
+    op = operator
+    rhs = right_side
+    allowed_operators = ['==', '!=', '>', '<', '>=', '<=', 'in', 'not in']
+    if op not in allowed_operators:
+        raise ValueError(
+            'Operator "{}" not allowed. '
+            'Allowed operators are: {}'.format(op, allowed_operators)
+        )
+    if op == '==':
+        res = lhs == rhs
+    elif op == '!=':
+        res = lhs != rhs
+    elif op == '>':
+        res = lhs > rhs
+    elif op == '<':
+        res = lhs < rhs
+    elif op == '>=':
+        res = lhs >= rhs
+    elif op == '<=':
+        res = lhs <= rhs
+    elif op == 'in':
+        res = lhs in rhs
+    elif op == 'not in':
+        res = lhs not in rhs
+
+    if not bool(res):
+        raise BotCheckError('Failed assertion: {} {} {}'.format(lhs, op, rhs))
+
 
 class ParticipantBot(test.Client):
 
@@ -132,6 +164,13 @@ class ParticipantBot(test.Client):
                     pass
                 else:
                     raise
+            except BotCheckError:
+                # the point is to re-raise so that i can reference the original
+                # exception as exc.__cause__ or exc.__context__, since that exception
+                # is much smaller and doesn't have all the extra layers.
+                # pass it to response_for_exception.
+                # this results in much nicer output for browser bots (devserver and runprodserver)
+                raise BotCheckError
 
     def _play_individually(self):
         '''convenience method for testing'''
@@ -168,7 +207,7 @@ class ParticipantBot(test.Client):
             raise AssertionError(
                 "Bot expects to be on page {}, "
                 "but current page is {}. "
-                "Check your bot in tests.py, "
+                "Check your bot code, "
                 "then create a new session.".format(expected_url, actual_url))
 
     @property

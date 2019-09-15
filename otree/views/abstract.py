@@ -35,7 +35,7 @@ import otree.db.idmap
 import otree.forms
 import otree.models
 import otree.timeout.tasks
-from otree.bots.bot import bot_prettify_post_data
+from otree.bots.bot import bot_prettify_post_data, BotCheckError
 import otree.bots.browser as browser_bots
 from otree.common_internal import (
     get_app_label_from_import_path, get_dotted_name, get_admin_secret_code,
@@ -282,7 +282,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
                 # player/group/etc.
                 if hasattr(response, 'render'):
                     response.render()
-            except ResponseForException as exc:
+            except (ResponseForException, BotCheckError) as exc:
                 response = response_for_exception(
                     self.request, exc.__cause__ or exc.__context__
                 )
@@ -805,7 +805,7 @@ class Page(FormPageOrInGameWaitPage):
                             for k, v in form.errors.items()]
                         raise BotError(
                             'Page "{}": Bot submission failed form validation: {} '
-                            'Check your bot in tests.py, '
+                            'Check your bot code, '
                             'then create a new session. '
                             'Data submitted was: {}'.format(
                                 PageName,

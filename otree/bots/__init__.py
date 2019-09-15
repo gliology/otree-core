@@ -25,33 +25,4 @@ _bot_module = import_module('otree.bots.bot')
 Bot = _bot_module.PlayerBot
 Submission = _bot_module.Submission
 SubmissionMustFail = _bot_module.SubmissionMustFail
-
-def check(left_side, operator: str, right_side):
-    lhs = left_side
-    op = operator
-    rhs = right_side
-    allowed_operators = ['==', '!=', '>', '<', '>=', '<=', 'in', 'not in']
-    if op not in allowed_operators:
-        raise ValueError(
-            'Operator "{}" not allowed. '
-            'Allowed operators are: {}'.format(op, allowed_operators)
-        )
-    if op == '==':
-        res = lhs == rhs
-    elif op == '!=':
-        res = lhs != rhs
-    elif op == '>':
-        res = lhs > rhs
-    elif op == '<':
-        res = lhs < rhs
-    elif op == '>=':
-        res = lhs >= rhs
-    elif op == '<=':
-        res = lhs <= rhs
-    elif op == 'in':
-        res = lhs in rhs
-    elif op == 'not in':
-        res = lhs not in rhs
-
-    if not bool(res):
-        raise AssertionError('Failed assertion: {} {} {}'.format(lhs, op, rhs))
+check = _bot_module.check
