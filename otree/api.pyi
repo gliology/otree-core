@@ -287,3 +287,4 @@ class Bot:
 
 def Submission(PageClass, post_data: dict={}, *, check_html=True, timeout_happened=False): pass
 def SubmissionMustFail(PageClass, post_data: dict={}, *, check_html=True, error_fields=[]): pass
+def expect(*args): pass
