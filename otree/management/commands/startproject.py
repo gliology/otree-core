@@ -3,7 +3,7 @@ from django.core.management.commands import startproject
 from django.core.management.base import CommandError
 import sys
 import otree
-from otree_startup import pypi_updates_cli
+
 
 
 class Command(startproject.Command):
@@ -69,10 +69,6 @@ class Command(startproject.Command):
                 self.stdout.write(msg)
                 sys.exit(-1)
             raise
-        try:
-            pypi_updates_cli()
-        except:
-            pass
         # this assumes the 'directory' arg was unused, which will be true
         # for 99% of oTree users.
         msg = (

@@ -2,7 +2,8 @@ import json
 import os
 import sys
 from collections import OrderedDict
-
+import otree
+import re
 from channels.layers import get_channel_layer
 import channels
 import otree.bots.browser
@@ -25,7 +26,6 @@ from otree.common_internal import (
     get_models_module, get_app_label_from_name, DebugTable,
 )
 from otree.forms import widgets
-from otree_startup import check_pypi_for_updates
 from otree.models import Participant, Session
 from otree.models_concrete import (
     BrowserBotsLauncherSessionCode)
@@ -505,6 +505,47 @@ class AdminReport(AdminSessionPageMixin, vanilla.TemplateView):
         return context
 
 
+def get_json_from_pypi() -> dict:
+    # import only if we need it
+    import requests
+    try:
+        response = requests.get(
+            'https://pypi.python.org/pypi/otree/json',
+            timeout=5,
+        )
+        assert response.ok
+        return json.loads(response.content.decode())
+    except:
+        return {'releases': []}
+
+
+def get_installed_and_pypi_version() -> dict:
+    '''return a dict because it needs to be json serialized for the AJAX
+    response'''
+    # need to import it so it can be patched outside
+
+    semver_re = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
+
+    installed_dotted = otree.__version__
+
+    data = get_json_from_pypi()
+
+    releases = data['releases']
+    newest_tuple = [0, 0, 0]
+    newest_dotted = ''
+    for release in releases:
+        release_match = semver_re.match(release)
+        if release_match:
+            release_tuple = [int(n) for n in release_match.groups()]
+            if release_tuple > newest_tuple:
+                newest_tuple = release_tuple
+                newest_dotted = release
+    return dict(
+        newest=newest_dotted,
+        installed=installed_dotted,
+    )
+
+
 class ServerCheck(vanilla.TemplateView):
     template_name = 'otree/admin/ServerCheck.html'
 
@@ -517,22 +558,9 @@ class ServerCheck(vanilla.TemplateView):
             auth_level=settings.AUTH_LEVEL,
             auth_level_ok=settings.AUTH_LEVEL in {'DEMO', 'STUDY'},
             db_synced=not missing_db_tables(),
-            pypi_results=check_pypi_for_updates(),
+            pypi_results=get_installed_and_pypi_version(),
             **kwargs
         )
-
-
-class OtreeCoreUpdateCheck(vanilla.View):
-
-    url_pattern = r"^version_cached/$"
-
-    # cached per process
-    results = None
-
-    def get(self, request, *args, **kwargs):
-        if OtreeCoreUpdateCheck.results is None:
-            OtreeCoreUpdateCheck.results = check_pypi_for_updates()
-        return JsonResponse(OtreeCoreUpdateCheck.results, safe=True)
 
 
 class CreateBrowserBotsSession(vanilla.View):

@@ -1,12 +1,13 @@
 import json
 import logging
-import re
 import django.core.management
 import django.conf
 import os
 import sys
 from sys import argv
 from collections import OrderedDict, defaultdict
+from pathlib import Path
+from typing import Optional
 
 # avoid confusion with otree_startup.settings
 from django.conf import settings as django_settings
@@ -15,7 +16,6 @@ from django.core.management import get_commands, load_command_class
 import django
 from django.apps import apps
 from django.core.management.base import BaseCommand
-from django.core.management.color import color_style
 from django.utils import autoreload, six
 
 # "from .settings import ..." actually imports the whole settings module
@@ -138,6 +138,9 @@ def execute_from_command_line(*args, **kwargs):
                 )
                 logger.warning(msg)
                 return
+        warning = check_update_needed(Path('.').resolve().joinpath('requirements_base.txt'))
+        if warning:
+            logger.warning(warning)
 
     runserver_or_devserver = subcommand in ['runserver', 'devserver']
 
@@ -180,10 +183,6 @@ def execute_from_command_line(*args, **kwargs):
         fetch_command(command_to_explain).print_help('otree', command_to_explain)
     elif subcommand in ("version", "--version"):
         sys.stdout.write(__version__ + '\n')
-        try:
-            pypi_updates_cli()
-        except:
-            pass
     else:
         fetch_command(subcommand).run_from_argv(argv)
 
@@ -252,98 +251,33 @@ def fetch_command(subcommand: str) -> BaseCommand:
     return klass
 
 
-def check_pypi_for_updates() -> dict:
-    '''return a dict because it needs to be json serialized for the AJAX
-    response'''
-    # need to import it so it can be patched outside
-    import otree_startup
-    if not otree_startup.PYPI_CHECK_UPDATES:
-        return {'pypi_connection_error': True}
-    # import only if we need it
-    import requests
-
-    logging.getLogger("requests").setLevel(logging.WARNING)
-
+def check_update_needed(requirements_path: Path) -> Optional[str]:
     try:
-        response = requests.get(
-            'https://pypi.python.org/pypi/otree/json',
-            timeout=5,
-        )
-        assert response.ok
-        data = json.loads(response.content.decode())
-    except:
-        # could be requests.exceptions.Timeout
-        # or another error (404/500/firewall issue etc)
-        return {'pypi_connection_error': True}
-
-    semver_re = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
-
-    installed_dotted = __version__
-    installed_match = semver_re.match(installed_dotted)
-
-    if installed_match:
-        # compare to the latest stable release
-
-        installed_tuple = [int(n) for n in installed_match.groups()]
-
-        releases = data['releases']
-        newest_tuple = [0, 0, 0]
-        newest_dotted = ''
-        for release in releases:
-            release_match = semver_re.match(release)
-            if release_match:
-                release_tuple = [int(n) for n in release_match.groups()]
-                if release_tuple > newest_tuple:
-                    newest_tuple = release_tuple
-                    newest_dotted = release
-        newest = newest_tuple
-        installed = installed_tuple
-
-        update_needed = (newest > installed and (
-                newest[0] > installed[0] or newest[1] > installed[1] or
-                newest[2] - installed[2] >= 8))
-
-    else:
-        # compare to the latest release, whether stable or not
-        # 2018-12-29: it seems now that ['info']['version'] reports the latest
-        # *stable* release. maybe they changed their format?
-        # it's not currently a high priority since few people install beta
-        # releases. if i do fix it later, i could basically flip the
-        # "if" and "else". actually it looks like "releases" list is ordered
-        # from oldest to newest, so i can just take the last element, and that
-        # is the newest (whether stable or not). because it could be hard to parse
-        # pre-release versions and determine which is newest.
-        newest_dotted = data['info']['version'].strip()
-        update_needed = newest_dotted != installed_dotted
-
-    if update_needed:
-        update_message = (
-            'Your otree package is out-of-date '
-            '(version {}; latest is {}). '
-            'You should upgrade with:\n '
-            '"pip3 install --U otree"\n '
-            'and update your requirements_base.txt.'.format(
-                installed_dotted, newest_dotted))
-    else:
-        update_message = ''
-    return {
-        'pypi_connection_error': False,
-        'update_needed': update_needed,
-        'installed_version': installed_dotted,
-        'newest_version': newest_dotted,
-        'update_message': update_message,
-    }
-
-
-def pypi_updates_cli():
-    result = check_pypi_for_updates()
-    if result['pypi_connection_error']:
+        import pkg_resources as pkg
+    except ModuleNotFoundError:
         return
-    if result['update_needed']:
-        print(result['update_message'])
-
-
-PYPI_CHECK_UPDATES = True
+    try:
+        # ignore all weird things like "-r foo.txt"
+        req_lines = [
+            r for r in requirements_path.read_text('utf8').split('\n')
+            if r.strip().startswith('otree')
+        ]
+    except FileNotFoundError:
+        return
+    reqs = pkg.parse_requirements(req_lines)
+    for req in reqs:
+        if req.project_name == 'otree':
+            try:
+                pkg.require(str(req))
+            except pkg.DistributionNotFound:
+                # if you require otree[mturk], then the mturk packages
+                # will be missing and you get:
+                # The 's3transfer==0.1.10' distribution was not found and is required by otree
+                # which is very confusing.
+                # all we care about is otree.
+                pass
+            except pkg.VersionConflict as exc:
+                return f'{exc.report()}. Enter: pip3 install "{exc.req}"'
 
 
 def highlight(string):
