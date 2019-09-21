@@ -136,9 +136,9 @@ class GroupByArrivalTime(_OTreeJsonWebsocketConsumer):
             session_id=session_pk,
         ).exists()
         if ready:
-            self.wait_page_ready()
+            self.gbat_ready()
 
-    def wait_page_ready(self, event=None):
+    def gbat_ready(self, event=None):
         self.send_json({'status': 'ready'})
 
 

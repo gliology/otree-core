@@ -1482,20 +1482,25 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 delay=10)
 
         if self.group_by_arrival_time:
-            channels_group_name = channel_utils.gbat_group_name(**base_kwargs)
-        elif self.wait_for_all_groups:
-            channels_group_name = channel_utils.wait_page_group_name(**base_kwargs)
-        else:
-            channels_group_name = channel_utils.wait_page_group_name(
-                **base_kwargs,
-                group_id_in_subsession=group.id_in_subsession,
+            channel_utils.sync_group_send_wrapper(
+                type='gbat_ready',
+                group=channel_utils.gbat_group_name(**base_kwargs),
+                event={}
             )
+        else:
+            if self.wait_for_all_groups:
+                channels_group_name = channel_utils.wait_page_group_name(**base_kwargs)
+            else:
+                channels_group_name = channel_utils.wait_page_group_name(
+                    **base_kwargs,
+                    group_id_in_subsession=group.id_in_subsession,
+                )
 
-        channel_utils.sync_group_send_wrapper(
-            type='wait_page_ready',
-            group=channels_group_name,
-            event={}
-        )
+            channel_utils.sync_group_send_wrapper(
+                type='wait_page_ready',
+                group=channels_group_name,
+                event={}
+            )
 
     def socket_url(self):
         if self.group_by_arrival_time:

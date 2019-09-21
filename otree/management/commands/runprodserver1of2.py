@@ -61,6 +61,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, addrport=None, verbosity=1, dev_https, **kwargs):
         self.verbosity = verbosity
+        os.environ['OTREE_USE_REDIS'] = '1'
         self.honcho = OTreeHonchoManager()
         self.setup_honcho(addrport=addrport, dev_https=dev_https)
         self.honcho.loop()

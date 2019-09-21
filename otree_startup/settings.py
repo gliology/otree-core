@@ -107,6 +107,10 @@ def get_default_settings(user_settings: dict):
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
     BASE_DIR = user_settings.get('BASE_DIR', '')
 
+    # I thought about just checking if REDIS_URL is defined,
+    # but using Redis when it's not necessary makes things much slower.
+    # for example, running a 5 second bot test takes 22 seconds with Redis.
+    # it would be a pain for me to keep setting and unsetting REDIS_URL.
     if os.environ.get('OTREE_USE_REDIS'):
         channel_layer = {
             "BACKEND": "channels_redis.core.RedisChannelLayer",

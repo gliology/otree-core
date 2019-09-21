@@ -22,6 +22,10 @@ class Command(BaseCommand):
 
     def get_honcho_manager(self):
 
+        # this env var is necessary because if the botworker submits a wait page,
+        # it needs to broadcast to redis channel layer, not in-memory.
+        # this caused an obscure bug on 2019-09-21.
+        os.environ['OTREE_USE_REDIS'] = '1'
         env_copy = os.environ.copy()
 
         manager = HonchoManager()
