@@ -14,7 +14,6 @@ logger = logging.getLogger('otree')
 MSG_RESETDB_SUCCESS_FOR_HUB = 'Created new tables and columns.'
 MSG_DB_ENGINE_FOR_HUB = 'Database engine'
 
-
 @dataclass
 class DBDeletionInfo:
     db_engine: str
@@ -34,15 +33,13 @@ def db_label_and_drop_cmd(db_engine: str) -> DBDeletionInfo:
                 'SET FOREIGN_KEY_CHECKS = 0;'
                 'DROP TABLE {table} CASCADE;'
                 'SET FOREIGN_KEY_CHECKS = 1;'
-            ),
+            )
         )
     # put this last for test coverage
     if 'sqlite3' in db_engine_lower:
         return DBDeletionInfo('SQLite', 'DROP TABLE {table};')
     raise ValueError(
-        'resetdb command does not recognize DB engine "{}"'.format(db_engine)
-    )
-
+        'resetdb command does not recognize DB engine "{}"'.format(db_engine))
 
 def cursor_execute_drop_cmd(cursor, stmt):
     cursor.execute(stmt)
@@ -55,33 +52,32 @@ def migrate_db(options):
     # (causes ModuleNotFoundError)
     common_internal.patch_migrations_module()
 
-    call_command('migrate', interactive=False, run_syncdb=True, **options)
+    call_command(
+        'migrate', interactive=False, run_syncdb=True, **options
+    )
 
 
 class Command(BaseCommand):
     help = (
         "Resets your development database to a fresh state. "
-        "All data will be deleted."
-    )
+        "All data will be deleted.")
 
     def add_arguments(self, parser):
         ahelp = (
-            'Tells the resetdb command to NOT prompt the user for ' 'input of any kind.'
-        )
+            'Tells the resetdb command to NOT prompt the user for '
+            'input of any kind.')
         parser.add_argument(
-            '--noinput',
-            action='store_false',
-            dest='interactive',
-            default=True,
-            help=ahelp,
-        )
+            '--noinput', action='store_false', dest='interactive',
+            default=True, help=ahelp)
 
     def _confirm(self) -> bool:
-        self.stdout.write("This will delete and recreate your database. ")
+        self.stdout.write(
+            "This will delete and recreate your database. ")
         answer = input("Proceed? (y or n): ")
         if answer:
             return answer[0].lower() == 'y'
         return False
+
 
     def _get_tables(self) -> List[str]:
         with connection.cursor() as cursor:
@@ -89,8 +85,7 @@ class Command(BaseCommand):
         # in the old version, juan reversed the list, not sure why,
         # maybe something about foreign key dependencies?
         return [
-            t.name
-            for t in tables
+            t.name for t in tables
             # do this so it will fail loudly if the "type" doesn't match
             if {'t': True, 'v': False, 'p': False}[t.type]
         ]
@@ -109,6 +104,7 @@ class Command(BaseCommand):
         dbconf = settings.DATABASES['default']
         drop_db_info = db_label_and_drop_cmd(dbconf['ENGINE'])
         db_engine = drop_db_info.db_engine
+
 
         # hub depends on this string
         logger.info(f"{MSG_DB_ENGINE_FOR_HUB}: {db_engine}")

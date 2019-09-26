@@ -42,5 +42,7 @@ def ensure_superuser_exists():
     return otree.common_internal.ensure_superuser_exists()
 
 
-register.simple_tag(name='ensure_superuser_exists', func=ensure_superuser_exists)
+register.simple_tag(name='ensure_superuser_exists',
+                    func=ensure_superuser_exists)
 register.simple_tag(name='active_page', func=active_page)
+

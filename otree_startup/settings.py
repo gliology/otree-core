@@ -64,17 +64,24 @@ def get_default_settings(user_settings: dict):
     logging = {
         'version': 1,
         'disable_existing_loggers': False,
-        'root': {'level': 'DEBUG', 'handlers': ['console']},
+        'root': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+        },
         'formatters': {
-            'verbose': {'format': '[%(levelname)s|%(asctime)s] %(name)s > %(message)s'},
-            'simple': {'format': '%(levelname)s %(message)s'},
+            'verbose': {
+                'format': '[%(levelname)s|%(asctime)s] %(name)s > %(message)s'
+            },
+            'simple': {
+                'format': '%(levelname)s %(message)s'
+            },
         },
         'handlers': {
             'console': {
                 'level': 'INFO',
                 'class': 'logging.StreamHandler',
-                'formatter': 'simple',
-            }
+                'formatter': 'simple'
+            },
         },
         'loggers': {
             'otree.test.core': {
@@ -94,7 +101,7 @@ def get_default_settings(user_settings: dict):
                 'propagate': True,
                 'level': 'DEBUG',
             },
-        },
+        }
     }
 
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
@@ -107,24 +114,29 @@ def get_default_settings(user_settings: dict):
     if os.environ.get('OTREE_USE_REDIS'):
         channel_layer = {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {"hosts": [REDIS_URL]},
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+            }
         }
     else:
-        channel_layer = {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+        channel_layer = {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
 
     default_settings.update(
         DEBUG=os.environ.get('OTREE_PRODUCTION') in [None, '', '0'],
         AWS_ACCESS_KEY_ID=os.environ.get('AWS_ACCESS_KEY_ID'),
         AWS_SECRET_ACCESS_KEY=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-        AUTH_LEVEL=os.environ.get('OTREE_AUTH_LEVEL'),
-        DATABASES={
+        AUTH_LEVEL=os.environ.get('OTREE_AUTH_LEVEL'), DATABASES={
             'default': dj_database_url.config(
                 default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
             )
         },
         HUEY={
             'name': 'otree-huey',
-            'connection': {'url': REDIS_URL},
+            'connection': {
+                'url': REDIS_URL,
+            },
             'always_eager': False,
             # I need a result store to retrieve the results of browser-bots
             # tasks and pinging, even if the result is evaluated immediately
@@ -139,7 +151,9 @@ def get_default_settings(user_settings: dict):
         },
         STATIC_ROOT=os.path.join(BASE_DIR, '__temp_static_root'),
         STATIC_URL='/static/',
-        STATICFILES_STORAGE=('whitenoise.storage.CompressedManifestStaticFilesStorage'),
+        STATICFILES_STORAGE=(
+            'whitenoise.storage.CompressedManifestStaticFilesStorage'
+        ),
         ROOT_URLCONF='otree.urls',
         TIME_ZONE='UTC',
         USE_TZ=True,
@@ -157,8 +171,10 @@ def get_default_settings(user_settings: dict):
         CHANNEL_LAYERS={'default': channel_layer},
         REDIS_URL=REDIS_URL,
         MTURK_NUM_PARTICIPANTS_MULTIPLE=2,
-        LOCALE_PATHS=[os.path.join(user_settings.get('BASE_DIR', ''), 'locale')],
-        BOTS_CHECK_HTML=True,
+        LOCALE_PATHS=[
+            os.path.join(user_settings.get('BASE_DIR', ''), 'locale')
+        ],
+        BOTS_CHECK_HTML=True
     )
     return default_settings
 
@@ -188,11 +204,14 @@ class InvalidTemplateVariable(str):
         if bits[0] in built_in_vars:
             # This will not make sense in the admin report!
             # but that's OK, it's a rare case, more advanced users
-            return ('{} has no attribute "{}"').format(bits[0], '.'.join(bits[1:]))
+            return (
+                '{} has no attribute "{}"'
+            ).format(bits[0], '.'.join(bits[1:]))
         elif bits[0] == 'self' and bits[1] in built_in_vars:
-            return ("Don't use 'self' in the template. " "Just write: {}").format(
-                '.'.join(bits[1:])
-            )
+            return (
+                "Don't use 'self' in the template. "
+                "Just write: {}"
+            ).format('.'.join(bits[1:]))
         else:
             return 'Invalid variable: {}'.format(variable_name_dotted)
 
@@ -231,9 +250,6 @@ def augment_settings(settings: dict):
     for k, v in default_settings.items():
         settings.setdefault(k, v)
 
-    if settings['AUTH_LEVEL'] == 'STUDY' and os.environ.get('OTREEHUB_PUB'):
-        settings['AUTH_LEVEL'] = 'DEMO'
-
     all_otree_apps_set = set()
 
     for s in settings['SESSION_CONFIGS']:
@@ -244,6 +260,7 @@ def augment_settings(settings: dict):
 
     no_experiment_apps = [
         'otree',
+
         # django.contrib.auth is slow, about 300ms.
         # would be nice to only add it if there is actually a password
         # i tried that but would need to add various complicated "if"s
@@ -280,10 +297,11 @@ def augment_settings(settings: dict):
     no_experiment_apps = collapse_to_unique_list(
         no_experiment_apps,
         settings['INSTALLED_APPS'],
-        settings.get('EXTENSION_APPS', []),
+        settings.get('EXTENSION_APPS', [])
     )
 
-    new_installed_apps = collapse_to_unique_list(no_experiment_apps, all_otree_apps)
+    new_installed_apps = collapse_to_unique_list(
+        no_experiment_apps, all_otree_apps)
 
     # TEMPLATES
     _template_dir = os.path.join(settings['BASE_DIR'], '_templates')
@@ -301,38 +319,37 @@ def augment_settings(settings: dict):
         additional_static_dirs = []
 
     new_staticfiles_dirs = collapse_to_unique_list(
-        settings.get('STATICFILES_DIRS'), additional_static_dirs
+        settings.get('STATICFILES_DIRS'),
+        additional_static_dirs,
     )
 
     new_middleware = collapse_to_unique_list(
-        DEFAULT_MIDDLEWARE, settings.get('MIDDLEWARE')
-    )
+        DEFAULT_MIDDLEWARE,
+        settings.get('MIDDLEWARE'))
 
     augmented_settings = dict(
         INSTALLED_APPS=new_installed_apps,
-        TEMPLATES=[
-            {
-                'BACKEND': 'django.template.backends.django.DjangoTemplates',
-                'DIRS': new_template_dirs,
-                'APP_DIRS': True,
-                'OPTIONS': {
-                    'debug': True,
-                    'string_if_invalid': InvalidTemplateVariable("%s"),
-                    'context_processors': (
-                        'django.contrib.auth.context_processors.auth',
-                        'django.template.context_processors.media',
-                        'django.template.context_processors.static',
-                        'django.contrib.messages.context_processors.messages',
-                        'django.template.context_processors.request',
-                    ),
-                },
-            }
-        ],
+        TEMPLATES=[{
+            'BACKEND': 'django.template.backends.django.DjangoTemplates',
+            'DIRS': new_template_dirs,
+            'APP_DIRS': True,
+            'OPTIONS': {
+                'debug': True,
+                'string_if_invalid': InvalidTemplateVariable("%s"),
+                'context_processors': (
+                    'django.contrib.auth.context_processors.auth',
+                    'django.template.context_processors.media',
+                    'django.template.context_processors.static',
+                    'django.contrib.messages.context_processors.messages',
+                    'django.template.context_processors.request',
+                )
+            },
+        }],
         STATICFILES_DIRS=new_staticfiles_dirs,
         MIDDLEWARE=new_middleware,
         INSTALLED_OTREE_APPS=all_otree_apps,
         MESSAGE_TAGS={messages.ERROR: 'danger'},
-        LOGIN_REDIRECT_URL='Sessions',
+        LOGIN_REDIRECT_URL='Sessions'
     )
 
     settings.update(augmented_settings)

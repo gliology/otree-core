@@ -10,7 +10,9 @@ from django.db.models import signals
 
 import otree
 import otree.common_internal
-from otree.common_internal import ensure_superuser_exists
+from otree.common_internal import (
+    ensure_superuser_exists
+)
 from otree.strict_templates import patch_template_silent_failures
 
 
@@ -19,7 +21,6 @@ logger = logging.getLogger('otree')
 
 def create_singleton_objects(sender, **kwargs):
     from otree.models_concrete import UndefinedFormModel
-
     for ModelClass in [UndefinedFormModel]:
         # if it doesn't already exist, create one.
         ModelClass.objects.get_or_create()
@@ -41,6 +42,7 @@ def monkey_patch_db_cursor():
     unrelated to resetdb. This is the most targeted location.
     '''
 
+
     # In Django 2.0, this method is renamed to _execute.
     # but seems to still work in 2.2?
     def execute(self, sql, params=None):
@@ -57,7 +59,8 @@ def monkey_patch_db_cursor():
                 # OperationalError (django.db.OperationalError,
                 # sqlite.OperationalError, mysql....)
                 # so, simplest to use the string name
-                if ExceptionClass.__name__ in ('OperationalError', 'ProgrammingError'):
+                if ExceptionClass.__name__ in (
+                        'OperationalError', 'ProgrammingError'):
                     # these error messages are localized, so we can't
                     # just check for substring 'column' or 'table'
                     # all the ProgrammingError and OperationalError
@@ -70,27 +73,27 @@ def monkey_patch_db_cursor():
                     else:
                         advice = 'try resetting the database ("otree resetdb")'
 
-                    raise ExceptionClass('{} - {}.'.format(exc, advice)).with_traceback(
-                        tb
-                    ) from None
+                    raise ExceptionClass('{} - {}.'.format(
+                        exc, advice)).with_traceback(tb) from None
                 else:
                     raise
 
     from django.db.backends import utils
-
     utils.CursorWrapper.execute = execute
 
 
 def setup_create_default_superuser():
     signals.post_migrate.connect(
-        ensure_superuser_exists, dispatch_uid='otree.create_superuser'
+        ensure_superuser_exists,
+        dispatch_uid='otree.create_superuser'
     )
 
 
 def setup_create_singleton_objects():
-    signals.post_migrate.connect(
-        create_singleton_objects, dispatch_uid='create_singletons'
-    )
+    signals.post_migrate.connect(create_singleton_objects,
+                                 dispatch_uid='create_singletons')
+
+
 
 
 class OtreeConfig(AppConfig):
@@ -107,6 +110,7 @@ class OtreeConfig(AppConfig):
         colorama.init(autoreset=True)
 
         import otree.checks
-
         otree.checks.register_system_checks()
         patch_template_silent_failures()
+
+

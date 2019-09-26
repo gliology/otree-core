@@ -31,22 +31,16 @@
           <code>AWS_SECRET_ACCESS_KEY</code></td>
         <td>{{ aws_keys_exist|yesno }}</td>
       </tr>
-      {% if not is_new_format %}
-        <tr>
-          <td>
-            Add <code>template</code> to your MTurk settings,
-            and remove <code>preview_template</code>.
-
-            Then create a new session.
-            (This is a new requirement as of October 2019.
-            If you want to stay on the old version, use
-            <code>otree[mturk]<2.3</code> in your <code>pip3 install</code>
-            and <code>requirements_base.txt</code>.
-            )
-          </td>
-          <td>{{ is_new_format|yesno }}</td>
-        </tr>
-      {% endif %}
+      <tr>
+        <td>
+          Add <code>template</code> to your MTurk settings,
+          and remove <code>preview_template</code>,
+          as described in the documentation.
+          Then create a new session.
+          (This is a new requirement as of October 2019.)
+        </td>
+        <td>{{ is_new_format|yesno }}</td>
+      </tr>
     </table>
 
   {% elif session.mturk_is_expired %}

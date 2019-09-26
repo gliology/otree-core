@@ -5,15 +5,16 @@ import sys
 import otree
 
 
+
 class Command(startproject.Command):
-    help = "Creates a new oTree project."
+    help = ("Creates a new oTree project.")
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
         '''need this so we can test startproject automatically'''
         parser.add_argument(
-            '--noinput', action='store_false', dest='interactive', default=True
-        )
+            '--noinput', action='store_false', dest='interactive',
+            default=True)
 
     def handle(self, *args, **options):
         project_name = options['name']
@@ -37,12 +38,10 @@ class Command(startproject.Command):
             answer = 'n'
         if answer and answer[0].lower() == "y":
             project_template_path = (
-                "https://github.com/oTree-org/oTree/archive/master.zip"
-            )
+                "https://github.com/oTree-org/oTree/archive/master.zip")
         else:
             project_template_path = os.path.join(
-                os.path.dirname(otree.__file__), 'project_template'
-            )
+                os.path.dirname(otree.__file__), 'project_template')
 
         options['template'] = project_template_path
 
@@ -75,6 +74,6 @@ class Command(startproject.Command):
         msg = (
             'Created project folder.\n'
             'Enter "cd {}" to move inside the project folder, '
-            'then start the server with "otree devserver".'  #
+            'then start the server with "otree devserver".' #
         ).format(project_name)
         self.stdout.write(msg)

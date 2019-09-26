@@ -27,8 +27,9 @@ def otree_number_format(number, *args, **kwargs):
         return six.text_type(number)
     return _original_number_format(number, *args, **kwargs)
 
-
 numberformat.format = otree_number_format
+
+
 
 
 class _CurrencyEncoder(json.JSONEncoder):
@@ -53,11 +54,9 @@ def currency_range(first, last, increment):
         else:
             setting_name = 'REAL_WORLD_CURRENCY_DECIMAL_PLACES'
         raise ValueError(
-            (
-                'currency_range() step argument must not be zero. '
-                'Maybe your {} setting is '
-                'causing it to be rounded to 0.'
-            ).format(setting_name)
+            ('currency_range() step argument must not be zero. '
+             'Maybe your {} setting is '
+             'causing it to be rounded to 0.').format(setting_name)
         )
 
     assert increment > 0  # not negative

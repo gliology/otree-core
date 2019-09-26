@@ -15,5 +15,5 @@ def pytest_generate_tests(metafunc):
 
     metafunc.parametrize(
         "session_config_name,num_participants,export_path",
-        [[option.session_config_name, option.num_participants, option.export_path]],
+        [[option.session_config_name, option.num_participants, option.export_path]]
     )

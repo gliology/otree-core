@@ -126,9 +126,7 @@ def missing_db_tables():
 
     # need to normalize to lowercase because MySQL converts DB names to lower
     expected_table_names_dict = {
-        Model._meta.db_table.lower(): '{}.{}'.format(
-            Model._meta.app_label, Model.__name__
-        )
+        Model._meta.db_table.lower(): '{}.{}'.format(Model._meta.app_label, Model.__name__)
         for Model in apps.get_models()
     }
 
@@ -136,17 +134,14 @@ def missing_db_tables():
 
     # again, normalize to lowercase
     actual_table_names = set(
-        tn.lower() for tn in connection.introspection.table_names()
-    )
+        tn.lower() for tn in connection.introspection.table_names())
 
     missing_table_names = expected_table_names - actual_table_names
 
     # don't use the SQL table name because it could be uppercase or lowercase,
     # depending on whether it's MySQL
-    return [
-        expected_table_names_dict[missing_table]
-        for missing_table in missing_table_names
-    ]
+    return [expected_table_names_dict[missing_table]
+            for missing_table in missing_table_names]
 
 
 def make_hash(s):
@@ -158,19 +153,20 @@ def get_admin_secret_code():
     s = settings.SECRET_KEY
     return hashlib.sha224(s.encode()).hexdigest()[:8]
 
-
 def validate_alphanumeric(identifier, identifier_description):
     if re.match(r'^[a-zA-Z0-9_]+$', identifier):
         return identifier
     raise ValueError(
         '{} "{}" can only contain letters, numbers, '
-        'and underscores (_)'.format(identifier_description, identifier)
+        'and underscores (_)'.format(
+            identifier_description,
+            identifier
+        )
     )
 
 
 EMPTY_ADMIN_USERNAME_MSG = 'settings.ADMIN_USERNAME is empty'
 EMPTY_ADMIN_PASSWORD_MSG = 'settings.ADMIN_PASSWORD is empty'
-
 
 def ensure_superuser_exists(*args, **kwargs) -> str:
     """
@@ -184,7 +180,6 @@ def ensure_superuser_exists(*args, **kwargs) -> str:
     if not password:
         return EMPTY_ADMIN_PASSWORD_MSG
     from django.contrib.auth.models import User
-
     if User.objects.filter(username=username).exists():
         # msg = 'Default superuser exists.'
         # logger.info(msg)
@@ -201,7 +196,6 @@ def release_any_stale_locks():
     and the 'finally' block in each lock did not execute
     '''
     from otree.models_concrete import ParticipantLockModel
-
     for LockModel in [ParticipantLockModel]:
         try:
             LockModel.objects.filter(locked=True).update(locked=False)
@@ -218,7 +212,6 @@ def release_any_stale_locks():
 def get_redis_conn():
     '''reuse Huey Redis connection'''
     return HUEY.storage.conn
-
 
 def has_group_by_arrival_time(app_name):
     page_sequence = get_pages_module(app_name).page_sequence
@@ -264,27 +257,24 @@ def in_round(ModelClass, round_number, **kwargs):
     except ModelClass.DoesNotExist:
         raise InvalidRoundError(
             'No corresponding {} found with round_number={}'.format(
-                ModelClass.__name__, round_number
-            )
-        ) from None
+                ModelClass.__name__, round_number)) from None
 
 
 def in_rounds(ModelClass, first, last, **kwargs):
     if first < 1:
         raise InvalidRoundError('Invalid round number: {}'.format(first))
     qs = ModelClass.objects.filter(
-        round_number__range=(first, last), **kwargs
-    ).order_by('round_number')
+            round_number__range=(first, last),
+            **kwargs
+        ).order_by('round_number')
 
     ret = list(qs)
     num_results = len(ret)
-    expected_num_results = last - first + 1
+    expected_num_results = last-first+1
     if num_results != expected_num_results:
         raise InvalidRoundError(
             'Database contains {} records for rounds {}-{}, but expected {}'.format(
-                num_results, first, last, expected_num_results
-            )
-        )
+                num_results, first, last, expected_num_results))
     return ret
 
 
@@ -296,8 +286,7 @@ def _get_all_configs():
     return [
         app
         for app in apps.get_app_configs()
-        if app.name in settings.INSTALLED_OTREE_APPS
-    ]
+        if app.name in settings.INSTALLED_OTREE_APPS]
 
 
 def participant_start_url(code):
@@ -306,13 +295,11 @@ def participant_start_url(code):
 
 def patch_migrations_module():
     from django.db.migrations.loader import MigrationLoader
-
     def migrations_module(*args, **kwargs):
         # need to return None so that load_disk() considers it
         # unmigrated, and False so that load_disk() considers it
         # non-explicit
         return None, False
-
     MigrationLoader.migrations_module = migrations_module
 
 
@@ -321,9 +308,7 @@ class ResponseForException(Exception):
     allows us to show a much simplified traceback without
     framework code.
     '''
-
     pass
-
 
 def add_field_tracker(cls):
     # need to do it here because FieldTracker doesnt work on abstract classes
@@ -332,3 +317,5 @@ def add_field_tracker(cls):
     # need to call this, because class_prepared has already been fired
     # (it is currently executing)
     _ft.finalize_class(sender=cls)
+
+

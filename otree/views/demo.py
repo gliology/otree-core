@@ -16,9 +16,9 @@ class DemoIndex(vanilla.TemplateView):
 
     def get_context_data(self, **kwargs):
         title = getattr(settings, 'DEMO_PAGE_TITLE', 'Demo')
-        intro_html = getattr(settings, 'DEMO_PAGE_INTRO_HTML', '') or getattr(
-            settings, 'DEMO_PAGE_INTRO_TEXT', ''
-        )
+        intro_html = (
+            getattr(settings, 'DEMO_PAGE_INTRO_HTML', '') or
+            getattr(settings, 'DEMO_PAGE_INTRO_TEXT', ''))
 
         session_info = []
         for session_config in SESSION_CONFIGS_DICT.values():
@@ -26,8 +26,12 @@ class DemoIndex(vanilla.TemplateView):
                 {
                     'name': session_config['name'],
                     'display_name': session_config['display_name'],
-                    'url': reverse('CreateDemoSession', args=(session_config['name'],)),
-                    'num_demo_participants': session_config['num_demo_participants'],
+                    'url': reverse(
+                        'CreateDemoSession', args=(session_config['name'],)
+                    ),
+                    'num_demo_participants': session_config[
+                        'num_demo_participants'
+                    ]
                 }
             )
 
@@ -43,7 +47,7 @@ class DemoIndex(vanilla.TemplateView):
             intro_html=intro_html,
             is_debug=settings.DEBUG,
             otreehub_url=otreehub_url,
-            **kwargs,
+            **kwargs
         )
 
 
@@ -54,5 +58,6 @@ class CreateDemoSession(vanilla.TemplateView):
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(
-            session_config_name=self.kwargs['session_config_name'], **kwargs
+            session_config_name=self.kwargs['session_config_name'],
+            **kwargs,
         )

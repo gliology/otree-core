@@ -1,7 +1,6 @@
 class MustCopyError(Exception):
     pass
 
-
 def _raise_must_copy(*args, **kwargs):
     raise MustCopyError(
         "Cannot modify a list that originated in Constants. "
@@ -11,7 +10,6 @@ def _raise_must_copy(*args, **kwargs):
         "'self.participant.vars['my_list'] = Constants.my_list.copy()'. "
         "This is to prevent accidentally modifying the original list. "
     )
-
 
 class ConstantsList(list):
 

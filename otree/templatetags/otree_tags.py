@@ -3,14 +3,13 @@ from django import template
 from otree.chat import chat_template_tag
 from otree.common import safe_json
 from otree.currency import Currency
-from otree.templatetags.otree_internal import active_page, ensure_superuser_exists
+from otree.templatetags.otree_internal import active_page, \
+    ensure_superuser_exists
 from .otree_forms import FormFieldNode
 from otree.staticfiles import StaticNode
 
-
 def c(val):
     return Currency(val)
-
 
 def my_abs(val):
     '''
@@ -20,7 +19,6 @@ def my_abs(val):
     AttributeError: 'builtin_function_or_method' object has no attribute '_filter_name'
     '''
     return abs(val)
-
 
 register = template.Library()
 register.tag('formfield', FormFieldNode.parse)
@@ -33,17 +31,14 @@ register.filter('json', safe_json)
 def chat(context, *args, **kwargs):
     return chat_template_tag(context, *args, **kwargs)
 
-
 @register.inclusion_tag('otree/tags/NextButton.html')
 def next_button(*args, **kwargs):
     return {}
-
 
 # this code is duplicated in otree.py
 @register.inclusion_tag('otree/tags/formfields.html', takes_context=True)
 def formfields(context, *args, **kwargs):
     return context
-
 
 @register.tag('static')
 def do_static(parser, token):

@@ -4,19 +4,18 @@ from collections import OrderedDict
 import schema
 
 from otree.models_concrete import RoomToSession
-from otree.common_internal import add_params_to_url, make_hash, validate_alphanumeric
+from otree.common_internal import (
+    add_params_to_url, make_hash, validate_alphanumeric)
 from django.conf import settings
 from django.urls import reverse
 from django.db import transaction
 
-
 class Room(object):
-    def __init__(
-        self, name, display_name, use_secure_urls, participant_label_file=None
-    ):
+
+    def __init__(self, name, display_name, use_secure_urls, participant_label_file=None):
         self.name = validate_alphanumeric(
-            name, identifier_description='settings.ROOMS room name'
-        )
+            name,
+            identifier_description='settings.ROOMS room name')
         if use_secure_urls and not participant_label_file:
             raise ValueError(
                 'Room "{}": you must either set "participant_label_file", '
@@ -32,11 +31,8 @@ class Room(object):
 
     def get_session(self):
         try:
-            return (
-                RoomToSession.objects.select_related('session')
-                .get(room_name=self.name)
-                .session
-            )
+            return RoomToSession.objects.select_related('session').get(
+                room_name=self.name).session
         except RoomToSession.DoesNotExist:
             return None
 
@@ -44,7 +40,10 @@ class Room(object):
         with transaction.atomic():
             RoomToSession.objects.filter(room_name=self.name).delete()
             if session:
-                RoomToSession.objects.create(room_name=self.name, session=session)
+                RoomToSession.objects.create(
+                    room_name=self.name,
+                    session=session
+                )
 
     def has_participant_labels(self):
         return bool(self.participant_label_file)
@@ -78,7 +77,8 @@ class Room(object):
                         if not label:
                             continue
                         validate_alphanumeric(
-                            label, identifier_description='participant label'
+                            label,
+                            identifier_description='participant label'
                         )
                         if label not in seen:
                             labels.append(label)
@@ -155,10 +155,9 @@ def get_room_dict():
         try:
             room = room_schema.validate(room)
         except schema.SchemaError as e:
-            raise (ValueError('settings.ROOMS: {}'.format(e))) from None
+            raise(ValueError('settings.ROOMS: {}'.format(e))) from None
         room_object = Room(**room)
         ROOM_DICT[room_object.name] = room_object
     return ROOM_DICT
-
 
 ROOM_DICT = get_room_dict()

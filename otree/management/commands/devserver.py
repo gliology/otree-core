@@ -61,9 +61,8 @@ class Command(runserver.Command):
     def add_arguments(self, parser):
         super().add_arguments(parser)
         parser.add_argument(
-            '--inside-runzip', action='store_true', dest='inside_runzip', default=False
+            '--inside-runzip', action='store_true', dest='inside_runzip', default=False,
         )
-
     def inner_run(self, *args, inside_runzip, **options):
 
         self.inside_runzip = inside_runzip
@@ -75,7 +74,10 @@ class Command(runserver.Command):
 
         # only get apps with labels, otherwise migrate will raise an error
         # when it tries to migrate that app but no migrations dir was created
-        app_labels = set(model._meta.app_config.label for model in apps.get_models())
+        app_labels = set(
+            model._meta.app_config.label
+            for model in apps.get_models()
+        )
 
         migrations_modules = {
             app_label: '{}.{}'.format(TMP_MIGRATIONS_DIR, app_label)
@@ -134,10 +136,9 @@ class Command(runserver.Command):
             # so, simplest to use the string name
 
             if type(exc).__name__ in (
-                'OperationalError',
-                'ProgrammingError',
-                'InconsistentMigrationHistory',
-            ):
+                    'OperationalError',
+                    'ProgrammingError',
+                    'InconsistentMigrationHistory'):
                 self.print_error_and_exit(ADVICE_DELETE_DB)
             else:
                 raise

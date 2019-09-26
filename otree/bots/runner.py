@@ -73,9 +73,8 @@ def make_bots(*, session_pk, case_number, use_browser_bots) -> List[ParticipantB
 
     # can't use .distinct('player_pk') because it only works on Postgres
     # this implicitly orders by round also
-    lookups = ParticipantToPlayerLookup.objects.filter(session_pk=session_pk).order_by(
-        'page_index'
-    )
+    lookups = ParticipantToPlayerLookup.objects.filter(
+        session_pk=session_pk).order_by('page_index')
 
     seen_players = set()
     lookups_per_participant = defaultdict(list)
@@ -99,15 +98,13 @@ def run_bots(session: Session, case_number=None):
     runner = SessionBotRunner(bots=bot_list)
     runner.play()
 
-
 # i used to use @pytest.mark.filterwarnings('ignore', category=RemovedInDjango20Warning)
 # but easier to use --disable-warnings to make sure they're all gone
 # function name needs to start with "test" for pytest to discover it
 # in this module
 @pytest.mark.django_db(transaction=True)
 def test_all_bots_for_session_config(
-    session_config_name, num_participants, export_path
-):
+        session_config_name, num_participants, export_path):
     """
     this means all configs and test cases are in 1 big test case.
     so if 1 fails, the others will not get run.
@@ -131,9 +128,8 @@ def test_all_bots_for_session_config(
 
         num_bot_cases = config.get_num_bot_cases()
         for case_number in range(num_bot_cases):
-            logger.info(
-                "Creating '{}' session (test case {})".format(config_name, case_number)
-            )
+            logger.info("Creating '{}' session (test case {})".format(
+                config_name, case_number))
 
             session = otree.session.create_session(
                 session_config_name=config_name,
@@ -151,6 +147,7 @@ def test_all_bots_for_session_config(
             export_path = now.strftime('__temp_bots_%b%d_%Hh%Mm%S.%f')[:-5] + 's'
 
         os.makedirs(export_path, exist_ok=True)
+
 
         for app in settings.INSTALLED_OTREE_APPS:
             model_module = otree.common_internal.get_models_module(app)

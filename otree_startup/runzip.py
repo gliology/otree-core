@@ -52,7 +52,6 @@ MSG_NO_OTREEZIP_YET = 'No *.otreezip file found in this folder yet, waiting...'
 MSG_FOUND_NEWER_OTREEZIP = 'Newer project found'
 MSG_RUNNING_OTREEZIP_NAME = "Running {}"
 
-
 def autoreload_for_new_zipfiles() -> int:
     project = get_newest_project()
     newer_project = None
@@ -161,3 +160,4 @@ def get_newest_project() -> Optional[Project]:
         old_proj.delete_otreezip()
 
     return newest_project
+

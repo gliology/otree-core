@@ -16,7 +16,10 @@ import otree.constants_internal
 from otree.db import models
 from otree.currency import Currency, RealWorldCurrency
 
-__all__ = ('formfield_callback', 'modelform_factory', 'ModelForm')
+__all__ = (
+    'formfield_callback', 'modelform_factory', 'ModelForm')
+
+
 
 
 def formfield_callback(db_field, **kwargs):
@@ -50,19 +53,17 @@ def modelform_factory(*args, **kwargs):
     kwargs.setdefault('formfield_callback', formfield_callback)
     return django_model_forms.modelform_factory(*args, **kwargs)
 
-
 import django.forms.models
-
 
 class ModelFormMetaclass(django.forms.models.ModelFormMetaclass):
     """
     Metaclass for BaseModelForm in order to inject our custom implementation of
     `formfield_callback`.
     """
-
     def __new__(mcs, name, bases, attrs):
         attrs.setdefault('formfield_callback', formfield_callback)
-        return super(ModelFormMetaclass, mcs).__new__(mcs, name, bases, attrs)
+        return super(ModelFormMetaclass, mcs).__new__(
+            mcs, name, bases, attrs)
 
 
 class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
@@ -98,9 +99,7 @@ class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
         for field_name in self.fields:
             field = self.fields[field_name]
 
-            choices_method = self._get_method_from_page_or_model(
-                f'{field_name}_choices'
-            )
+            choices_method = self._get_method_from_page_or_model(f'{field_name}_choices')
 
             if choices_method:
                 choices = choices_method()
@@ -114,6 +113,7 @@ class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
 
                 field = formfield_callback(model_field_copy)
                 self.fields[field_name] = field
+
 
             if isinstance(field.widget, forms.RadioSelect):
                 # Fields with a RadioSelect should be rendered without the
@@ -196,15 +196,11 @@ class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
 
     def boolean_field_names(self):
         boolean_fields_in_model = [
-            field.name
-            for field in self.Meta.model._meta.fields
+            field.name for field in self.Meta.model._meta.fields
             if isinstance(field, models.BooleanField)
         ]
-        return [
-            field_name
-            for field_name in self.fields
-            if field_name in boolean_fields_in_model
-        ]
+        return [field_name for field_name in self.fields
+                if field_name in boolean_fields_in_model]
 
     def _clean_fields(self):
         boolean_field_names = self.boolean_field_names()
@@ -247,8 +243,7 @@ class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
                     raise forms.ValidationError(msg.format(upper))
 
                 error_message_method = self._get_method_from_page_or_model(
-                    f'{name}_error_message'
-                )
+                    f'{name}_error_message')
                 if error_message_method:
                     try:
                         error_string = error_message_method(value)

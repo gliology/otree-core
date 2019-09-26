@@ -1,6 +1,5 @@
 from otree.db import models
 
-
 class _SaveTheChangeWithCustomFieldSupport:
     '''
     2017-08-07: kept around because old migrations files reference it.
@@ -17,7 +16,9 @@ class _SaveTheChangeWithCustomFieldSupport:
     '''
 
 
+
 class ModelWithVars(models.Model):
+
     class Meta:
         abstract = True
 
