@@ -72,49 +72,6 @@ class InitializeParticipant(vanilla.UpdateView):
         return HttpResponseRedirect(first_url)
 
 
-class MTurkLandingPage(vanilla.TemplateView):
-
-    def get_template_names(self):
-        hit_settings = self.session.config['mturk_hit_settings']
-        return [hit_settings['preview_template']]
-
-    url_pattern = r"^MTurkLandingPage/(?P<session_code>[a-z0-9]+)/$"
-
-    def dispatch(self, request, session_code):
-        self.session = get_object_or_404(
-            otree.models.Session, code=session_code
-        )
-        return super().dispatch(request)
-
-    def get_context_data(self):
-        '''
-        hack for compatibility because the project template's
-        MTurkPreview.html inherits from Page.html which uses all these
-        nonexistent template vars. Should change that.
-        '''
-        return {
-            'view': {
-                'remaining_timeout_seconds': None,
-                'socket_url': '',
-                'redirect_url': '',
-            },
-            'form': {'errors': None, 'non_field_errors': None},
-            'participant': {'is_browser_bot': False}
-        }
-
-    def get(self, request):
-        assignment_id = self.request.GET.get('assignmentId')
-        if assignment_id and assignment_id != 'ASSIGNMENT_ID_NOT_AVAILABLE':
-            url_start = reverse('MTurkStart', args=(self.session.code,))
-            url_start = add_params_to_url(url_start, {
-                'assignmentId': self.request.GET['assignmentId'],
-                'workerId': self.request.GET['workerId']})
-            return HttpResponseRedirect(url_start)
-
-        context = self.get_context_data()
-        return self.render_to_response(context)
-
-
 class MTurkStart(vanilla.View):
 
     url_pattern = r"^MTurkStart/(?P<session_code>[a-z0-9]+)/$"
@@ -274,10 +231,10 @@ class AssignVisitorToRoom(GenericWaitPageMixin, vanilla.View):
         if session is None:
             self.tab_unique_id = otree.common_internal.random_chars_10()
             self._socket_url = channel_utils.room_participant_path(
-                self.room_name,
-                label,
+                room_name=self.room_name,
+                participant_label=label,
                 # random chars in case the participant has multiple tabs open
-                self.tab_unique_id
+                tab_unique_id=self.tab_unique_id
             )
             return render(request,
                 "otree/WaitPageRoom.html",

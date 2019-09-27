@@ -608,7 +608,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
         PageCompletion.objects.create(
             app_name=self.subsession._meta.app_config.name,
             page_index=self._index_in_pages,
-            page_name=page_name, time_stamp=now,
+            page_name=page_name, unix_time=now,
             seconds_on_page=seconds_on_page,
             subsession_pk=self.subsession.pk,
             participant=self.participant,
@@ -1503,23 +1503,30 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             )
 
     def socket_url(self):
+        session_pk = self._session_pk
+        page_index=self._index_in_pages
+        participant_id = self._participant_pk
         if self.group_by_arrival_time:
             return channel_utils.gbat_path(
-                self._session_pk, self._index_in_pages,
-                self.player._meta.app_config.name, self.player.id
+                session_pk=session_pk,
+                page_index=page_index,
+                app_name=self.player._meta.app_config.name,
+                participant_id=participant_id,
+                player_id=self.player.id
             )
         elif self.wait_for_all_groups:
             return channel_utils.wait_page_path(
-                self._session_pk,
-                self._index_in_pages
+                session_pk=session_pk,
+                page_index=page_index,
+                participant_id=participant_id,
             )
         else:
             return channel_utils.wait_page_path(
-                self._session_pk,
-                self._index_in_pages,
-                self.group.id_in_subsession
+                session_pk=session_pk,
+                page_index=page_index,
+                participant_id=participant_id,
+                group_id_in_subsession=self.group.id_in_subsession
             )
-
 
     def _get_unvisited_ids(self):
         """

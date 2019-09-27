@@ -10,15 +10,15 @@ from channels.auth import AuthMiddlewareStack
 websocket_routes = [
     # WebSockets
     url(
-        r'^wait_page/(?P<params>[\w,]+)/$',
+        r'^wait_page/$',
         consumers.WaitPage,
     ),
     url(
-        r'^group_by_arrival_time/(?P<params>[\w,\.]+)/$',
+        r'^group_by_arrival_time/$',
         consumers.GroupByArrivalTime,
     ),
     url(
-        r'^auto_advance/(?P<params>[\w,]+)/$',
+        r'^auto_advance/$',
         consumers.DetectAutoAdvance,
     ),
     url(
@@ -30,7 +30,7 @@ websocket_routes = [
         consumers.CreateDemoSession,
     ),
     url(
-        r'^wait_for_session_in_room/(?P<params>[\w,]+)/$',
+        r'^wait_for_session_in_room/$',
         consumers.RoomParticipant,
     ),
     url(

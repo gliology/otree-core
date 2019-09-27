@@ -463,7 +463,7 @@ def export_time_spent(fp):
         'page_index',
         'app_name',
         'page_name',
-        'time_stamp',
+        'unix_time',
         'seconds_on_page',
         'subsession_pk',
         'auto_submitted',

@@ -1,5 +1,4 @@
 import inspect
-import io
 import os
 
 from otree import common_internal
@@ -13,7 +12,6 @@ from otree.api import (
     BasePlayer, BaseGroup, BaseSubsession, Currency, WaitPage, Page)
 from otree.common_internal import _get_all_configs
 from pathlib import Path
-import re
 
 
 class AppCheckHelper:

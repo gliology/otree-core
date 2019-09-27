@@ -157,20 +157,6 @@ class Participant(ModelWithVars):
             return self._start_url()
         if self._index_in_pages <= self._max_page_index:
             return self.player_lookup()['url']
-        if self.session.mturk_HITId:
-            assignment_id = self.mturk_assignment_id
-            if self.session.mturk_use_sandbox:
-                url = 'https://workersandbox.mturk.com/mturk/externalSubmit'
-            else:
-                url = "https://www.mturk.com/mturk/externalSubmit"
-            url = otree.common_internal.add_params_to_url(
-                url,
-                {
-                    'assignmentId': assignment_id,
-                    'extra_param': '1'  # required extra param?
-                }
-            )
-            return url
         return reverse('OutOfRangeNotification')
 
     def _start_url(self):
@@ -180,10 +166,6 @@ class Participant(ModelWithVars):
         return self.payoff.to_real_world_currency(
             self.session
         )
-
-    def money_to_pay(self):
-        '''deprecated'''
-        return self.payoff_plus_participation_fee()
 
     def payoff_plus_participation_fee(self):
         return self.session._get_payoff_plus_participation_fee(self.payoff)

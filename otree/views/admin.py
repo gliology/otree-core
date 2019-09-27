@@ -1,11 +1,8 @@
 import json
-import os
 import sys
 from collections import OrderedDict
 import otree
 import re
-from channels.layers import get_channel_layer
-import channels
 import otree.bots.browser
 import otree.channels.utils as channel_utils
 import otree.common_internal
@@ -16,21 +13,19 @@ from django.conf import settings
 from django.contrib import messages
 from django.urls import reverse
 from django.template.loader import select_template
-from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, \
-    Http404
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from otree import forms
 from otree.common import RealWorldCurrency
 from otree.common_internal import (
     missing_db_tables,
-    get_models_module, get_app_label_from_name, DebugTable,
-)
+    get_models_module, get_app_label_from_name, DebugTable)
 from otree.forms import widgets
 from otree.models import Participant, Session
 from otree.models_concrete import (
-    BrowserBotsLauncherSessionCode)
+    BrowserBotsLauncherSessionCode, add_time_spent_waiting)
 from otree.session import SESSION_CONFIGS_DICT, create_session, SessionConfig
-from otree.views.abstract import GenericWaitPageMixin, AdminSessionPageMixin
+from otree.views.abstract import AdminSessionPageMixin
 from django.db.models import Case, Value, When
 
 
@@ -46,8 +41,8 @@ class CreateSessionForm(forms.Form):
     session_config_choices = (
         # use '' instead of None. '' seems to immediately invalidate the choice,
         # rather than None which seems to be coerced to 'None'.
-        [('', '-----')] +
-        [(s['name'], s['display_name']) for s in session_configs])
+            [('', '-----')] +
+            [(s['name'], s['display_name']) for s in session_configs])
 
     session_config = forms.ChoiceField(
         choices=session_config_choices, required=True)
@@ -99,7 +94,7 @@ class CreateSession(vanilla.TemplateView):
     url_pattern = r"^create_session/$"
 
     def get_context_data(self, **kwargs):
-        x= super().get_context_data(
+        x = super().get_context_data(
             configs=SESSION_CONFIGS_DICT.values(),
             # splinter makes request.GET.get('mturk') == ['1\\']
             # no idea why
@@ -185,13 +180,11 @@ class SessionEditPropertiesForm(forms.ModelForm):
         model = Session
         fields = [
             'label',
-            'experimenter_name',
             'comment',
         ]
 
 
 class SessionEditProperties(AdminSessionPageMixin, vanilla.UpdateView):
-
     # required for vanilla.UpdateView
     lookup_field = 'code'
     model = Session
@@ -228,8 +221,8 @@ class SessionEditProperties(AdminSessionPageMixin, vanilla.UpdateView):
         if form.cleaned_data['participation_fee'] is not None:
             config[
                 'participation_fee'
-            # need to convert back to RealWorldCurrency, because easymoney
-            # MoneyFormField returns a decimal, not Money (not sure why)
+                # need to convert back to RealWorldCurrency, because easymoney
+                # MoneyFormField returns a decimal, not Money (not sure why)
             ] = RealWorldCurrency(participation_fee)
         if form.cleaned_data['real_world_currency_per_point'] is not None:
             config[
@@ -253,13 +246,14 @@ class SessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
             )
             mean_payment = total_payments / len(participants)
 
+        add_time_spent_waiting(participants=participants)
+
         return dict(
             participants=participants,
             total_payments=total_payments,
             mean_payment=mean_payment,
             participation_fee=session.config['participation_fee']
         )
-
 
 
 def pretty_round_name(app_label, round_number):
@@ -401,7 +395,6 @@ class SessionMonitor(AdminSessionPageMixin, vanilla.TemplateView):
             return self.render_to_response(context)
 
 
-
 class SessionDescription(AdminSessionPageMixin, vanilla.TemplateView):
 
     def vars_for_template(self):
@@ -464,7 +457,6 @@ class AdminReport(AdminSessionPageMixin, vanilla.TemplateView):
         return self.render_to_response(context)
 
     def get_context_data(self, **kwargs):
-
         cleaned_data = kwargs['form'].cleaned_data
 
         models_module = get_models_module(cleaned_data['app_name'])
@@ -472,7 +464,6 @@ class AdminReport(AdminSessionPageMixin, vanilla.TemplateView):
             session=self.session,
             round_number=cleaned_data['round_number'],
         )
-
 
         vars_for_admin_report = subsession.vars_for_admin_report() or {}
         self.debug_tables = [
@@ -564,7 +555,6 @@ class ServerCheck(vanilla.TemplateView):
 
 
 class CreateBrowserBotsSession(vanilla.View):
-
     url_pattern = r"^create_browser_bots_session/$"
 
     def get(self, request, *args, **kwargs):
@@ -602,7 +592,6 @@ class CreateBrowserBotsSession(vanilla.View):
 
 
 class CloseBrowserBotsSession(vanilla.View):
-
     url_pattern = r"^close_browser_bots_session/$"
 
     def post(self, request):
@@ -611,7 +600,6 @@ class CloseBrowserBotsSession(vanilla.View):
 
 
 class AdvanceSession(vanilla.View):
-
     url_pattern = r'^AdvanceSession/(?P<session_code>[a-z0-9]+)/$'
 
     def post(self, request, session_code):
@@ -645,7 +633,6 @@ class Sessions(vanilla.ListView):
 
 
 class ToggleArchivedSessions(vanilla.View):
-
     url_pattern = r'^ToggleArchivedSessions/'
 
     def post(self, request):
@@ -653,16 +640,15 @@ class ToggleArchivedSessions(vanilla.View):
 
         (Session.objects.filter(code__in=code_list)
             .update(archived=Case(
-                When(archived=True, then=Value(False)),
-                default=Value(True))
-            )
+            When(archived=True, then=Value(False)),
+            default=Value(True))
+        )
         )
 
         return redirect('Sessions')
 
 
 class DeleteSessions(vanilla.View):
-
     url_pattern = r'^DeleteSessions/'
 
     def post(self, request):

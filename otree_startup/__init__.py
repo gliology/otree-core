@@ -50,7 +50,6 @@ startapp
 startproject
 test
 unzip
-update_my_code
 zip
 '''
 
@@ -277,7 +276,7 @@ def check_update_needed(requirements_path: Path) -> Optional[str]:
                 # all we care about is otree.
                 pass
             except pkg.VersionConflict as exc:
-                return f'{exc.report()}. Enter: pip3 install "{exc.req}"'
+                return f'{exc.report()}. Enter: pip3 install -r requirements_base.txt'
 
 
 def highlight(string):

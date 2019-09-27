@@ -5,21 +5,15 @@ import logging
 import random
 import re
 import string
-import sys
 import threading
-import uuid
 from collections import OrderedDict
 from importlib import import_module
-from io import StringIO
-from channels.layers import get_channel_layer
-import otree.channels.utils as channel_utils
+
 import six
 from django.apps import apps
 from django.conf import settings
 from django.db import connection
 from django.db import transaction
-from django.http import HttpResponseRedirect
-from django.urls import reverse
 from django.utils.safestring import mark_safe
 from huey.contrib.djhuey import HUEY
 from six.moves import urllib
@@ -28,6 +22,7 @@ import model_utils
 
 
 # set to False if using runserver
+
 USE_REDIS = bool(os.environ.get('OTREE_USE_REDIS', ''))
 
 # these locks need to be here rather than views.abstract or views.participant
@@ -322,3 +317,5 @@ def add_field_tracker(cls):
     # need to call this, because class_prepared has already been fired
     # (it is currently executing)
     _ft.finalize_class(sender=cls)
+
+
