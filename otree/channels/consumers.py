@@ -33,6 +33,7 @@ from django.conf import settings
 from django.shortcuts import reverse
 from otree.views.admin import CreateSessionForm
 from otree.session import SESSION_CONFIGS_DICT
+from channels.db import database_sync_to_async
 
 logger = logging.getLogger(__name__)
 
@@ -311,10 +312,11 @@ class BaseCreateSession(_OTreeAsyncJsonWebsocketConsumer):
         raise NotImplemented
 
     async def create_session_then_send_start_link(self, use_browser_bots, **session_kwargs):
+
         try:
-            session = await sync_to_async(otree.session.create_session)(**session_kwargs)
+            session = await database_sync_to_async(otree.session.create_session)(**session_kwargs)
             if use_browser_bots:
-                await sync_to_async(otree.bots.browser.initialize_session)(
+                await database_sync_to_async(otree.bots.browser.initialize_session)(
                     session_pk=session.pk,
                     case_number=None
                 )
@@ -461,27 +463,31 @@ class CreateSession(BaseCreateSession):
         await self.send_json(event)
 
 
-class RoomAdmin(_OTreeJsonWebsocketConsumer):
+class RoomAdmin(_OTreeAsyncJsonWebsocketConsumer):
 
     unrestricted_when = None
 
     def group_name(self, room):
         return channel_utils.room_admin_group_name(room)
 
-    def post_connect(self, room):
+    def get_list(self, **kwargs):
+
+        # make it JSON serializable
+        return list(ParticipantRoomVisit.objects.filter(
+            **kwargs
+        ).values_list('participant_label', flat=True))
+
+    async def post_connect(self, room):
         room_object = ROOM_DICT[room]
 
         now = time.time()
         stale_threshold = now - 15
-        present_list = ParticipantRoomVisit.objects.filter(
+        present_list = await database_sync_to_async(self.get_list)(
             room_name=room_object.name,
             last_updated__gte=stale_threshold,
-        ).values_list('participant_label', flat=True)
+        )
 
-        # make it JSON serializable
-        present_list = list(present_list)
-
-        self.send_json({
+        await self.send_json({
             'status': 'load_participant_lists',
             'participants_present': present_list,
         })
@@ -489,17 +495,22 @@ class RoomAdmin(_OTreeJsonWebsocketConsumer):
         # prune very old visits -- don't want a resource leak
         # because sometimes not getting deleted on WebSocket disconnect
         very_stale_threshold = now - 10 * 60
-        ParticipantRoomVisit.objects.filter(
+        await database_sync_to_async(self.delete_old_visits)(
             room_name=room_object.name,
             last_updated__lt=very_stale_threshold,
+        )
+
+    def delete_old_visits(self, **kwargs):
+        ParticipantRoomVisit.objects.filter(
+            **kwargs
         ).delete()
 
-    def roomadmin_update(self, event):
+    async def roomadmin_update(self, event):
         del event['type']
-        self.send_json(event)
+        await self.send_json(event)
 
 
-class RoomParticipant(_OTreeJsonWebsocketConsumer):
+class RoomParticipant(_OTreeAsyncJsonWebsocketConsumer):
 
     unrestricted_when = ALWAYS_UNRESTRICTED
 
@@ -511,18 +522,21 @@ class RoomParticipant(_OTreeJsonWebsocketConsumer):
     def group_name(self, room_name, participant_label, tab_unique_id):
         return channel_utils.room_participants_group_name(room_name)
 
-    def post_connect(self, room_name, participant_label, tab_unique_id):
+    def create_participant_room_visit(self, **kwargs):
+        ParticipantRoomVisit.objects.create(**kwargs)
+
+    async def post_connect(self, room_name, participant_label, tab_unique_id):
         if room_name in ROOM_DICT:
             room = ROOM_DICT[room_name]
         else:
             # doesn't get shown because not yet localized
-            self.send_json({'error': 'Invalid room name "{}".'.format(room_name)})
+            await self.send_json({'error': 'Invalid room name "{}".'.format(room_name)})
             return
-        if room.has_session():
-            self.room_session_ready()
+        if await database_sync_to_async(room.has_session)():
+            await self.room_session_ready()
         else:
             try:
-                ParticipantRoomVisit.objects.create(
+                await database_sync_to_async(self.create_participant_room_visit)(
                     participant_label=participant_label,
                     room_name=room_name,
                     tab_unique_id=tab_unique_id,
@@ -537,8 +551,8 @@ class RoomParticipant(_OTreeJsonWebsocketConsumer):
                 # 2017-09-17: I saw the integrityerror on macOS.
                 # previously, we logged this, but i see no need to do that.
                 pass
-            channel_utils.sync_group_send_wrapper(
-                type='roomadmin.update',
+            await channel_utils.group_send_wrapper(
+                type='roomadmin_update',
                 group=channel_utils.room_admin_group_name(room_name),
                 event={
                     'status': 'add_participant',
@@ -546,39 +560,49 @@ class RoomParticipant(_OTreeJsonWebsocketConsumer):
                 }
             )
 
-    def pre_disconnect(self, room_name, participant_label, tab_unique_id):
+
+    def delete_visit(self, **kwargs):
+        ParticipantRoomVisit.objects.filter(**kwargs).delete()
+
+    def visit_exists(self, **kwargs):
+        return ParticipantRoomVisit.objects.filter(**kwargs).exists()
+
+    async def pre_disconnect(self, room_name, participant_label, tab_unique_id):
+
         if room_name in ROOM_DICT:
             room = ROOM_DICT[room_name]
         else:
             # doesn't get shown because not yet localized
-            self.send_json({'error': 'Invalid room name "{}".'.format(room_name)})
+            await self.send_json({'error': 'Invalid room name "{}".'.format(room_name)})
             return
 
         # should use filter instead of get,
         # because if the DB is recreated,
         # the record could already be deleted
-        ParticipantRoomVisit.objects.filter(
+        await database_sync_to_async(self.delete_visit)(
             participant_label=participant_label,
             room_name=room_name,
-            tab_unique_id=tab_unique_id).delete()
+            tab_unique_id=tab_unique_id)
 
         event = {
             'status': 'remove_participant',
         }
         if room.has_participant_labels():
-            if ParticipantRoomVisit.objects.filter(
+            if await database_sync_to_async(self.visit_exists)(
                     participant_label=participant_label,
                     room_name=room_name
-            ).exists():
+            ):
                 return
             # it's ok if there is a race condition --
             # in JS removing a participant is idempotent
             event['participant'] = participant_label
         admin_group = channel_utils.room_admin_group_name(room_name)
-        channel_utils.sync_group_send_wrapper(group=admin_group, type='roomadmin_update', event=event)
 
-    def room_session_ready(self, event=None):
-        self.send_json({'status': 'session_ready'})
+        await channel_utils.group_send_wrapper(group=admin_group, type='roomadmin_update', event=event)
+
+
+    async def room_session_ready(self, event=None):
+        await self.send_json({'status': 'session_ready'})
 
 
 class BrowserBotsLauncher(_OTreeJsonWebsocketConsumer):
@@ -611,7 +635,7 @@ class BrowserBot(_OTreeJsonWebsocketConsumer):
         self.send_json({'status': 'session_ready'})
 
 
-class ChatConsumer(_OTreeJsonWebsocketConsumer):
+class ChatConsumer(_OTreeAsyncJsonWebsocketConsumer):
 
     unrestricted_when = ALWAYS_UNRESTRICTED
 
@@ -633,18 +657,22 @@ class ChatConsumer(_OTreeJsonWebsocketConsumer):
     def group_name(self, channel, participant_id):
         return get_chat_group(channel)
 
-    def post_connect(self, channel, participant_id):
-
-        history = ChatMessage.objects.filter(
+    def _get_history(self, channel):
+        return list(ChatMessage.objects.filter(
             channel=channel).order_by('timestamp').values(
             'nickname', 'body', 'participant_id'
-        )
+        ))
+
+    async def post_connect(self, channel, participant_id):
+
+        history = await database_sync_to_async(self._get_history)(channel=channel)
 
         # Convert ValuesQuerySet to list
         # but is it ok to send a list (not a dict) as json?
-        self.send_json(list(history))
+        await self.send_json(history)
 
-    def post_receive_json(self, content, channel, participant_id):
+    async def post_receive_json(self, content, channel, participant_id):
+
         # in the Channels docs, the example has a separate msg_consumer
         # channel, so this can be done asynchronously.
         # but i think the perf is probably good enough.
@@ -660,21 +688,23 @@ class ChatConsumer(_OTreeJsonWebsocketConsumer):
         )
 
         [group] = self.groups
-        channel_utils.sync_group_send_wrapper(
+        await channel_utils.group_send_wrapper(
             type='chat_sendmessages', group=group, event={'chats': [chat_message]}
         )
 
-        ChatMessage.objects.create(
+        await database_sync_to_async(self._create_message)(
             participant_id=participant_id,
             channel=channel,
             body=body,
             nickname=nickname
         )
 
+    def _create_message(self, **kwargs):
+        ChatMessage.objects.create(**kwargs)
 
-    def chat_sendmessages(self, event):
+    async def chat_sendmessages(self, event):
         chats = event['chats']
-        self.send_json(chats)
+        await self.send_json(chats)
 
 
 class ExportData(_OTreeJsonWebsocketConsumer):
