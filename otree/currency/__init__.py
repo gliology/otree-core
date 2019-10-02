@@ -4,10 +4,12 @@ from six import __init__
 
 _original_number_format = numberformat.format
 
+
 def otree_number_format(number, *args, **kwargs):
     if isinstance(number, BaseCurrency):
         return six.text_type(number)
     return _original_number_format(number, *args, **kwargs)
+
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -57,13 +59,16 @@ def _prepare_operand(self, other):
 
 def _make_binary_operator(name):
     method = getattr(Decimal, name, None)
+
     def binary_function(self, other, context=None):
         other = _prepare_operand(self, other)
         return self.__class__(method(self, other))
+
     return binary_function
 
 
 # Data class
+
 
 class BaseCurrency(Decimal):
 
@@ -112,8 +117,8 @@ class BaseCurrency(Decimal):
             lc, LO = LANGUAGE_CODE.split('-')
         else:
             lc, LO = LANGUAGE_CODE, ''
-        return format_currency(number, lc=lc, LO=LO,
-            CUR=settings.REAL_WORLD_CURRENCY_CODE
+        return format_currency(
+            number, lc=lc, LO=LO, CUR=settings.REAL_WORLD_CURRENCY_CODE
         )
 
     def __format__(self, format_spec):
@@ -172,8 +177,11 @@ class BaseCurrency(Decimal):
     __rpow__ = _make_binary_operator('__rpow__')
 
     def deconstruct(self):
-        return '{}.{}'.format(self.__module__, self.__class__.__name__), \
-               [Decimal.__str__(self)], {}
+        return (
+            '{}.{}'.format(self.__module__, self.__class__.__name__),
+            [Decimal.__str__(self)],
+            {},
+        )
 
     @classmethod
     def get_num_decimal_places(cls):
@@ -181,7 +189,6 @@ class BaseCurrency(Decimal):
 
 
 class Currency(BaseCurrency):
-
     @classmethod
     def get_num_decimal_places(cls):
         if settings.USE_POINTS:
@@ -192,8 +199,8 @@ class Currency(BaseCurrency):
     def to_real_world_currency(self, session):
         if settings.USE_POINTS:
             return RealWorldCurrency(
-                float(self) *
-                session.config['real_world_currency_per_point'])
+                float(self) * session.config['real_world_currency_per_point']
+            )
         else:
             return self
 
@@ -203,8 +210,7 @@ class Currency(BaseCurrency):
             formatted_number = formats.number_format(number)
 
             if hasattr(settings, 'POINTS_CUSTOM_NAME'):
-                return '{} {}'.format(
-                    formatted_number, settings.POINTS_CUSTOM_NAME)
+                return '{} {}'.format(formatted_number, settings.POINTS_CUSTOM_NAME)
 
             # Translators: display a number of points,
             # like "1 point", "2 points", ...
@@ -215,8 +221,7 @@ class Currency(BaseCurrency):
             # and msgstr[1] is plural
             # the {} represents the number;
             # don't forget to include it in your translation
-            return ungettext('{} point', '{} points', number).format(
-                formatted_number)
+            return ungettext('{} point', '{} points', number).format(formatted_number)
         else:
             return super()._format_currency(number)
 
@@ -231,7 +236,9 @@ class RealWorldCurrency(BaseCurrency):
     def get_num_decimal_places(cls):
         return settings.REAL_WORLD_CURRENCY_DECIMAL_PLACES
 
+
 # Utils
+
 
 def to_dec(value):
     return Decimal(value) if isinstance(value, Currency) else value

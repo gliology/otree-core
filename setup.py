@@ -8,6 +8,7 @@ from pathlib import Path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 import otree
+
 version = otree.__version__
 
 with open('README.rst', encoding='utf-8') as f:
@@ -28,7 +29,7 @@ if sys.argv[-1] == 'publish':
         "python setup.py sdist",
         "twine upload dist/*",
         f'git tag -a {version} -m "version {version}"',
-        "git push --tags"
+        "git push --tags",
     ]:
         sys.stdout.write(cmd + '\n')
         exit_code = os.system(cmd)
@@ -85,13 +86,7 @@ setup(
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     ],
-    entry_points={
-        'console_scripts': [
-            'otree=otree_startup:execute_from_command_line',
-        ],
-    },
+    entry_points={'console_scripts': ['otree=otree_startup:execute_from_command_line']},
     zip_safe=False,
-    extras_require={
-        'mturk': required_mturk
-    }
+    extras_require={'mturk': required_mturk},
 )

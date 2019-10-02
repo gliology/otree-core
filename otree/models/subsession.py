@@ -1,7 +1,6 @@
 from django.db.models import Prefetch
 from otree.db import models
-from otree.common_internal import (
-    get_models_module, in_round, in_rounds)
+from otree.common_internal import get_models_module, in_round, in_rounds
 from otree import matching
 import copy
 from otree.common_internal import has_group_by_arrival_time, add_field_tracker
@@ -14,6 +13,7 @@ class GroupMatrixError(ValueError):
 class RoundMismatchError(GroupMatrixError):
     pass
 
+
 class BaseSubsession(models.Model):
     """Base class for all Subsessions.
     """
@@ -24,7 +24,9 @@ class BaseSubsession(models.Model):
         index_together = ['session', 'round_number']
 
     session = models.ForeignKey(
-        'otree.Session', related_name='%(app_label)s_%(class)s', null=True,
+        'otree.Session',
+        related_name='%(app_label)s_%(class)s',
+        null=True,
         on_delete=models.CASCADE,
     )
 
@@ -33,19 +35,17 @@ class BaseSubsession(models.Model):
         doc='''If this subsession is repeated (i.e. has multiple rounds), this
         field stores the position of this subsession, among subsessions
         in the same app.
-        '''
+        ''',
     )
 
     def in_round(self, round_number):
-        return in_round(type(self), round_number,
-            session=self.session,
-        )
+        return in_round(type(self), round_number, session=self.session)
 
     def in_rounds(self, first, last):
         return in_rounds(type(self), first, last, session=self.session)
 
     def in_previous_rounds(self):
-        return self.in_rounds(1, self.round_number-1)
+        return self.in_rounds(1, self.round_number - 1)
 
     def in_all_rounds(self):
         return self.in_previous_rounds() + [self]
@@ -63,10 +63,14 @@ class BaseSubsession(models.Model):
         players_prefetch = Prefetch(
             'player_set',
             queryset=self._PlayerClass().objects.order_by('id_in_group'),
-            to_attr='_ordered_players')
-        return [group._ordered_players
-                for group in self.group_set.order_by('id_in_subsession')
-                                 .prefetch_related(players_prefetch)]
+            to_attr='_ordered_players',
+        )
+        return [
+            group._ordered_players
+            for group in self.group_set.order_by('id_in_subsession').prefetch_related(
+                players_prefetch
+            )
+        ]
 
     def set_group_matrix(self, matrix):
         """
@@ -77,9 +81,7 @@ class BaseSubsession(models.Model):
         try:
             players_flat = [p for g in matrix for p in g]
         except TypeError:
-            raise GroupMatrixError(
-                'Group matrix must be a list of lists.'
-            ) from None
+            raise GroupMatrixError('Group matrix must be a list of lists.') from None
         try:
             matrix_pks = sorted(p.pk for p in players_flat)
         except AttributeError:
@@ -106,19 +108,19 @@ class BaseSubsession(models.Model):
                 ) from None
         else:
             existing_pks = list(
-                self.player_set.values_list(
-                    'pk', flat=True
-                ).order_by('pk'))
+                self.player_set.values_list('pk', flat=True).order_by('pk')
+            )
             if matrix_pks != existing_pks:
                 wrong_round_numbers = [
-                    p.round_number for p in players_flat
-                    if p.round_number != self.round_number]
+                    p.round_number
+                    for p in players_flat
+                    if p.round_number != self.round_number
+                ]
                 if wrong_round_numbers:
                     raise GroupMatrixError(
                         'You are setting the groups for round {}, '
                         'but the matrix contains players from round {}.'.format(
-                            self.round_number,
-                            wrong_round_numbers[0]
+                            self.round_number, wrong_round_numbers[0]
                         )
                     )
                 raise GroupMatrixError(
@@ -136,8 +138,11 @@ class BaseSubsession(models.Model):
         GroupClass = self._GroupClass()
         for i, row in enumerate(matrix, start=1):
             group = GroupClass.objects.create(
-                subsession=self, id_in_subsession=i,
-                session=self.session, round_number=self.round_number)
+                subsession=self,
+                id_in_subsession=i,
+                session=self.session,
+                round_number=self.round_number,
+            )
 
             group.set_players(row)
 
@@ -150,9 +155,8 @@ class BaseSubsession(models.Model):
             ).prefetch_related(
                 Prefetch(
                     'player_set',
-                    queryset=self._PlayerClass().objects.order_by(
-                        'id_in_group'),
-                    to_attr='_ordered_players'
+                    queryset=self._PlayerClass().objects.order_by('id_in_group'),
+                    to_attr='_ordered_players',
                 )
             )
         ]
@@ -197,7 +201,6 @@ class BaseSubsession(models.Model):
             group.set_players(row)
     '''
 
-
     def set_groups(self, matrix):
         '''renamed this to set_group_matrix, but keeping in for compat'''
         return self.set_group_matrix(matrix)
@@ -216,20 +219,14 @@ class BaseSubsession(models.Model):
     def _has_group_by_arrival_time(cls):
         return has_group_by_arrival_time(cls._meta.app_config.name)
 
-
     def group_randomly(self, *, fixed_id_in_group=False):
         group_matrix = self.get_group_matrix()
-        group_matrix = matching.randomly(
-            group_matrix,
-            fixed_id_in_group)
+        group_matrix = matching.randomly(group_matrix, fixed_id_in_group)
         self.set_group_matrix(group_matrix)
 
     def _group_by_rank(self, ranked_list):
         # FIXME: delete this
-        group_matrix = matching.by_rank(
-            ranked_list,
-            self._Constants.players_per_group
-        )
+        group_matrix = matching.by_rank(ranked_list, self._Constants.players_per_group)
         self.set_group_matrix(group_matrix)
 
     def before_session_starts(self):

@@ -31,18 +31,9 @@ class Command(BaseCommand):
         manager = HonchoManager()
 
         # if I change these, I need to modify the ServerCheck also
+        manager.add_process('botworker', 'otree botworker', quiet=False, env=env_copy)
         manager.add_process(
-            'botworker',
-            'otree botworker',
-            quiet=False,
-            env=env_copy,
-        )
-        manager.add_process(
-            'timeoutworkeronly',
-            'otree timeoutworkeronly',
-            quiet=False,
-            env=env_copy,
+            'timeoutworkeronly', 'otree timeoutworkeronly', quiet=False, env=env_copy
         )
 
         return manager
-

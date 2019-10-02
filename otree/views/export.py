@@ -45,8 +45,7 @@ class ExportAppDocs(vanilla.View):
 
     def _doc_file_name(self, app_name):
         return '{} - documentation ({}).txt'.format(
-            app_name,
-            datetime.date.today().isoformat()
+            app_name, datetime.date.today().isoformat()
         )
 
     def get(self, request, app_name):
@@ -60,19 +59,19 @@ class ExportAppDocs(vanilla.View):
 
 def get_export_response(request, file_prefix):
     if bool(request.GET.get('xlsx')):
-        content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        content_type = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
         file_extension = 'xlsx'
     else:
         content_type = 'text/csv'
         file_extension = 'csv'
-    response = HttpResponse(
-        content_type=content_type)
+    response = HttpResponse(content_type=content_type)
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(
         '{} (accessed {}).{}'.format(
-            file_prefix,
-            datetime.date.today().isoformat(),
-            file_extension
-        ))
+            file_prefix, datetime.date.today().isoformat(), file_extension
+        )
+    )
     return response, file_extension
 
 
@@ -91,8 +90,7 @@ class ExportWide(vanilla.View):
     url_pattern = r"^ExportWide/$"
 
     def get(self, request):
-        response, file_extension = get_export_response(
-            request, 'All apps - wide')
+        response, file_extension = get_export_response(request, 'All apps - wide')
         otree.export.export_wide(response, file_extension)
         return response
 
@@ -104,9 +102,7 @@ class ExportTimeSpent(vanilla.View):
     def get(self, request):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}"'.format(
-            'TimeSpent (accessed {}).csv'.format(
-                datetime.date.today().isoformat()
-            )
+            'TimeSpent (accessed {}).csv'.format(datetime.date.today().isoformat())
         )
         otree.export.export_time_spent(response)
         return response
@@ -120,9 +116,7 @@ class ExportChat(vanilla.View):
 
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}"'.format(
-            'Chat messages (accessed {}).csv'.format(
-                datetime.date.today().isoformat()
-            )
+            'Chat messages (accessed {}).csv'.format(datetime.date.today().isoformat())
         )
 
         column_names = [

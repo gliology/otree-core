@@ -84,9 +84,7 @@ class ParticipantLockModel(models.Model):
     class Meta:
         app_label = "otree"
 
-    participant_code = models.CharField(
-        max_length=16, unique=True
-    )
+    participant_code = models.CharField(max_length=16, unique=True)
 
     locked = models.BooleanField(default=False)
 
@@ -110,7 +108,6 @@ class RoomToSession(models.Model):
 
     room_name = models.CharField(unique=True, max_length=255)
     session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
-
 
 
 class ParticipantRoomVisit(models.Model):
@@ -141,8 +138,7 @@ class ChatMessage(models.Model):
     channel = models.CharField(max_length=255)
     # related_name necessary to disambiguate with otreechat add on
     participant = models.ForeignKey(
-        'otree.Participant', related_name='chat_messages_core',
-        on_delete=models.CASCADE
+        'otree.Participant', related_name='chat_messages_core', on_delete=models.CASCADE
     )
     nickname = models.CharField(max_length=255)
 
@@ -153,18 +149,17 @@ class ChatMessage(models.Model):
 
 
 def add_time_spent_waiting(participants):
-    session_passages_qs = (
-        WaitPagePassage.objects
-            .filter(participant__in=participants)
-            .order_by('id')
-    )
+    session_passages_qs = WaitPagePassage.objects.filter(
+        participant__in=participants
+    ).order_by('id')
     _add_time_spent_waiting_inner(
-        participants=participants,
-        session_passages_qs=session_passages_qs
+        participants=participants, session_passages_qs=session_passages_qs
     )
 
 
-def _add_time_spent_waiting_inner(*, participants, session_passages_qs: Iterable[WaitPagePassage]):
+def _add_time_spent_waiting_inner(
+    *, participants, session_passages_qs: Iterable[WaitPagePassage]
+):
     '''adds the attribute to each participant object so it can be shown in the template'''
 
     session_passages = defaultdict(list)

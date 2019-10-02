@@ -50,7 +50,6 @@ startapp
 startproject
 test
 unzip
-update_my_code
 zip
 '''
 
@@ -116,9 +115,12 @@ def execute_from_command_line(*args, **kwargs):
     # INSTALLED_APPS, so those management commands are available.
     if subcommand in [
         'startproject',
-        'version', '--version',
-        'compilemessages', 'makemessages',
-        'unzip', 'zip',
+        'version',
+        '--version',
+        'compilemessages',
+        'makemessages',
+        'unzip',
+        'zip',
     ]:
         django_settings.configure(**get_default_settings({}))
     else:
@@ -138,7 +140,9 @@ def execute_from_command_line(*args, **kwargs):
                 )
                 logger.warning(msg)
                 return
-        warning = check_update_needed(Path('.').resolve().joinpath('requirements_base.txt'))
+        warning = check_update_needed(
+            Path('.').resolve().joinpath('requirements_base.txt')
+        )
         if warning:
             logger.warning(warning)
 
@@ -198,7 +202,8 @@ def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings'):
         raise ImportSettingsError
     user_settings_dict = {}
     user_settings_dict['BASE_DIR'] = os.path.dirname(
-        os.path.abspath(user_settings_module.__file__))
+        os.path.abspath(user_settings_module.__file__)
+    )
     # this is how Django reads settings from a settings module
     for setting_name in dir(user_settings_module):
         if setting_name.isupper():
@@ -216,6 +221,7 @@ def do_django_setup():
         # to differentiate between the app being in SESSION_CONFIGS vs
         # EXTENSION_APPS vs a regular import statement.
         import colorama
+
         colorama.init(autoreset=True)
         print_colored_traceback_and_exit(exc)
 
@@ -231,7 +237,8 @@ def fetch_command(subcommand: str) -> BaseCommand:
     """
     if subcommand in ['startapp', 'startproject', 'unzip', 'zip']:
         command_module = import_module(
-            'otree.management.commands.{}'.format(subcommand))
+            'otree.management.commands.{}'.format(subcommand)
+        )
         return command_module.Command()
 
     commands = get_commands()
@@ -239,8 +246,7 @@ def fetch_command(subcommand: str) -> BaseCommand:
         app_name = commands[subcommand]
     except KeyError:
         sys.stderr.write(
-            "Unknown command: %r\nType 'otree help' for usage.\n"
-            % subcommand
+            "Unknown command: %r\nType 'otree help' for usage.\n" % subcommand
         )
         sys.exit(1)
     if isinstance(app_name, BaseCommand):
@@ -259,7 +265,8 @@ def check_update_needed(requirements_path: Path) -> Optional[str]:
     try:
         # ignore all weird things like "-r foo.txt"
         req_lines = [
-            r for r in requirements_path.read_text('utf8').split('\n')
+            r
+            for r in requirements_path.read_text('utf8').split('\n')
             if r.strip().startswith('otree')
         ]
     except FileNotFoundError:
@@ -277,11 +284,14 @@ def check_update_needed(requirements_path: Path) -> Optional[str]:
                 # all we care about is otree.
                 pass
             except pkg.VersionConflict as exc:
+                # can't say to install requirements_base.txt because if they are using runzip,
+                # that file doesn't exist.
                 return f'{exc.report()}. Enter: pip3 install "{exc.req}"'
 
 
 def highlight(string):
     from termcolor import colored
+
     return colored(string, 'white', 'on_blue')
 
 

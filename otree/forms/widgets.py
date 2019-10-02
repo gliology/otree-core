@@ -4,7 +4,7 @@ from django.conf import settings
 from django.utils.encoding import force_text
 from django.utils.translation import ugettext_lazy
 from otree.currency import Currency, RealWorldCurrency
-from django.forms.widgets import * # noqa
+from django.forms.widgets import *  # noqa
 from django import forms
 
 
@@ -28,14 +28,15 @@ class _BaseMoneyInput(forms.NumberInput):
 
 class _RealWorldCurrencyInput(_BaseMoneyInput):
     '''it's a class attribute so take care with patching it in tests'''
+
     CURRENCY_SYMBOL = CURRENCY_SYMBOLS.get(
-        settings.REAL_WORLD_CURRENCY_CODE,
-        settings.REAL_WORLD_CURRENCY_CODE,
+        settings.REAL_WORLD_CURRENCY_CODE, settings.REAL_WORLD_CURRENCY_CODE
     )
 
 
 class _CurrencyInput(_RealWorldCurrencyInput):
     '''it's a class attribute so take care with patching it in tests'''
+
     if settings.USE_POINTS:
         if hasattr(settings, 'POINTS_CUSTOM_NAME'):
             CURRENCY_SYMBOL = settings.POINTS_CUSTOM_NAME
@@ -74,6 +75,8 @@ class Slider(forms.NumberInput):
         context['show_value'] = self.show_value
         return context
 
+
 class SliderInput(Slider):
     '''old name for Slider widget'''
+
     pass

@@ -1,4 +1,3 @@
-
 from django.urls import reverse
 
 import otree.common_internal
@@ -9,6 +8,7 @@ from otree.models_concrete import ParticipantToPlayerLookup
 from .varsmixin import ModelWithVars
 import model_utils
 
+
 class Participant(ModelWithVars):
     _ft = model_utils.FieldTracker()
 
@@ -17,16 +17,16 @@ class Participant(ModelWithVars):
         app_label = "otree"
         index_together = ['session', 'mturk_worker_id', 'mturk_assignment_id']
 
-    session = models.ForeignKey(
-        'otree.Session', on_delete=models.CASCADE
-    )
+    session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
 
     label = models.CharField(
-        max_length=50, null=True, doc=(
+        max_length=50,
+        null=True,
+        doc=(
             "Label assigned by the experimenter. Can be assigned by passing a "
             "GET param called 'participant_label' to the participant's start "
             "URL"
-        )
+        ),
     )
 
     id_in_session = models.PositiveIntegerField(null=True)
@@ -35,8 +35,7 @@ class Participant(ModelWithVars):
 
     time_started = models.DateTimeField(null=True)
     user_type_in_url = constants_internal.user_type_participant
-    mturk_assignment_id = models.CharField(
-        max_length=50, null=True)
+    mturk_assignment_id = models.CharField(max_length=50, null=True)
     mturk_worker_id = models.CharField(max_length=50, null=True)
 
     _index_in_subsessions = models.PositiveIntegerField(default=0, null=True)
@@ -61,13 +60,11 @@ class Participant(ModelWithVars):
             "would like to merge this dataset with those from another "
             "subsession in the same session, you should join on this field, "
             "which will be the same across subsessions."
-        )
+        ),
     )
 
-
     visited = models.BooleanField(
-        default=False, db_index=True,
-        doc="""Whether this user's start URL was opened"""
+        default=False, db_index=True, doc="""Whether this user's start URL was opened"""
     )
 
     ip_address = models.GenericIPAddressField(null=True)
@@ -81,15 +78,13 @@ class Participant(ModelWithVars):
 
     # these are both for the admin
     # In the changelist, simply call these "page" and "app"
-    _current_page_name = models.CharField(max_length=200, null=True,
-                                          verbose_name='page')
-    _current_app_name = models.CharField(max_length=200, null=True,
-                                         verbose_name='app')
+    _current_page_name = models.CharField(
+        max_length=200, null=True, verbose_name='page'
+    )
+    _current_app_name = models.CharField(max_length=200, null=True, verbose_name='app')
 
     # only to be displayed in the admin participants changelist
-    _round_number = models.PositiveIntegerField(
-        null=True
-    )
+    _round_number = models.PositiveIntegerField(null=True)
 
     _current_form_page_url = models.URLField()
 
@@ -116,8 +111,7 @@ class Participant(ModelWithVars):
             # to log2(n). similar to the way arraylists grow.
             num_extra_lookups = len(self._player_lookups) + 1
             qs = ParticipantToPlayerLookup.objects.filter(
-                participant=self,
-                page_index__range=(index, index+num_extra_lookups)
+                participant=self, page_index__range=(index, index + num_extra_lookups)
             ).values()
             for player_lookup in qs:
                 self._player_lookups[player_lookup['page_index']] = player_lookup
@@ -136,9 +130,9 @@ class Participant(ModelWithVars):
         app_sequence = self.session.config['app_sequence']
         for app in app_sequence:
             models_module = otree.common_internal.get_models_module(app)
-            players = models_module.Player.objects.filter(
-                participant=self
-            ).order_by('round_number')
+            players = models_module.Player.objects.filter(participant=self).order_by(
+                'round_number'
+            )
             lst.extend(list(players))
         return lst
 
@@ -163,9 +157,7 @@ class Participant(ModelWithVars):
         return otree.common_internal.participant_start_url(self.code)
 
     def payoff_in_real_world_currency(self):
-        return self.payoff.to_real_world_currency(
-            self.session
-        )
+        return self.payoff.to_real_world_currency(self.session)
 
     def payoff_plus_participation_fee(self):
         return self.session._get_payoff_plus_participation_fee(self.payoff)

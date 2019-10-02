@@ -6,8 +6,6 @@ import io
 from otree.templatetags.otree import NEXT_BUTTON_TEMPLATE_PATH
 
 
-
-
 class TemplateCheckNextButton(object):
     def __init__(self, root):
         self.root = root
@@ -18,7 +16,10 @@ class TemplateCheckNextButton(object):
             if isinstance(node, (ExtendsNode, BlockNode)):
                 new_child_nodes = self.get_next_button_nodes(node)
                 nodes.extend(new_child_nodes)
-            elif isinstance(node, InclusionNode) and node.filename == NEXT_BUTTON_TEMPLATE_PATH:
+            elif (
+                isinstance(node, InclusionNode)
+                and node.filename == NEXT_BUTTON_TEMPLATE_PATH
+            ):
                 nodes.append(node)
         return nodes
 
@@ -43,4 +44,3 @@ def has_valid_encoding(file_name):
     except UnicodeDecodeError:
         return False
     return True
-

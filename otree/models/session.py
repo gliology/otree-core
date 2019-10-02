@@ -12,8 +12,10 @@ from otree.channels.utils import auto_advance_group
 from otree import constants_internal
 import otree.common_internal
 from otree.common_internal import (
-    random_chars_8, random_chars_10, get_admin_secret_code,
-    get_app_label_from_name
+    random_chars_8,
+    random_chars_10,
+    get_admin_secret_code,
+    get_app_label_from_name,
 )
 import time
 
@@ -31,6 +33,7 @@ ADMIN_SECRET_CODE = get_admin_secret_code()
 
 import model_utils
 
+
 class Session(ModelWithVars):
     _ft = model_utils.FieldTracker()
 
@@ -44,12 +47,12 @@ class Session(ModelWithVars):
 
     # label of this session instance
     label = models.CharField(
-        max_length=300, null=True, blank=True,
-        help_text='For internal record-keeping')
+        max_length=300, null=True, blank=True, help_text='For internal record-keeping'
+    )
 
     experimenter_name = models.CharField(
-        max_length=300, null=True, blank=True,
-        help_text='For internal record-keeping')
+        max_length=300, null=True, blank=True, help_text='For internal record-keeping'
+    )
 
     code = models.CharField(
         default=random_chars_8,
@@ -57,43 +60,52 @@ class Session(ModelWithVars):
         # set non-nullable, until we make our CharField non-nullable
         null=False,
         unique=True,
-        doc="Randomly generated unique identifier for the session.")
+        doc="Randomly generated unique identifier for the session.",
+    )
 
     mturk_HITId = models.CharField(
-        max_length=300, null=True, blank=True,
-        help_text='Hit id for this session on MTurk')
+        max_length=300,
+        null=True,
+        blank=True,
+        help_text='Hit id for this session on MTurk',
+    )
     mturk_HITGroupId = models.CharField(
-        max_length=300, null=True, blank=True,
-        help_text='Hit id for this session on MTurk')
+        max_length=300,
+        null=True,
+        blank=True,
+        help_text='Hit id for this session on MTurk',
+    )
 
     # since workers can drop out number of participants on server should be
     # greater than number of participants on mturk
     # value -1 indicates that this session it not intended to run on mturk
     mturk_num_participants = models.IntegerField(
-        default=-1,
-        help_text="Number of participants on MTurk")
+        default=-1, help_text="Number of participants on MTurk"
+    )
 
     mturk_use_sandbox = models.BooleanField(
-        default=True,
-        help_text="Should this session be created in mturk sandbox?")
+        default=True, help_text="Should this session be created in mturk sandbox?"
+    )
 
     # use Float instead of DateTime because DateTime
     # is a pain to work with (e.g. naive vs aware datetime objects)
     # and there is no need here for DateTime
-    mturk_expiration = models.FloatField(
-        null=True
-    )
+    mturk_expiration = models.FloatField(null=True)
 
     archived = models.BooleanField(
         default=False,
         db_index=True,
-        doc=("If set to True the session won't be visible on the "
-             "main ViewList for sessions"))
+        doc=(
+            "If set to True the session won't be visible on the "
+            "main ViewList for sessions"
+        ),
+    )
 
     comment = models.TextField(blank=True)
 
     _anonymous_code = models.CharField(
-        default=random_chars_10, max_length=10, null=False, db_index=True)
+        default=random_chars_10, max_length=10, null=False, db_index=True
+    )
 
     def use_browser_bots(self):
         return self.participant_set.filter(is_browser_bot=True).exists()
@@ -147,7 +159,6 @@ class Session(ModelWithVars):
         # not work is if the HIT was deleted from the server, but in that case,
         # the HIT itself should be canceled.
 
-
         # 2018-06-04:
         # the format seems to have changed to this:
         # https://worker.mturk.com/projects/{group_id}/tasks?ref=w_pl_prvw
@@ -156,8 +167,7 @@ class Session(ModelWithVars):
         # because it's more precise.
         subdomain = "workersandbox" if self.mturk_use_sandbox else 'www'
         return "https://{}.mturk.com/mturk/preview?groupId={}".format(
-            subdomain,
-            self.mturk_HITGroupId
+            subdomain, self.mturk_HITGroupId
         )
 
     def mturk_is_expired(self):
@@ -175,6 +185,7 @@ class Session(ModelWithVars):
         # so best to do it only here
         # it gets cached
         import django.test
+
         client = django.test.Client()
 
         participants = self.get_participants()
@@ -192,8 +203,7 @@ class Session(ModelWithVars):
 
         last_place_page_index = min([p._index_in_pages for p in participants])
         last_place_participants = [
-            p for p in participants
-            if p._index_in_pages == last_place_page_index
+            p for p in participants if p._index_in_pages == last_place_page_index
         ]
 
         for p in last_place_participants:
@@ -204,16 +214,18 @@ class Session(ModelWithVars):
                         current_form_page_url,
                         data={
                             constants_internal.timeout_happened: True,
-                            constants_internal.admin_secret_code: ADMIN_SECRET_CODE
+                            constants_internal.admin_secret_code: ADMIN_SECRET_CODE,
                         },
-                        follow=True
+                        follow=True,
                     )
                     # not sure why, but many users are getting HttpResponseNotFound
                     if resp.status_code >= 400:
-                        msg = ('Submitting page {} failed, '
+                        msg = (
+                            'Submitting page {} failed, '
                             'returned HTTP status code {}.'.format(
                                 current_form_page_url, resp.status_code
-                            ))
+                            )
+                        )
                         content = resp.content
                         if len(content) < 600:
                             msg += ' response content: {}'.format(content)
@@ -235,14 +247,12 @@ class Session(ModelWithVars):
             # rather than in increment_index_in_pages,
             # because it's only needed here.
             otree.channels.utils.sync_group_send_wrapper(
-                type='auto_advanced',
-                group=auto_advance_group(p.code),
-                event={}
+                type='auto_advanced', group=auto_advance_group(p.code), event={}
             )
-
 
     def get_room(self):
         from otree.room import ROOM_DICT
+
         try:
             room_name = RoomToSession.objects.get(session=self).room_name
             return ROOM_DICT[room_name]
@@ -255,10 +265,7 @@ class Session(ModelWithVars):
         Useful to define it here, for data export
         '''
 
-        return (
-            self.config['participation_fee'] +
-            payoff.to_real_world_currency(self)
-        )
+        return self.config['participation_fee'] + payoff.to_real_world_currency(self)
 
     def _set_admin_report_app_names(self):
 
@@ -268,10 +275,9 @@ class Session(ModelWithVars):
             models_module = otree.common_internal.get_models_module(app_name)
             app_label = get_app_label_from_name(app_name)
             try:
-                select_template([
-                    f'{app_label}/admin_report.html',
-                    f'{app_label}/AdminReport.html',
-                ])
+                select_template(
+                    [f'{app_label}/admin_report.html', f'{app_label}/AdminReport.html']
+                )
             except TemplateDoesNotExist:
                 pass
             else:

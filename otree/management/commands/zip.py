@@ -26,6 +26,7 @@ EXCLUDED_PATH_ENDINGS = '~ .git db.sqlite3 .pyo .pyc .pyd .idea .DS_Store .otree
 
 # TODO: make sure we recognize and exclude virtualenvs, even if not called venv
 
+
 def filter_func(tar_info: tarfile.TarInfo):
 
     path = tar_info.path
@@ -122,7 +123,8 @@ def get_non_comment_lines(f):
     return lines
 
 
-class RequirementsError(Exception): pass
+class RequirementsError(Exception):
+    pass
 
 
 def check_requirements_files(project_path: Path):
@@ -137,9 +139,7 @@ def check_requirements_files(project_path: Path):
     reqs_base_exists = reqs_base_path.exists()
 
     if not reqs_path.exists():
-        raise RequirementsError(
-            "You need a requirements.txt in your project folder"
-        )
+        raise RequirementsError("You need a requirements.txt in your project folder")
 
     with reqs_path.open() as f:
         all_req_lines = get_non_comment_lines(f)
@@ -182,9 +182,7 @@ def check_requirements_files(project_path: Path):
     already_seen = set()
     for ln in all_req_lines:
 
-        m = re.match(
-            '(^[\w-]+).*?',
-            ln)
+        m = re.match('(^[\w-]+).*?', ln)
         if m:
             package = m.group(1)
             if package in already_seen:
