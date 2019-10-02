@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger('otree.perf')
 
+
 def perf_middleware(get_response):
     # One-time configuration and initialization.
 
@@ -47,8 +48,7 @@ class CheckDBMiddleware:
                 msg = (
                     "Your database is not ready. Try resetting the database "
                     "(Missing tables for {}, and {} other models). "
-                ).format(
-                    ', '.join(listed_tables), len(unlisted_tables))
+                ).format(', '.join(listed_tables), len(unlisted_tables))
                 return HttpResponseServerError(msg)
             else:
                 CheckDBMiddleware.synced = True

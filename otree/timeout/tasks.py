@@ -28,10 +28,11 @@ def submit_expired_url(participant_code, url):
     # AFTER the next page's timeout is scheduled.)
 
     if Participant.objects.filter(
-            code=participant_code,
-            _current_form_page_url=url).exists():
+        code=participant_code, _current_form_page_url=url
+    ).exists():
         test_client.post(
-            url, data={constants_internal.timeout_happened: True}, follow=True)
+            url, data={constants_internal.timeout_happened: True}, follow=True
+        )
 
 
 @db_task()
@@ -46,9 +47,7 @@ def ensure_pages_visited(participant_pks):
 
     # we used to filter by _index_in_pages, but that is not reliable,
     # because of the race condition described above.
-    unvisited_participants = Participant.objects.filter(
-        pk__in=participant_pks,
-    )
+    unvisited_participants = Participant.objects.filter(pk__in=participant_pks)
     for participant in unvisited_participants:
 
         # if the wait page is the first page,

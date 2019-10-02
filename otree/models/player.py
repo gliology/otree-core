@@ -3,11 +3,13 @@
 
 from otree.common_internal import (
     add_field_tracker,
-    get_models_module, in_round, in_rounds)
+    get_models_module,
+    in_round,
+    in_rounds,
+)
 
 from otree.db import models
 from otree.models.fieldchecks import ensure_field
-
 
 
 class BasePlayer(models.Model):
@@ -23,25 +25,27 @@ class BasePlayer(models.Model):
     id_in_group = models.PositiveIntegerField(
         null=True,
         db_index=True,
-        doc=("Index starting from 1. In multiplayer games, "
-             "indicates whether this is player 1, player 2, etc.")
+        doc=(
+            "Index starting from 1. In multiplayer games, "
+            "indicates whether this is player 1, player 2, etc."
+        ),
     )
 
     # don't modify this directly! Set player.payoff instead
     _payoff = models.CurrencyField(
-        null=True,
-        doc="""The payoff the player made in this subsession""",
-        default=0
+        null=True, doc="""The payoff the player made in this subsession""", default=0
     )
 
     participant = models.ForeignKey(
-        'otree.Participant', related_name='%(app_label)s_%(class)s',
-        on_delete=models.CASCADE
+        'otree.Participant',
+        related_name='%(app_label)s_%(class)s',
+        on_delete=models.CASCADE,
     )
 
     session = models.ForeignKey(
-        'otree.Session', related_name='%(app_label)s_%(class)s',
-        on_delete=models.CASCADE
+        'otree.Session',
+        related_name='%(app_label)s_%(class)s',
+        on_delete=models.CASCADE,
     )
 
     round_number = models.PositiveIntegerField(db_index=True)
@@ -107,13 +111,15 @@ class BasePlayer(models.Model):
         ``Group`` model of the same app.
         """
         subsession_model = '{app_label}.Subsession'.format(
-            app_label=cls._meta.app_label)
+            app_label=cls._meta.app_label
+        )
         subsession_field = models.ForeignKey(subsession_model, on_delete=models.CASCADE)
         ensure_field(cls, 'subsession', subsession_field)
 
-        group_model = '{app_label}.Group'.format(
-            app_label=cls._meta.app_label)
-        group_field = models.ForeignKey(group_model, null=True, on_delete=models.CASCADE)
+        group_model = '{app_label}.Group'.format(app_label=cls._meta.app_label)
+        group_field = models.ForeignKey(
+            group_model, null=True, on_delete=models.CASCADE
+        )
         ensure_field(cls, 'group', group_field)
         import model_utils
 

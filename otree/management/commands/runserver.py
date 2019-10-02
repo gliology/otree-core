@@ -9,12 +9,12 @@ import os
 
 
 class Command(runserver.Command):
-
     def handle(self, *args, **options):
 
         self.verbosity = options.get("verbosity", 1)
 
         from otree.common_internal import release_any_stale_locks
+
         release_any_stale_locks()
 
         # for performance,
@@ -49,14 +49,14 @@ class Command(runserver.Command):
             addr = 'localhost'
         elif addr == '0.0.0.0':
             addr = '<ip_address>'
-        self.stdout.write((
-            "Starting server.\n"
-            "Open your browser to http://%(addr)s:%(port)s/\n"
-            "To quit the server, press Control+C.\n"
-        ) % {
-            "addr": addr,
-            "port": self.port,
-        })
+        self.stdout.write(
+            (
+                "Starting server.\n"
+                "Open your browser to http://%(addr)s:%(port)s/\n"
+                "To quit the server, press Control+C.\n"
+            )
+            % {"addr": addr, "port": self.port}
+        )
 
         # silence the lines like:
         # 2018-01-10 18:51:18,092 - INFO - worker - Listening on channels
@@ -91,7 +91,6 @@ class Command(runserver.Command):
             if shutdown_message:
                 self.stdout.write(shutdown_message)
             return
-
 
     def add_arguments(self, parser):
         super().add_arguments(parser)

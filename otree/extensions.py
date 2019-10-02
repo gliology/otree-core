@@ -58,9 +58,13 @@ not just data export.)
 """
 
 from logging import getLogger
+
 logger = getLogger(__name__)
 
-class ImportExtensionError(Exception): pass
+
+class ImportExtensionError(Exception):
+    pass
+
 
 def get_extensions_modules(submodule_name):
     modules = []
@@ -82,8 +86,7 @@ def get_extensions_modules(submodule_name):
                 # don't say that it's a compat issue because it could be anything
                 # (e.g. extension not installed)
                 raise ImportExtensionError(
-                    f'Error while loading {app_name}. '
-                    'See above for more details.'
+                    f'Error while loading {app_name}. ' 'See above for more details.'
                 )
             modules.append(module)
     return modules
