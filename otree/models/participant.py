@@ -34,7 +34,6 @@ class Participant(ModelWithVars):
     payoff = models.CurrencyField(default=0)
 
     time_started = models.DateTimeField(null=True)
-    user_type_in_url = constants_internal.user_type_participant
     mturk_assignment_id = models.CharField(max_length=50, null=True)
     mturk_worker_id = models.CharField(max_length=50, null=True)
 
@@ -66,8 +65,6 @@ class Participant(ModelWithVars):
     visited = models.BooleanField(
         default=False, db_index=True, doc="""Whether this user's start URL was opened"""
     )
-
-    ip_address = models.GenericIPAddressField(null=True)
 
     # stores when the page was first visited
     _last_page_timestamp = models.PositiveIntegerField(null=True)

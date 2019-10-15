@@ -620,7 +620,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
             app_name=self.subsession._meta.app_config.name,
             page_index=self._index_in_pages,
             page_name=page_name,
-            unix_time=now,
+            epoch_time=now,
             seconds_on_page=seconds_on_page,
             subsession_pk=self.subsession.pk,
             participant=self.participant,
@@ -1291,13 +1291,6 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         wp._participant_access_forbidden = Undefined_GetPlayersForGroup()
         wp._group_access_forbidden = Undefined_GetPlayersForGroup()
 
-        # DELETE THIS after a few months
-        if self.player._gbat_grouped:
-            raise ValueError(
-                'Internal oTree error: player was grouped '
-                'but no completion exists (should not happen if lock is working) '
-            )
-
         gbat_new_group = wp._gbat_try_to_make_new_group()
 
         if gbat_new_group:
@@ -1355,13 +1348,12 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             )
         )
 
-        pick_players_for_group = getattr(
-            self.subsession, 'pick_players_for_group', None
+        gbat_method = getattr(
+            self.subsession, 'group_by_arrival_time_method', self.get_players_for_group
         )
 
-        gpfg_method = pick_players_for_group or self.get_players_for_group
         try:
-            players_for_group = gpfg_method(waiting_players)
+            players_for_group = gbat_method(waiting_players)
         except:
             raise ResponseForException
 
@@ -1523,7 +1515,9 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             )
         else:
             if self.wait_for_all_groups:
-                channels_group_name = channel_utils.wait_page_group_name(**base_kwargs)
+                channels_group_name = channel_utils.subsession_wait_page_group_name(
+                    **base_kwargs
+                )
             else:
                 channels_group_name = channel_utils.wait_page_group_name(
                     **base_kwargs, group_id_in_subsession=group.id_in_subsession

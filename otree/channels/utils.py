@@ -20,11 +20,16 @@ def group_send_wrapper(*, type: str, group: str, event: dict):
     return _group_send(group, {'type': type, **event})
 
 
-def wait_page_group_name(session_id, page_index, group_id_in_subsession=''):
+def wait_page_group_name(session_id, page_index, group_id_in_subsession):
 
     return 'wait-page-{}-page{}-{}'.format(
         session_id, page_index, group_id_in_subsession
     )
+
+
+def subsession_wait_page_group_name(session_id, page_index):
+
+    return 'wait-page-{}-page{}'.format(session_id, page_index)
 
 
 def gbat_group_name(session_id, page_index):
@@ -60,7 +65,6 @@ def create_demo_session_path():
 
 
 def wait_page_path(**kwargs):
-    kwargs.setdefault('group_id_in_subsession', '')
     return '/wait_page/?' + urlencode(kwargs)
 
 

@@ -35,12 +35,6 @@ else:
     NUM_WORKERS = 3
 
 
-def get_ssl_file_path(filename):
-    otree_dir = os.path.dirname(otree.__file__)
-    pth = os.path.join(otree_dir, 'certs', filename)
-    return pth.replace('\\', '/')
-
-
 # made this simple class to reduce code duplication,
 # and to make testing easier (I didn't know how to check that it was called
 # with os.environ.copy(), especially if we patch os.environ)
@@ -58,24 +52,15 @@ class Command(BaseCommand):
             'addrport', nargs='?', help='Optional port number, or ipaddr:port'
         )
 
-        ahelp = 'Run an SSL server directly in Daphne with a self-signed cert/key'
-        parser.add_argument(
-            '--dev-https',
-            action='store_true',
-            dest='dev_https',
-            default=False,
-            help=ahelp,
-        )
-
-    def handle(self, *args, addrport=None, verbosity=1, dev_https, **kwargs):
+    def handle(self, *args, addrport=None, verbosity=1, **kwargs):
         self.verbosity = verbosity
         os.environ['OTREE_USE_REDIS'] = '1'
         self.honcho = OTreeHonchoManager()
-        self.setup_honcho(addrport=addrport, dev_https=dev_https)
+        self.setup_honcho(addrport=addrport)
         self.honcho.loop()
         sys.exit(self.honcho.returncode)
 
-    def setup_honcho(self, *, addrport, dev_https):
+    def setup_honcho(self, *, addrport):
 
         if addrport:
             m = re.match(naiveip_re, addrport)
@@ -99,28 +84,6 @@ class Command(BaseCommand):
         # keep-alive is needed, otherwise pages that take more than 5 seconds to load will trigger h13
         # asgi_server_cmd = f'hypercorn -b {addr}:{port} --workers={NUM_WORKERS} --keep-alive=35 otree_startup.asgi:application'
         asgi_server_cmd = f'daphne -b {addr} -p {port} otree_startup.asgi:application'
-
-        if dev_https:
-            raise SystemExit('--dev-https is currently under construction')
-            # Because of HSTS, Chrome and other browsers will "get stuck" forcing HTTPS,
-            # which makes it impossible to run regular devserver again on that port
-            if int(port) == 8000:
-                self.stderr.write(
-                    'ERROR: oTree cannot use HTTPS on port 8000. Please specify a different port.'
-                )
-                raise SystemExit(-1)
-            # hypercorn format
-            # asgi_server_cmd += ' --keyfile="{}" --certfile="{}"'.format(
-            asgi_server_cmd += ' -e ssl:443:privateKey="{}":certKey="{}"'.format(
-                get_ssl_file_path('development.key'),
-                get_ssl_file_path('development.crt'),
-            )
-            # When the user submits AJAX such as AdvanceSlowest, Django gives REASON_BAD_REFERER.
-            # because the referer is localhost:8003 and good_hosts just has 127.0.0.1.
-            # could add localhost to CSRF_TRUSTED_ORIGINS, but that needs to be done
-            # inside the asgi server process. i don't want to modify that setting globally
-            # because that might have bad implications.
-            # simplest workaround is to tell users to go to 127.0.0.1 instead of localhost.
 
         logger.info(asgi_server_cmd)
 

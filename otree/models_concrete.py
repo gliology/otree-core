@@ -15,8 +15,9 @@ class PageCompletion(models.Model):
     page_index = models.PositiveIntegerField()
     page_name = models.CharField(max_length=300)
     # it needs a default, otherwise i get "added a non-nullable field without default"
-    # i think eventually i can remove the default.
-    unix_time = models.PositiveIntegerField(default=0)
+    # eventually i can remove the default, if I am sure people did not skip over all
+    # the intermediate versions.
+    epoch_time = models.PositiveIntegerField(null=True)
     seconds_on_page = models.PositiveIntegerField()
     subsession_pk = models.PositiveIntegerField()
     participant = models.ForeignKey('otree.Participant', on_delete=models.CASCADE)
@@ -28,7 +29,7 @@ class WaitPagePassage(models.Model):
     participant = models.ForeignKey('otree.Participant', on_delete=models.CASCADE)
     session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
     # don't set default=time.time because that's harder to patch
-    unix_time = models.PositiveIntegerField()
+    epoch_time = models.PositiveIntegerField(null=True)
     # if False, means they exit the wait page
     is_enter = models.BooleanField()
 
@@ -172,9 +173,9 @@ def _add_time_spent_waiting_inner(
         passages = session_passages.get(participant.id, [])
         for p in passages:
             if p.is_enter and not enter_time:
-                enter_time = p.unix_time
+                enter_time = p.epoch_time
             if not p.is_enter and enter_time:
-                total += p.unix_time - enter_time
+                total += p.epoch_time - enter_time
                 enter_time = None
         # means they are still waiting
         if enter_time:

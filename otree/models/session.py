@@ -107,9 +107,6 @@ class Session(ModelWithVars):
         default=random_chars_10, max_length=10, null=False, db_index=True
     )
 
-    def use_browser_bots(self):
-        return self.participant_set.filter(is_browser_bot=True).exists()
-
     is_demo = models.BooleanField(default=False)
 
     _admin_report_app_names = models.TextField(default='')
@@ -131,6 +128,10 @@ class Session(ModelWithVars):
         '''This method is deprecated from public API,
         but still useful internally (like data export)'''
         return self.config['real_world_currency_per_point']
+
+    @property
+    def use_browser_bots(self):
+        return self.config.get('use_browser_bots', False)
 
     def is_mturk(self):
         return (not self.is_demo) and (self.mturk_num_participants > 0)

@@ -1,34 +1,9 @@
-"""oTree Public API utilities"""
-
 import json
-from decimal import Decimal
 
 from django.conf import settings
-from django.utils import formats, numberformat
 from django.utils.safestring import mark_safe
+
 from otree.currency import Currency, RealWorldCurrency
-import six
-
-
-# =============================================================================
-# MONKEY PATCH - fix for https://github.com/oTree-org/otree-core/issues/387
-# =============================================================================
-
-# Black Magic: The original number format of django used inside templates don't
-# work if the currency code contains non-ascii characters. This ugly hack
-# remplace the original number format and when you has a easy_money instance
-# simple use the old unicode casting.
-
-_original_number_format = numberformat.format
-
-
-def otree_number_format(number, *args, **kwargs):
-    if isinstance(number, (Currency, RealWorldCurrency)):
-        return six.text_type(number)
-    return _original_number_format(number, *args, **kwargs)
-
-
-numberformat.format = otree_number_format
 
 
 class _CurrencyEncoder(json.JSONEncoder):

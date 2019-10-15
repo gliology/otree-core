@@ -21,6 +21,8 @@ ADVICE_DELETE_TMP = (
     "look for the error in your models.py."
 ).format(TMP_MIGRATIONS_DIR)
 
+# this happens when I add a non-nullable field to oTree-core
+# (includes renaming a non-nullable field)
 ADVICE_FIX_NOT_NULL_FIELD = (
     'You may have added a non-nullable field without a default. '
     'This typically happens when importing model fields from django instead of otree.'

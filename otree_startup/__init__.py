@@ -83,13 +83,7 @@ def execute_from_command_line(*args, **kwargs):
 
     subcommand = argv[1]
 
-    if subcommand == 'runserver':
-        sys.stdout.write(
-            "Suggestion: use 'otree devserver' instead of 'otree runserver'. "
-            "devserver automatically syncs your database.\n"
-        )
-
-    if subcommand == 'runzip':
+    if subcommand in ['runzip', 'zipserver']:
         runzip.main(argv[2:])
         # better to return than sys.exit because testing is complicated
         # with sys.exit -- if you mock it, then the function keeps executing.

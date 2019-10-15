@@ -11,43 +11,39 @@
       steps:
     </p>
 
-    <table class="table">
-      <tr>
-        <th>Step</th>
-        <th>Done?</th>
-      </tr>
-      <tr>
-        <td>
+    <ol>
+      {% if not boto3_installed %}
+        <li>
           Run <code>pip3 install otree[mturk]</code>
           and in your <code>requirements_base.txt</code>,
           replace <code>otree==N.N.N</code> with <code>otree[mturk]==N.N.N</code>.
           This will install oTree along with extra MTurk-specific packages.
-        </td>
-        <td>{{ boto3_installed|yesno }}</td>
-      </tr>
-
-      <tr>
-        <td>Set <code>AWS_ACCESS_KEY_ID</code> and
-          <code>AWS_SECRET_ACCESS_KEY</code></td>
-        <td>{{ aws_keys_exist|yesno }}</td>
-      </tr>
-      {% if not is_new_format %}
-        <tr>
-          <td>
-            Add <code>template</code> to your MTurk settings,
-            and remove <code>preview_template</code>.
-
-            Then create a new session.
-            (This is a new requirement as of October 2019.
-            If you want to stay on the old version, use
-            <code>otree[mturk]<2.3</code> in your <code>pip3 install</code>
-            and <code>requirements_base.txt</code>.
-            )
-          </td>
-          <td>{{ is_new_format|yesno }}</td>
-        </tr>
+        </li>
       {% endif %}
-    </table>
+
+      {% if not is_new_format %}
+        <li>
+          Add <code>template</code> to your MTurk settings,
+          and remove <code>preview_template</code>.
+          Then create a new session.
+          This is a new requirement as of oTree 2.4.
+        </li>
+      {% endif %}
+
+      {% if not is_usd %}
+        <li>
+          Set your <code>REAL_WORLD_CURRENCY_CODE</code> to <code>USD</code>
+        </li>
+      {% endif %}
+
+      {% if not aws_keys_exist %}
+        <li>
+          Set <code>AWS_ACCESS_KEY_ID</code> and
+          <code>AWS_SECRET_ACCESS_KEY</code>
+        </li>
+      {% endif %}
+
+    </ol>
 
   {% elif session.mturk_is_expired %}
     <p>This HIT has expired, so workers can no longer accept assignments.</p>

@@ -123,7 +123,7 @@ class SessionStartLinks(AdminSessionPageMixin, vanilla.TemplateView):
         room = session.get_room()
 
         context = dict(
-            use_browser_bots=session.use_browser_bots(),
+            use_browser_bots=session.use_browser_bots,
             sqlite=settings.DATABASES['default']['ENGINE'].endswith('sqlite3'),
             runserver='runserver' in sys.argv or 'devserver' in sys.argv,
         )
@@ -470,12 +470,12 @@ class AdminReport(AdminSessionPageMixin, vanilla.TemplateView):
 
 def get_json_from_pypi() -> dict:
     # import only if we need it
-    import requests
+    import urllib.request
+    import urllib.parse
 
     try:
-        response = requests.get('https://pypi.python.org/pypi/otree/json', timeout=5)
-        assert response.ok
-        return json.loads(response.content.decode())
+        f = urllib.request.urlopen('https://pypi.python.org/pypi/otree/json')
+        return json.loads(f.read().decode('utf-8'))
     except:
         return {'releases': []}
 

@@ -194,22 +194,23 @@ class WaitPage(_OTreeJsonWebsocketConsumer):
             'session_pk': int(d['session_pk']),
             'page_index': int(d['page_index']),
             'participant_id': int(d['participant_id']),
-            # don't convert group_id_in_subsession to int yet, it might be empty string
-            'group_id_in_subsession': d['group_id_in_subsession'],
+            'group_id_in_subsession': d.get('group_id_in_subsession'),
         }
 
     def group_name(
         self, session_pk, page_index, group_id_in_subsession, participant_id
     ):
-        return channel_utils.wait_page_group_name(
-            session_pk, page_index, group_id_in_subsession
-        )
+        if group_id_in_subsession:
+            return channel_utils.wait_page_group_name(
+                session_pk, page_index, group_id_in_subsession
+            )
+        return channel_utils.subsession_wait_page_group_name(session_pk, page_index)
 
     def post_connect(
         self, session_pk, page_index, group_id_in_subsession, participant_id
     ):
         # in case message was sent before this web socket connects
-        if group_id_in_subsession:
+        if group_id_in_subsession is not None:
             ready = CompletedGroupWaitPage.objects.filter(
                 page_index=page_index,
                 id_in_subsession=int(group_id_in_subsession),
@@ -780,6 +781,7 @@ class LifespanApp:
 
 
 def parse_querystring(query_string) -> dict:
+    '''it seems parse_qs omits keys with empty values'''
     return {k: v[0] for k, v in urllib.parse.parse_qs(query_string.decode()).items()}
 
 
@@ -790,7 +792,7 @@ def create_waitpage_passage(*, participant_id, session_pk, is_enter):
             participant_id=participant_id,
             session_id=session_pk,
             is_enter=is_enter,
-            unix_time=time.time(),
+            epoch_time=time.time(),
         )
     except:
         pass

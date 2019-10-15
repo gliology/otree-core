@@ -135,25 +135,6 @@ class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
         self._set_min_max_on_widgets()
 
     def _get_field_min_max(self, field_name):
-        """
-        Get the field boundaries from a methods defined on the view.
-
-        Example (will get boundaries from `amount_<min|max>`):
-
-
-            class Offer(Page):
-                ...
-                form_model = models.Group
-                form_fields = ['amount']
-
-                def amount_min(self):
-                    return 1
-
-                def amount_max(self):
-                    return 5
-
-        If the method is not found, it will return ``(None, None)``.
-        """
 
         # SessionEditProperties is a ModelForm with extra field which is not
         # part of the model. In case your ModelForm has an extra field.
@@ -256,10 +237,6 @@ class ModelForm(forms.ModelForm, metaclass=ModelFormMetaclass):
                         raise ResponseForException
                     if error_string:
                         raise forms.ValidationError(error_string)
-
-                if hasattr(self, 'clean_%s' % name):
-                    value = getattr(self, 'clean_%s' % name)()
-                    self.cleaned_data[name] = value
 
             except forms.ValidationError as e:
                 self.add_error(name, e)

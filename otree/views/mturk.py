@@ -130,16 +130,20 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         mturk_settings = session.config['mturk_hit_settings']
 
         is_new_format = 'template' in mturk_settings
-        mturk_ready = self.aws_keys_exist and self.boto3_installed and is_new_format
+        is_usd = settings.REAL_WORLD_CURRENCY_CODE == 'USD'
+        mturk_ready = (
+            self.aws_keys_exist and self.boto3_installed and is_new_format and is_usd
+        )
 
         context = self.get_context_data(
             mturk_settings=mturk_settings,
             participation_fee=session.config['participation_fee'],
             mturk_num_participants=session.mturk_num_participants,
+            mturk_ready=mturk_ready,
             boto3_installed=self.boto3_installed,
             aws_keys_exist=self.aws_keys_exist,
             is_new_format=is_new_format,
-            mturk_ready=mturk_ready,
+            is_usd=is_usd,
         )
 
         return self.render_to_response(context)

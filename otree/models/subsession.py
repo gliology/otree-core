@@ -224,11 +224,6 @@ class BaseSubsession(models.Model):
         group_matrix = matching.randomly(group_matrix, fixed_id_in_group)
         self.set_group_matrix(group_matrix)
 
-    def _group_by_rank(self, ranked_list):
-        # FIXME: delete this
-        group_matrix = matching.by_rank(ranked_list, self._Constants.players_per_group)
-        self.set_group_matrix(group_matrix)
-
     def before_session_starts(self):
         '''Deprecated and renamed to creating_session'''
         pass

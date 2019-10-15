@@ -83,7 +83,6 @@ def _get_table_fields(Model, for_export=False):
                 # even rows for different rounds.
                 #'_round_number',
                 '_current_page_name',
-                'ip_address',
                 'time_started',
                 'visited',
                 'mturk_worker_id',
@@ -491,7 +490,7 @@ def export_time_spent(fp):
         'page_index',
         'app_name',
         'page_name',
-        'unix_time',
+        'epoch_time',
         'seconds_on_page',
         'subsession_pk',
         'auto_submitted',

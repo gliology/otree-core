@@ -49,10 +49,6 @@ class OTreeModelBase(IdMapModelBase):
         if not hasattr(new_class._meta, 'use_strong_refs'):
             new_class._meta.use_strong_refs = False
 
-        # 2015-12-22: this probably doesn't work anymore,
-        # since we moved _choices to views.py
-        # but we can tell users they can define FOO_choices in models.py,
-        # and then call it in the equivalent method in views.py
         for f in new_class._meta.fields:
             if hasattr(new_class, f.name + '_choices'):
                 attr_name = 'get_%s_display' % f.name

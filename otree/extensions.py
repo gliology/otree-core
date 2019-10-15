@@ -69,13 +69,10 @@ class ImportExtensionError(Exception):
 def get_extensions_modules(submodule_name):
     modules = []
     extension_apps = getattr(settings, 'EXTENSION_APPS', [])
-    # legacy support for otreechat
-    if 'otreechat' in settings.INSTALLED_APPS:
-        extension_apps.append('otreechat')
     find_spec = importlib.util.find_spec
     for app_name in extension_apps:
-        package_dotted = '{}.otree_extensions'.format(app_name)
-        submodule_dotted = '{}.{}'.format(package_dotted, submodule_name)
+        package_dotted = f'{app_name}.otree_extensions'
+        submodule_dotted = f'{package_dotted}.{submodule_name}'
         # need to check if base package exists; otherwise we get ImportError
         if find_spec(package_dotted) and find_spec(submodule_dotted):
             try:

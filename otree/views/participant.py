@@ -53,7 +53,6 @@ class InitializeParticipant(vanilla.UpdateView):
             participant.label = participant.label or self.request.GET.get(
                 constants.participant_label
             )
-            participant.ip_address = self.request.META['REMOTE_ADDR']
 
             now = django.utils.timezone.now()
             participant.time_started = now
