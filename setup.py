@@ -38,8 +38,6 @@ if sys.argv[-1] == 'publish':
 
     sys.exit()
 
-# 3.7 because of hypercorn
-
 MSG_PY_VERSION = f"""
 Error: This version of oTree requires Python 3.7 or higher.
 
@@ -52,6 +50,13 @@ as described in the Heroku documentation.
 
 if sys.version_info < (3, 7):
     sys.exit(MSG_PY_VERSION)
+
+MSG_PY_38 = '''
+This version of oTree requires Python 3.7.x.
+'''
+
+if sys.version_info >= (3, 8):
+    sys.exit(MSG_PY_38)
 
 
 setup(
