@@ -46,75 +46,6 @@ class InvalidWebSocketParams(Exception):
     '''exception to raise when websocket params are invalid'''
 
 
-class _OTreeJsonWebsocketConsumer(JsonWebsocketConsumer):
-    """
-    This is not public API, might change at any time.
-    """
-
-    def clean_kwargs(self, **kwargs):
-        '''
-        subclasses should override if the route receives a comma-separated params arg.
-        otherwise, this just passes the route kwargs as is (usually there is just one).
-        The output of this method is passed to self.group_name(), self.post_connect,
-        and self.pre_disconnect, so within each class, all 3 of those methods must
-        accept the same args (or at least take a **kwargs wildcard, if the args aren't used)
-        '''
-        return kwargs
-
-    def group_name(self, **kwargs):
-        raise NotImplementedError()
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.cleaned_kwargs = self.clean_kwargs(**self.scope['url_route']['kwargs'])
-        group_name = self.group_name(**self.cleaned_kwargs)
-        self.groups = [group_name] if group_name else []
-
-    unrestricted_when = ''
-
-    # there is no login_required for channels
-    # so we need to make our own
-    # https://github.com/django/channels/issues/1241
-    def connect(self):
-
-        AUTH_LEVEL = settings.AUTH_LEVEL
-
-        auth_required = (
-            (not self.unrestricted_when)
-            and AUTH_LEVEL
-            or self.unrestricted_when == UNRESTRICTED_IN_DEMO_MODE
-            and AUTH_LEVEL == 'STUDY'
-        )
-
-        if auth_required and not self.scope['user'].is_staff:
-            msg = 'rejected un-authenticated access to websocket path {}'.format(
-                self.scope['path']
-            )
-            logger.warning(msg)
-            # consider also self.accept() then send error message then self.close(code=1008)
-            # this only affects otree core websockets.
-        else:
-            # need to accept no matter what, so we can at least send
-            # an error message
-            self.accept()
-            self.post_connect(**self.cleaned_kwargs)
-
-    def post_connect(self, **kwargs):
-        pass
-
-    def disconnect(self, message, **kwargs):
-        self.pre_disconnect(**self.cleaned_kwargs)
-
-    def pre_disconnect(self, **kwargs):
-        pass
-
-    def receive_json(self, content, **etc):
-        self.post_receive_json(content, **self.cleaned_kwargs)
-
-    def post_receive_json(self, content, **kwargs):
-        pass
-
-
 class _OTreeAsyncJsonWebsocketConsumer(AsyncJsonWebsocketConsumer):
     """
     This is not public API, might change at any time.
@@ -184,60 +115,76 @@ class _OTreeAsyncJsonWebsocketConsumer(AsyncJsonWebsocketConsumer):
         pass
 
 
-class WaitPage(_OTreeJsonWebsocketConsumer):
-
+class BaseWaitPage(_OTreeAsyncJsonWebsocketConsumer):
     unrestricted_when = ALWAYS_UNRESTRICTED
+    kwarg_names: list
 
     def clean_kwargs(self):
         d = parse_querystring(self.scope['query_string'])
-        return {
-            'session_pk': int(d['session_pk']),
-            'page_index': int(d['page_index']),
-            'participant_id': int(d['participant_id']),
-            'group_id_in_subsession': d.get('group_id_in_subsession'),
-        }
+        kwargs = {}
+        for k in self.kwarg_names:
+            kwargs[k] = int(d[k])
+        return kwargs
 
-    def group_name(
-        self, session_pk, page_index, group_id_in_subsession, participant_id
-    ):
-        if group_id_in_subsession:
-            return channel_utils.wait_page_group_name(
-                session_pk, page_index, group_id_in_subsession
-            )
-        return channel_utils.subsession_wait_page_group_name(session_pk, page_index)
+    async def wait_page_ready(self, event=None):
+        await self.send_json({'status': 'ready'})
 
-    def post_connect(
-        self, session_pk, page_index, group_id_in_subsession, participant_id
-    ):
-        # in case message was sent before this web socket connects
-        if group_id_in_subsession is not None:
-            ready = CompletedGroupWaitPage.objects.filter(
-                page_index=page_index,
-                id_in_subsession=int(group_id_in_subsession),
-                session_id=session_pk,
-            ).exists()
-        else:  # subsession
-            ready = CompletedSubsessionWaitPage.objects.filter(
-                page_index=page_index, session_id=session_pk
-            ).exists()
-        if ready:
-            self.wait_page_ready()
-        create_waitpage_passage(
-            participant_id=participant_id, session_pk=session_pk, is_enter=True
-        )
+    async def pre_disconnect(self, session_pk, participant_id, **kwargs):
 
-    def wait_page_ready(self, event=None):
-        self.send_json({'status': 'ready'})
-
-    def pre_disconnect(
-        self, session_pk, page_index, group_id_in_subsession, participant_id
-    ):
-        create_waitpage_passage(
+        await create_waitpage_passage(
             participant_id=participant_id, session_pk=session_pk, is_enter=False
         )
 
 
-class GroupByArrivalTime(_OTreeJsonWebsocketConsumer):
+class SubsessionWaitPage(BaseWaitPage):
+
+    kwarg_names = ('session_pk', 'page_index', 'participant_id')
+
+    def group_name(self, session_pk, page_index, participant_id):
+        return channel_utils.subsession_wait_page_name(session_pk, page_index)
+
+    def completion_exists(self, **kwargs):
+        return CompletedSubsessionWaitPage.objects.filter(**kwargs).exists()
+
+    async def post_connect(self, session_pk, page_index, participant_id):
+        if await database_sync_to_async(self.completion_exists)(
+            page_index=page_index, session_id=session_pk
+        ):
+            await self.wait_page_ready()
+        await create_waitpage_passage(
+            participant_id=participant_id, session_pk=session_pk, is_enter=True
+        )
+
+
+class GroupWaitPage(BaseWaitPage):
+
+    kwarg_names = SubsessionWaitPage.kwarg_names + ('group_id_in_subsession',)
+
+    def group_name(
+        self, session_pk, page_index, group_id_in_subsession, participant_id
+    ):
+        return channel_utils.group_wait_page_name(
+            session_pk, page_index, group_id_in_subsession
+        )
+
+    def completion_exists(self, **kwargs):
+        return CompletedGroupWaitPage.objects.filter(**kwargs).exists()
+
+    async def post_connect(
+        self, session_pk, page_index, group_id_in_subsession, participant_id
+    ):
+        if await database_sync_to_async(self.completion_exists)(
+            page_index=page_index,
+            id_in_subsession=group_id_in_subsession,
+            session_id=session_pk,
+        ):
+            await self.wait_page_ready()
+        await create_waitpage_passage(
+            participant_id=participant_id, session_pk=session_pk, is_enter=True
+        )
+
+
+class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
 
     unrestricted_when = ALWAYS_UNRESTRICTED
 
@@ -255,35 +202,46 @@ class GroupByArrivalTime(_OTreeJsonWebsocketConsumer):
         gn = channel_utils.gbat_group_name(session_pk, page_index)
         return gn
 
-    def post_connect(self, app_name, player_id, page_index, session_pk, participant_id):
+    def is_ready(self, *, app_name, player_id, page_index, session_pk):
         models_module = get_models_module(app_name)
-        group_id_in_subsession = models_module.Group.objects.filter(
-            player__id=player_id
-        ).values_list('id_in_subsession', flat=True)[0]
+        group_id_in_subsession = (
+            models_module.Group.objects.filter(player__id=player_id)
+            .values_list('id_in_subsession', flat=True)
+            .get()
+        )
 
-        ready = CompletedGroupWaitPage.objects.filter(
+        return CompletedGroupWaitPage.objects.filter(
             page_index=page_index,
             id_in_subsession=int(group_id_in_subsession),
             session_id=session_pk,
         ).exists()
-        if ready:
-            self.gbat_ready()
-        create_waitpage_passage(
+
+    async def post_connect(
+        self, app_name, player_id, page_index, session_pk, participant_id
+    ):
+        if await database_sync_to_async(self.is_ready)(
+            app_name=app_name,
+            player_id=player_id,
+            page_index=page_index,
+            session_pk=session_pk,
+        ):
+            await self.gbat_ready()
+        await create_waitpage_passage(
             participant_id=participant_id, session_pk=session_pk, is_enter=True
         )
 
-    def gbat_ready(self, event=None):
-        self.send_json({'status': 'ready'})
+    async def gbat_ready(self, event=None):
+        await self.send_json({'status': 'ready'})
 
-    def pre_disconnect(
+    async def pre_disconnect(
         self, app_name, player_id, page_index, session_pk, participant_id
     ):
-        create_waitpage_passage(
+        await create_waitpage_passage(
             participant_id=participant_id, session_pk=session_pk, is_enter=False
         )
 
 
-class DetectAutoAdvance(_OTreeJsonWebsocketConsumer):
+class DetectAutoAdvance(_OTreeAsyncJsonWebsocketConsumer):
 
     unrestricted_when = ALWAYS_UNRESTRICTED
 
@@ -297,22 +255,28 @@ class DetectAutoAdvance(_OTreeJsonWebsocketConsumer):
     def group_name(self, page_index, participant_code):
         return channel_utils.auto_advance_group(participant_code)
 
-    def post_connect(self, page_index, participant_code):
-        # in case message was sent before this web socket connects
-        result = Participant.objects.filter(code=participant_code).values_list(
-            '_index_in_pages', flat=True
-        )
+    def page_should_be_on(self, participant_code):
         try:
-            page_should_be_on = result[0]
-        except IndexError:
-            # doesn't get shown because not yet localized
-            self.send_json({'error': 'Participant not found in database.'})
+            return (
+                Participant.objects.filter(code=participant_code)
+                .values_list('_index_in_pages', flat=True)
+                .get()
+            )
+        except Participant.DoesNotExist:
             return
-        if page_should_be_on > page_index:
-            self.auto_advanced()
 
-    def auto_advanced(self, event=None):
-        self.send_json({'auto_advanced': True})
+    async def post_connect(self, page_index, participant_code):
+        # in case message was sent before this web socket connects
+        page_should_be_on = await database_sync_to_async(self.page_should_be_on)(
+            participant_code
+        )
+        if page_should_be_on is None:
+            await self.send_json({'error': 'Participant not found in database.'})
+        elif page_should_be_on > page_index:
+            await self.auto_advanced()
+
+    async def auto_advanced(self, event=None):
+        await self.send_json({'auto_advanced': True})
 
 
 class BaseCreateSession(_OTreeAsyncJsonWebsocketConsumer):
@@ -608,7 +572,7 @@ class RoomParticipant(_OTreeAsyncJsonWebsocketConsumer):
         await self.send_json({'status': 'session_ready'})
 
 
-class BrowserBotsLauncher(_OTreeJsonWebsocketConsumer):
+class BrowserBotsLauncher(_OTreeAsyncJsonWebsocketConsumer):
 
     # OK to be unrestricted because this websocket doesn't create the session,
     # or do anything sensitive.
@@ -617,25 +581,27 @@ class BrowserBotsLauncher(_OTreeJsonWebsocketConsumer):
     def group_name(self, session_code):
         return channel_utils.browser_bots_launcher_group(session_code)
 
-    def send_completion_message(self, event):
+    async def send_completion_message(self, event):
         # don't need to put in JSON since it's just a participant code
-        self.send(event['text'])
+        await self.send(event['text'])
 
 
-class BrowserBot(_OTreeJsonWebsocketConsumer):
+class BrowserBot(_OTreeAsyncJsonWebsocketConsumer):
 
     unrestricted_when = ALWAYS_UNRESTRICTED
 
     def group_name(self):
         return 'browser_bot_wait'
 
-    def post_connect(self):
-        launcher_session_info = BrowserBotsLauncherSessionCode.objects.first()
-        if launcher_session_info:
-            self.browserbot_sessionready()
+    def session_exists(self):
+        return BrowserBotsLauncherSessionCode.objects.exists()
 
-    def browserbot_sessionready(self, event=None):
-        self.send_json({'status': 'session_ready'})
+    async def post_connect(self):
+        if await database_sync_to_async(self.session_exists)():
+            await self.browserbot_sessionready()
+
+    async def browserbot_sessionready(self, event=None):
+        await self.send_json({'status': 'session_ready'})
 
 
 class ChatConsumer(_OTreeAsyncJsonWebsocketConsumer):
@@ -701,7 +667,7 @@ class ChatConsumer(_OTreeAsyncJsonWebsocketConsumer):
         await self.send_json(chats)
 
 
-class ExportData(_OTreeJsonWebsocketConsumer):
+class ExportData(_OTreeAsyncJsonWebsocketConsumer):
 
     '''
     I load tested this locally with sqlite/redis and:
@@ -711,7 +677,7 @@ class ExportData(_OTreeJsonWebsocketConsumer):
 
     unrestricted_when = None
 
-    def post_receive_json(self, content: dict):
+    async def post_receive_json(self, content: dict):
         '''
         if an app name is given, export the app.
         otherwise, export all the data (wide).
@@ -733,14 +699,18 @@ class ExportData(_OTreeJsonWebsocketConsumer):
         iso_date = datetime.date.today().isoformat()
         with IOClass() as fp:
             if app_name:
-                export_app(app_name, fp, file_extension=file_extension)
+                await database_sync_to_async(export_app)(
+                    app_name, fp, file_extension=file_extension
+                )
                 file_name_prefix = app_name
             else:
-                export_wide(fp, file_extension=file_extension)
+                await database_sync_to_async(export_wide)(
+                    fp, file_extension=file_extension
+                )
                 file_name_prefix = 'all_apps_wide'
             data = fp.getvalue()
 
-        file_name = '{}_{}.{}'.format(file_name_prefix, iso_date, file_extension)
+        file_name = f'{file_name_prefix}_{iso_date}.{file_extension}'
 
         if file_extension == 'xlsx':
             data = base64.b64encode(data).decode('utf-8')
@@ -749,7 +719,7 @@ class ExportData(_OTreeJsonWebsocketConsumer):
         # this doesn't go through channel layer, so it is probably safer
         # in terms of sending large data
 
-        self.send_json(content)
+        await self.send_json(content)
 
     def group_name(self, **kwargs):
         return None
@@ -785,7 +755,13 @@ def parse_querystring(query_string) -> dict:
     return {k: v[0] for k, v in urllib.parse.parse_qs(query_string.decode()).items()}
 
 
-def create_waitpage_passage(*, participant_id, session_pk, is_enter):
+async def create_waitpage_passage(*, participant_id, session_pk, is_enter):
+    await database_sync_to_async(_create_waitpage_passage)(
+        participant_id=participant_id, session_pk=session_pk, is_enter=is_enter
+    )
+
+
+def _create_waitpage_passage(*, participant_id, session_pk, is_enter):
     '''if the session was deleted, this would raise'''
     try:
         WaitPagePassage.objects.create(

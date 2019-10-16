@@ -9,7 +9,8 @@ from channels.auth import AuthMiddlewareStack
 
 websocket_routes = [
     # WebSockets
-    url(r'^wait_page/$', consumers.WaitPage),
+    url(r'^wait_page/$', consumers.GroupWaitPage),
+    url(r'^subsession_wait_page/$', consumers.SubsessionWaitPage),
     url(r'^group_by_arrival_time/$', consumers.GroupByArrivalTime),
     url(r'^auto_advance/$', consumers.DetectAutoAdvance),
     url(r'^create_session/$', consumers.CreateSession),

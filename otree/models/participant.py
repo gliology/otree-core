@@ -66,6 +66,15 @@ class Participant(ModelWithVars):
         default=False, db_index=True, doc="""Whether this user's start URL was opened"""
     )
 
+    @property
+    def ip_address(self):
+        return 'deprecated'
+
+    @ip_address.setter
+    def ip_address(self, value):
+        if value:
+            raise ValueError('Do not store anything into participant.ip_address')
+
     # stores when the page was first visited
     _last_page_timestamp = models.PositiveIntegerField(null=True)
 

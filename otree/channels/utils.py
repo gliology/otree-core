@@ -20,14 +20,14 @@ def group_send_wrapper(*, type: str, group: str, event: dict):
     return _group_send(group, {'type': type, **event})
 
 
-def wait_page_group_name(session_id, page_index, group_id_in_subsession):
+def group_wait_page_name(session_id, page_index, group_id_in_subsession):
 
     return 'wait-page-{}-page{}-{}'.format(
         session_id, page_index, group_id_in_subsession
     )
 
 
-def subsession_wait_page_group_name(session_id, page_index):
+def subsession_wait_page_name(session_id, page_index):
 
     return 'wait-page-{}-page{}'.format(session_id, page_index)
 
@@ -64,8 +64,12 @@ def create_demo_session_path():
     return '/create_demo_session/'
 
 
-def wait_page_path(**kwargs):
+def group_wait_page_path(**kwargs):
     return '/wait_page/?' + urlencode(kwargs)
+
+
+def subsession_wait_page_path(**kwargs):
+    return '/subsession_wait_page/?' + urlencode(kwargs)
 
 
 def browser_bots_launcher_group(session_code):

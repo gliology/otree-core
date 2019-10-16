@@ -51,6 +51,7 @@ as described in the Heroku documentation.
 if sys.version_info < (3, 7):
     sys.exit(MSG_PY_VERSION)
 
+# need to consider also whether Heroku supports 3.8
 MSG_PY_38 = '''
 This version of oTree requires Python 3.7.x.
 '''

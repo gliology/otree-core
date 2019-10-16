@@ -1515,11 +1515,11 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             )
         else:
             if self.wait_for_all_groups:
-                channels_group_name = channel_utils.subsession_wait_page_group_name(
+                channels_group_name = channel_utils.subsession_wait_page_name(
                     **base_kwargs
                 )
             else:
-                channels_group_name = channel_utils.wait_page_group_name(
+                channels_group_name = channel_utils.group_wait_page_name(
                     **base_kwargs, group_id_in_subsession=group.id_in_subsession
                 )
 
@@ -1540,13 +1540,13 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 player_id=self.player.id,
             )
         elif self.wait_for_all_groups:
-            return channel_utils.wait_page_path(
+            return channel_utils.subsession_wait_page_path(
                 session_pk=session_pk,
                 page_index=page_index,
                 participant_id=participant_id,
             )
         else:
-            return channel_utils.wait_page_path(
+            return channel_utils.group_wait_page_path(
                 session_pk=session_pk,
                 page_index=page_index,
                 participant_id=participant_id,
