@@ -1295,7 +1295,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
 
         if gbat_new_group:
             if isinstance(self.after_all_players_arrive, str):
-                aapa_method = getattr(self.group, self.after_all_players_arrive)
+                aapa_method = getattr(gbat_new_group, self.after_all_players_arrive)
             else:
                 wp._player_access_forbidden = Undefined_AfterAllPlayersArrive_Player()
                 wp._participant_access_forbidden = (

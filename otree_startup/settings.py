@@ -109,7 +109,8 @@ def get_default_settings(user_settings: dict):
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             # the timeout arg was recommended by Heroku support around 2019-10-17
             # when users were getting ConnectionClosed('reader at end of file')
-            "CONFIG": {"hosts": [dict(address=REDIS_URL, timeout=300)]},
+            # Heroku uses 300 so we should stay under that?
+            "CONFIG": {"hosts": [dict(address=REDIS_URL, timeout=280)]},
         }
     else:
         channel_layer = {"BACKEND": "channels.layers.InMemoryChannelLayer"}
