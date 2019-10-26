@@ -1,31 +1,26 @@
-from otree.common import Currency, RealWorldCurrency
-from django.db.models import BinaryField, ForeignKey
-from importlib import import_module
-import datetime
-import inspect
-import otree
 import collections
-import six
-from django.utils.encoding import force_text
+import csv
+import logging
+import numbers
 from collections import OrderedDict
-from django.conf import settings
-from django.db.models import Max, Count, Sum
 from decimal import Decimal
-import otree.constants_internal
+from importlib import import_module
+
+import xlsxwriter
+from django.db.models import BinaryField, ForeignKey
+from django.db.models import Max
+from django.utils.encoding import force_text
+
+import otree
+from otree.currency import Currency, RealWorldCurrency
+from otree.common import get_models_module
+from otree.models.group import BaseGroup
 from otree.models.participant import Participant
+from otree.models.player import BasePlayer
 from otree.models.session import Session
 from otree.models.subsession import BaseSubsession
-from otree.models.group import BaseGroup
-from otree.models.player import BasePlayer
-from otree.session import SessionConfig
-
 from otree.models_concrete import PageCompletion
-from otree.common_internal import get_models_module
-import numbers
-
-import csv
-import xlsxwriter
-import logging
+from otree.session import SessionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +249,7 @@ def get_rows_for_wide_csv():
 
 def get_rows_for_wide_csv_round(app_name, round_number, sessions):
 
-    models_module = otree.common_internal.get_models_module(app_name)
+    models_module = otree.common.get_models_module(app_name)
     Player = models_module.Player
     Group = models_module.Group
     Subsession = models_module.Subsession
@@ -334,7 +329,7 @@ def get_rows_for_wide_csv_round(app_name, round_number, sessions):
 def get_rows_for_csv(app_name):
     # need to use app_name and not app_label because the app might have been
     # removed from SESSION_CONFIGS
-    models_module = otree.common_internal.get_models_module(app_name)
+    models_module = otree.common.get_models_module(app_name)
     Player = models_module.Player
     Group = models_module.Group
     Subsession = models_module.Subsession
@@ -427,17 +422,10 @@ def get_rows_for_live_update(subsession: BaseSubsession):
 
                 attr = getattr(model_instance, colname, '')
                 if callable(attr):
-                    if (
-                        model_name == 'player'
-                        and colname == 'role'
-                        and model_instance.group is None
-                    ):
-                        attr = ''
-                    else:
-                        try:
-                            attr = attr()
-                        except:
-                            attr = "(error)"
+                    try:
+                        attr = attr()
+                    except Exception:
+                        attr = ""
                 row.append(sanitize_for_live_update(attr))
         rows.append(row)
 
@@ -502,113 +490,3 @@ def export_time_spent(fp):
     writer = csv.writer(fp)
     writer.writerows([column_names])
     writer.writerows(rows)
-
-
-def export_docs(fp, app_name):
-    """Write the dcos of the given app name as csv into the file-like object
-
-    """
-
-    # generate doct_dict
-    models_module = get_models_module(app_name)
-
-    model_names = ["Participant", "Player", "Group", "Subsession", "Session"]
-    line_break = '\r\n'
-
-    def choices_readable(choices):
-        lines = []
-        for value, name in choices:
-            # unicode() call is for lazy translation strings
-            lines.append(u'{}: {}'.format(value, six.text_type(name)))
-        return lines
-
-    def generate_doc_dict():
-        doc_dict = OrderedDict()
-
-        data_types_readable = {
-            'PositiveIntegerField': 'positive integer',
-            'IntegerField': 'integer',
-            'BooleanField': 'boolean',
-            'CharField': 'text',
-            'TextField': 'text',
-            'FloatField': 'decimal',
-            'DecimalField': 'decimal',
-            'CurrencyField': 'currency',
-        }
-
-        for model_name in model_names:
-            if model_name == 'Participant':
-                Model = Participant
-            elif model_name == 'Session':
-                Model = Session
-            else:
-                Model = getattr(models_module, model_name)
-
-            field_names = set(field.name for field in Model._meta.fields)
-
-            members = get_field_names_for_csv(Model)
-            doc_dict[model_name] = OrderedDict()
-
-            for member_name in members:
-                member = getattr(Model, member_name, None)
-                doc_dict[model_name][member_name] = OrderedDict()
-                if member_name == 'id':
-                    doc_dict[model_name][member_name]['type'] = ['positive integer']
-                    doc_dict[model_name][member_name]['doc'] = ['Unique ID']
-                elif member_name in field_names:
-                    member = Model._meta.get_field(member_name)
-
-                    internal_type = member.get_internal_type()
-                    data_type = data_types_readable.get(internal_type, internal_type)
-
-                    doc_dict[model_name][member_name]['type'] = [data_type]
-
-                    # flag error if the model doesn't have a doc attribute,
-                    # which it should unless the field is a 3rd party field
-                    doc = getattr(member, 'doc', '[error]') or ''
-                    doc_dict[model_name][member_name]['doc'] = [
-                        line.strip() for line in doc.splitlines() if line.strip()
-                    ]
-
-                    choices = getattr(member, 'choices', None)
-                    if choices:
-                        doc_dict[model_name][member_name]['choices'] = choices_readable(
-                            choices
-                        )
-                elif callable(member):
-                    doc_dict[model_name][member_name]['doc'] = [inspect.getdoc(member)]
-        return doc_dict
-
-    def docs_as_string(doc_dict):
-
-        first_line = '{}: Documentation'.format(app_name)
-        second_line = '*' * len(first_line)
-
-        lines = [
-            first_line,
-            second_line,
-            '',
-            'Accessed: {}'.format(datetime.date.today().isoformat()),
-            '',
-        ]
-
-        app_doc = getattr(models_module, 'doc', '')
-        if app_doc:
-            lines += [app_doc, '']
-
-        for model_name in doc_dict:
-            lines.append(model_name)
-
-            for member in doc_dict[model_name]:
-                lines.append('\t{}'.format(member))
-                for info_type in doc_dict[model_name][member]:
-                    lines.append('\t\t{}'.format(info_type))
-                    for info_line in doc_dict[model_name][member][info_type]:
-                        lines.append(u'{}{}'.format('\t' * 3, info_line))
-
-        output = u'\n'.join(lines)
-        return output.replace('\n', line_break).replace('\t', '    ')
-
-    doc_dict = generate_doc_dict()
-    doc = docs_as_string(doc_dict)
-    fp.write(doc)

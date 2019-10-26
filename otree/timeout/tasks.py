@@ -1,10 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import django.test
 from huey.contrib.djhuey import db_task
 
-from otree import constants_internal
+import otree.constants
 
 
 test_client = django.test.Client()
@@ -31,7 +28,7 @@ def submit_expired_url(participant_code, url):
         code=participant_code, _current_form_page_url=url
     ).exists():
         test_client.post(
-            url, data={constants_internal.timeout_happened: True}, follow=True
+            url, data={otree.constants.timeout_happened: True}, follow=True
         )
 
 

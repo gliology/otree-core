@@ -1,6 +1,6 @@
 from typing import Union, List, Any, Optional
 
-from otree.common import RealWorldCurrency, Currency
+from otree.currency import RealWorldCurrency, Currency
 
 class Currency(Currency):
     '''

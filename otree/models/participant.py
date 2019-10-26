@@ -1,21 +1,22 @@
+from django.db import models as dj_models
 from django.urls import reverse
 
-import otree.common_internal
-from otree import constants_internal
-from otree.common_internal import random_chars_8
+import otree.common
+from otree.common import random_chars_8, FieldTrackerWithVarsSupport
 from otree.db import models
 from otree.models_concrete import ParticipantToPlayerLookup
-from .varsmixin import ModelWithVars
-import model_utils
 
 
-class Participant(ModelWithVars):
-    _ft = model_utils.FieldTracker()
+class Participant(models.Model):
 
     class Meta:
         ordering = ['pk']
         app_label = "otree"
         index_together = ['session', 'mturk_worker_id', 'mturk_assignment_id']
+
+    _ft = FieldTrackerWithVarsSupport()
+    vars: dict = models._PickleField(default=dict)
+
 
     session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
 
@@ -33,7 +34,7 @@ class Participant(ModelWithVars):
 
     payoff = models.CurrencyField(default=0)
 
-    time_started = models.DateTimeField(null=True)
+    time_started = dj_models.DateTimeField(null=True)
     mturk_assignment_id = models.CharField(max_length=50, null=True)
     mturk_worker_id = models.CharField(max_length=50, null=True)
 
@@ -66,6 +67,7 @@ class Participant(ModelWithVars):
         default=False, db_index=True, doc="""Whether this user's start URL was opened"""
     )
 
+    # deprecated on 2019-10-16. eventually get rid of this
     @property
     def ip_address(self):
         return 'deprecated'
@@ -92,7 +94,7 @@ class Participant(ModelWithVars):
     # only to be displayed in the admin participants changelist
     _round_number = models.PositiveIntegerField(null=True)
 
-    _current_form_page_url = models.URLField()
+    _current_form_page_url = dj_models.URLField()
 
     _max_page_index = models.PositiveIntegerField()
 
@@ -135,7 +137,7 @@ class Participant(ModelWithVars):
         lst = []
         app_sequence = self.session.config['app_sequence']
         for app in app_sequence:
-            models_module = otree.common_internal.get_models_module(app)
+            models_module = otree.common.get_models_module(app)
             players = models_module.Player.objects.filter(participant=self).order_by(
                 'round_number'
             )
@@ -160,7 +162,7 @@ class Participant(ModelWithVars):
         return reverse('OutOfRangeNotification')
 
     def _start_url(self):
-        return otree.common_internal.participant_start_url(self.code)
+        return otree.common.participant_start_url(self.code)
 
     def payoff_in_real_world_currency(self):
         return self.payoff.to_real_world_currency(self.session)

@@ -1,22 +1,16 @@
 from otree.currency import Currency
-
-from .otree_tags import template, FormFieldNode
+from django import template
+from .otree_forms import FormFieldNode
 from otree.chat import chat_template_tag
 from otree.api import safe_json
 from otree.staticfiles import StaticNode
 
-# renaming otree_tags to otree and removing internal tags
-# this code is duplicated in otree_tags. I duplicate it rather than importing
-# register, because PyCharm's autocomplete doesn't detect the import and
-# flags all the template tags in yellow.
 
 register = template.Library()
 register.tag('formfield', FormFieldNode.parse)
 
-NEXT_BUTTON_TEMPLATE_PATH = 'otree/tags/NextButton.html'
 
-
-@register.inclusion_tag(NEXT_BUTTON_TEMPLATE_PATH)
+@register.inclusion_tag('otree/tags/NextButton.html')
 def next_button(*args, **kwargs):
     return {}
 
@@ -49,13 +43,11 @@ def json(val):
     return safe_json(val)
 
 
-# this code is duplicated in otree_tags.py
 @register.inclusion_tag('otreechat_core/widget.html', takes_context=True, name='chat')
 def chat(context, *args, **kwargs):
     return chat_template_tag(context, *args, **kwargs)
 
 
-# this code is duplicated in otree_tags.py
 @register.inclusion_tag('otree/tags/formfields.html', takes_context=True)
 def formfields(context, *args, **kwargs):
     return context

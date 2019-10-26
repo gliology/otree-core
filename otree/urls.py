@@ -6,7 +6,7 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.views.generic.base import RedirectView
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from otree import common_internal
+from otree import common
 
 
 ALWAYS_UNRESTRICTED = {
@@ -144,7 +144,7 @@ def get_urlpatterns():
 
     used_names_in_url = set()
     for app_name in settings.INSTALLED_OTREE_APPS:
-        models_module = common_internal.get_models_module(app_name)
+        models_module = common.get_models_module(app_name)
         name_in_url = models_module.Constants.name_in_url
         if name_in_url in used_names_in_url:
             msg = (
@@ -155,7 +155,7 @@ def get_urlpatterns():
 
         used_names_in_url.add(name_in_url)
 
-        views_module = common_internal.get_pages_module(app_name)
+        views_module = common.get_pages_module(app_name)
         urlpatterns += url_patterns_from_app_pages(views_module.__name__, name_in_url)
 
     urlpatterns += url_patterns_from_builtin_module('otree.views.participant')

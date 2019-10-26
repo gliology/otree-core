@@ -4,9 +4,55 @@ from django.conf import settings
 from django.utils.encoding import force_text
 from django.utils.translation import ugettext_lazy
 from otree.currency import Currency, RealWorldCurrency
-from django.forms.widgets import *  # noqa
 from django import forms
 
+# TextInput could be useful if someone wants to set choices= but doesn't
+# want a dropdown. Same for NumberInput actually. But they could also
+# just use FOO_error_message, so they don't need to know the name of each input.
+from django.forms.widgets import (
+    CheckboxInput,
+    HiddenInput,
+    RadioSelect,
+    TextInput,
+    Textarea,
+)  # noqa
+
+
+def make_deprecated_widget(WidgetName):
+    def DeprecatedWidget(*args, **kwargs):
+        # putting the msg on a separate line gives better tracebacks
+        msg = (
+            f'{WidgetName} does not exist in oTree. You should either delete it, '
+            f'or import it from Django directly, like:\n'
+            'import django.forms.widgets as dj_widgets\n'
+            f'my_field = dj_widgets.{WidgetName}'
+        )
+        raise Exception(msg)
+
+    return DeprecatedWidget
+
+
+Media = make_deprecated_widget('Media')
+MediaDefiningClass = make_deprecated_widget('MediaDefiningClass')
+Widget = make_deprecated_widget('Widget')
+NumberInput = make_deprecated_widget('NumberInput')
+EmailInput = make_deprecated_widget('EmailInput')
+URLInput = make_deprecated_widget('URLInput')
+PasswordInput = make_deprecated_widget('PasswordInput')
+MultipleHiddenInput = make_deprecated_widget('MultipleHiddenInput')
+FileInput = make_deprecated_widget('FileInput')
+ClearableFileInput = make_deprecated_widget('ClearableFileInput')
+DateInput = make_deprecated_widget('DateInput')
+DateTimeInput = make_deprecated_widget('DateTimeInput')
+TimeInput = make_deprecated_widget('TimeInput')
+Select = make_deprecated_widget('Select')
+NullBooleanSelect = make_deprecated_widget('NullBooleanSelect')
+SelectMultiple = make_deprecated_widget('SelectMultiple')
+CheckboxSelectMultiple = make_deprecated_widget('CheckboxSelectMultiple')
+MultiWidget = make_deprecated_widget('MultiWidget')
+SplitDateTimeWidget = make_deprecated_widget('SplitDateTimeWidget')
+SplitHiddenDateTimeWidget = make_deprecated_widget('SplitHiddenDateTimeWidget')
+SelectDateWidget = make_deprecated_widget('SelectDateWidget')
 
 from otree.currency.locale import CURRENCY_SYMBOLS
 

@@ -1,25 +1,18 @@
-from typing import Dict
 import json
-import threading
 import logging
-from collections import OrderedDict
-
-import channels
-import otree.channels.utils as channel_utils
-import traceback
-
-import otree.common_internal
-from otree import common_internal
-
-from otree.common_internal import get_redis_conn
-
-from .runner import make_bots
-from .bot import ParticipantBot
 import random
+import threading
+import traceback
+from collections import OrderedDict
+from typing import Dict
 
+import otree.channels.utils as channel_utils
+import otree.common
+from otree import common
+from otree.common import get_redis_conn
 from otree.models import Session
-from channels.layers import get_channel_layer
-
+from .bot import ParticipantBot
+from .runner import make_bots
 
 REDIS_KEY_PREFIX = 'otree-bots'
 
@@ -211,7 +204,7 @@ def load_redis_response_dict(response_bytes: bytes):
     if 'traceback' in response:
         # cram the other traceback in this traceback message.
         # note:
-        raise common_internal.BotError(response['traceback'])
+        raise common.BotError(response['traceback'])
     elif 'error' in response:
         # handled exception
         raise BotRequestError(response['error'])
@@ -252,7 +245,7 @@ def redis_get_method_retval(redis_conn, response_key: str) -> dict:
 
 
 def wrap_method_call(method_name: str, method_kwargs):
-    if otree.common_internal.USE_REDIS:
+    if otree.common.USE_REDIS:
         redis_conn = get_redis_conn()
         response_key = redis_enqueue_method_call(
             redis_conn=redis_conn, method_name=method_name, method_kwargs=method_kwargs

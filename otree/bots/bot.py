@@ -2,21 +2,19 @@ from typing import List
 import re
 import decimal
 import logging
-import abc
-import six
-from urllib.parse import unquote, urlsplit
-from six.moves.html_parser import HTMLParser
 
+from urllib.parse import unquote, urlsplit
+from html.parser import HTMLParser
+
+import otree.constants
 from otree.models_concrete import ParticipantToPlayerLookup
 from django import test
 from django.urls import resolve
 from django.conf import settings
 from otree.currency import Currency
-from django.apps import apps
-from otree import constants_internal
 from otree.models import Participant, Session
-from otree import common_internal
-from otree.common_internal import (
+from otree import common
+from otree.common import (
     get_dotted_name,
     get_bots_module,
     get_admin_secret_code,
@@ -82,7 +80,8 @@ def expect(*args):
     elif len(args) == 3:
         lhs, op, rhs = args
     else:
-        raise ValueError(f'This function takes 2 or 3 arguments, not {len(args)}')
+        msg = f'This function takes 2 or 3 arguments, not {len(args)}'
+        raise ValueError(msg)
     allowed_operators = ['==', '!=', '>', '<', '>=', '<=', 'in', 'not in']
     if op not in allowed_operators:
         raise ValueError(
@@ -92,15 +91,18 @@ def expect(*args):
     if op == '==':
         res = lhs == rhs
         if not res:
-            raise ExpectError(f'Expected {rhs!r}, actual value is {lhs!r}')
+            msg = f'Expected {rhs!r}, actual value is {lhs!r}'
+            raise ExpectError(msg)
     elif op == 'in':
         res = lhs in rhs
         if not res:
-            raise ExpectError(f'{lhs!r} was not found')
+            msg = f'{lhs!r} was not found'
+            raise ExpectError(msg)
     elif op == 'not in':
         res = lhs not in rhs
         if not res:
-            raise ExpectError(f'{lhs!r} was not expected but was found anyway')
+            msg = f'{lhs!r} was not expected but was found anyway'
+            raise ExpectError(msg)
     elif op == '!=':
         res = lhs != rhs
     elif op == '>':
@@ -113,7 +115,8 @@ def expect(*args):
         res = lhs <= rhs
 
     if not bool(res):
-        raise ExpectError(f'"{lhs!r} {op} {rhs!r}" is not true')
+        msg = f'"{lhs!r} {op} {rhs!r}" is not true'
+        raise ExpectError(msg)
 
 
 class ParticipantBot(test.Client):
@@ -165,7 +168,7 @@ class ParticipantBot(test.Client):
             self.submits_generator = self.get_submits()
 
     def open_start_url(self):
-        start_url = common_internal.participant_start_url(self.participant_code)
+        start_url = common.participant_start_url(self.participant_code)
         self.response = self.get(start_url, follow=True)
 
     def get_submits(self):
@@ -195,13 +198,14 @@ class ParticipantBot(test.Client):
                     pass
                 else:
                     raise
-            except ExpectError:
+            except ExpectError as exc:
                 # the point is to re-raise so that i can reference the original
                 # exception as exc.__cause__ or exc.__context__, since that exception
                 # is much smaller and doesn't have all the extra layers.
                 # pass it to response_for_exception.
                 # this results in much nicer output for browser bots (devserver and runprodserver)
-                raise ExpectError
+                # but keep the original message, which is needed for CLI bots
+                raise ExpectError(str(exc))
 
     def _play_individually(self):
         '''convenience method for testing'''
@@ -404,8 +408,8 @@ def _Submission(
         post_data['error_fields'] = error_fields
 
     if timeout_happened:
-        post_data[constants_internal.timeout_happened] = True
-        post_data[constants_internal.admin_secret_code] = ADMIN_SECRET_CODE
+        post_data[otree.constants.timeout_happened] = True
+        post_data[otree.constants.admin_secret_code] = ADMIN_SECRET_CODE
 
     # easy way to check if it's a wait page, without any messy imports
     if hasattr(PageClass, 'wait_for_all_groups'):
@@ -529,8 +533,8 @@ class PageHtmlChecker(HTMLParser, object):
 
 def is_wait_page(response):
     return (
-        response.get(constants_internal.wait_page_http_header)
-        == constants_internal.get_param_truth_value
+        response.get(otree.constants.wait_page_http_header)
+        == otree.constants.get_param_truth_value
     )
 
 

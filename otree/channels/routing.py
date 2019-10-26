@@ -37,9 +37,5 @@ for extensions_module in extensions_modules:
 
 
 application = ProtocolTypeRouter(
-    {
-        # WebSocket chat handler
-        "websocket": AuthMiddlewareStack(URLRouter(websocket_routes)),
-        "lifespan": consumers.LifespanApp,
-    }
+    {"websocket": AuthMiddlewareStack(URLRouter(websocket_routes))}
 )

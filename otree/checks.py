@@ -1,16 +1,13 @@
 import inspect
 import os
-
-from otree import common_internal
 from importlib import import_module
-
-from django.apps import apps
-from django.conf import settings
-from django.core.checks import register, Error, Warning
-import django.db.models.fields
-from otree.api import BasePlayer, BaseGroup, BaseSubsession, Currency, WaitPage, Page
-from otree.common_internal import _get_all_configs
 from pathlib import Path
+
+from django.core.checks import Error, Warning, register
+
+from otree import common
+from otree.api import BasePlayer, BaseGroup, BaseSubsession, Currency, WaitPage, Page
+from otree.common import _get_all_configs
 
 
 class AppCheckHelper:
@@ -64,14 +61,11 @@ class AppCheckHelper:
         return inspect.isclass(cls)
 
 
-# CHECKS
-
-
 def files(helper: AppCheckHelper, **kwargs):
     # don't check views.py because it might be pages.py
     for fn in ['models.py']:
         if not os.path.isfile(helper.get_path(fn)):
-            helper.add_error('No "%s" file found in game folder' % fn, numeric_id=102)
+            helper.add_error('No "%s" file found in app folder' % fn, numeric_id=102)
 
     templates_dir = Path(helper.get_path('templates'))
     app_label = helper.app_config.label
@@ -104,7 +98,6 @@ base_model_attrs = {
     'Group': set(dir(BaseGroup)),
     'Subsession': set(dir(BaseSubsession)),
 }
-
 model_field_substitutes = {
     int: 'IntegerField',
     float: 'FloatField',
@@ -179,20 +172,6 @@ def model_classes(helper: AppCheckHelper, **kwargs):
                         )
 
                         helper.add_error(warning, numeric_id=112)
-                    # isinstance(X, type) means X is a class, not instance
-                    elif isinstance(attr_value, type) and issubclass(
-                        attr_value, django.db.models.fields.Field
-                    ):
-                        msg = ('{}.{} is missing parentheses.').format(
-                            Model.__name__, attr_name
-                        )
-                        helper.add_error(
-                            msg,
-                            numeric_id=113,
-                            hint=('Consider changing to "{} = models.{}()"').format(
-                                attr_name, attr_value.__name__
-                            ),
-                        )
 
 
 def constants(helper: AppCheckHelper, **kwargs):
@@ -224,14 +203,12 @@ def constants(helper: AppCheckHelper, **kwargs):
 
 
 def pages_function(helper: AppCheckHelper, **kwargs):
-    pages_module = common_internal.get_pages_module(helper.app_config.name)
-    views_or_pages = pages_module.__name__.split('.')[-1]
+    pages_module = common.get_pages_module(helper.app_config.name)
     try:
         page_list = pages_module.page_sequence
     except:
         helper.add_error(
-            '{}.py is missing the variable page_sequence.'.format(views_or_pages),
-            numeric_id=21,
+            'pages.py is missing the variable page_sequence.', numeric_id=21
         )
         return
     else:
@@ -252,10 +229,10 @@ def pages_function(helper: AppCheckHelper, **kwargs):
             # see below in ensure_no_misspelled_attributes,
             # we can get rid of a check there also
             if ViewCls.__name__ == 'Page':
-                msg = "page_sequence cannot contain " "a class called 'Page'."
+                msg = "page_sequence cannot contain a class called 'Page'."
                 helper.add_error(msg, numeric_id=22)
             if ViewCls.__name__ == 'WaitPage' and helper.app_config.name != 'trust':
-                msg = "page_sequence cannot contain " "a class called 'WaitPage'."
+                msg = "page_sequence cannot contain a class called 'WaitPage'."
                 helper.add_error(msg, numeric_id=221)
 
             if issubclass(ViewCls, WaitPage):
@@ -292,125 +269,6 @@ def pages_function(helper: AppCheckHelper, **kwargs):
                 msg = '"{}" is not a valid page'.format(ViewCls)
                 helper.add_error(msg, numeric_id=26)
 
-            ensure_no_misspelled_attributes(ViewCls, helper)
-
-
-def ensure_no_misspelled_attributes(ViewCls: type, helper: AppCheckHelper):
-    '''just a helper function'''
-
-    # this messes with the logic of base classes.
-    # do this instead of ViewCls == WaitPage, because _builtin already
-    # subclasses it, so you would get a warning like:
-    # Page "WaitPage" has the following method that is not recognized by oTree:
-    # "z_autocomplete".
-    if ViewCls.__name__ == 'WaitPage' or ViewCls.__name__ == 'Page':
-        return
-
-    # make sure no misspelled attributes
-    base_members = set()
-    for Cls in ViewCls.__bases__:
-        base_members.update(dir(Cls))
-    child_members = set(dir(ViewCls))
-    child_only_members = child_members - base_members
-
-    dynamic_form_methods = set()  # needs to be a set
-    for member in child_only_members:
-        # error_message, not _error_message
-        for valid_ending in ['error_message', '_min', '_max', '_choices']:
-            if member.endswith(valid_ending):
-                dynamic_form_methods.add(member)
-    invalid_members = child_only_members - dynamic_form_methods
-    if invalid_members:
-        ALLOW_CUSTOM_ATTRIBUTES = '_allow_custom_attributes'
-        if getattr(ViewCls, ALLOW_CUSTOM_ATTRIBUTES, False):
-            return
-
-        page_attrs = set(dir(Page))
-        wait_page_attrs = set(dir(WaitPage))
-        ATTRS_ON_PAGE_ONLY = page_attrs - wait_page_attrs
-        ATTRS_ON_WAITPAGE_ONLY = wait_page_attrs - page_attrs
-
-        for member in invalid_members:
-            # this assumes that ViewCls is a Page or WaitPage
-            if member in ATTRS_ON_PAGE_ONLY:
-                assert issubclass(ViewCls, WaitPage), (ViewCls, member)
-                msg = (
-                    'WaitPage "{ViewClsName}" has the attribute "{member}" that is not '
-                    'allowed on a WaitPage. '
-                )
-                numeric_id = 27
-            elif member in ATTRS_ON_WAITPAGE_ONLY:
-                assert issubclass(ViewCls, Page), (ViewCls, member)
-                msg = (
-                    'Page "{ViewClsName}" has the attribute "{member}" that is '
-                    'only allowed on a WaitPage, not a regular Page. '
-                )
-                numeric_id = 271
-            elif callable(getattr(ViewCls, member)):
-                msg = (
-                    'Page "{ViewClsName}" has the following method that is not '
-                    'recognized by oTree: "{member}". '
-                    'Consider moving it into '
-                    'the Player class in models.py. '
-                )
-
-                numeric_id = 28
-            else:
-                msg = (
-                    'Page "{ViewClsName}" has the following attribute that is not '
-                    'recognized by oTree: "{member}". '
-                )
-                numeric_id = 29
-
-            fmt_kwargs = {
-                'ViewClsName': ViewCls.__name__,
-                'FLAG': ALLOW_CUSTOM_ATTRIBUTES,
-                'member': member,
-            }
-            # when i make this an error, should add this workaround.
-            # msg +=  'If you want to keep it here, you need to set '
-            #        '{FLAG}=True on the page class.'
-
-            # at first, just make it a warning.
-            helper.add_error(msg.format(**fmt_kwargs), numeric_id)
-
-
-def unique_sessions_names(helper: AppCheckHelper, **kwargs):
-    already_seen = set()
-    for st in settings.SESSION_CONFIGS:
-        st_name = st["name"]
-        if st_name in already_seen:
-            msg = "Duplicate SESSION_CONFIG name '{}'".format(st_name)
-            helper.add_error(msg, numeric_id=40)
-        else:
-            already_seen.add(st_name)
-
-
-def unique_room_names(helper: AppCheckHelper, **kwargs):
-    already_seen = set()
-    for room in getattr(settings, 'ROOMS', []):
-        room_name = room["name"]
-        if room_name in already_seen:
-            msg = "Duplicate ROOM name '{}'".format(room_name)
-            helper.add_error(msg, numeric_id=50)
-        else:
-            already_seen.add(room_name)
-
-
-def template_encoding(helper: AppCheckHelper, **kwargs):
-    from otree.checks.templates import has_valid_encoding
-
-    for template_name in helper.get_template_names():
-        if not has_valid_encoding(template_name):
-            helper.add_error(
-                'The template {template} is not UTF-8 encoded. '
-                'Please configure your text editor to always save files '
-                'as UTF-8. Then open the file and save it again.'.format(
-                    template=helper.get_rel_path(template_name)
-                ),
-                numeric_id=60,
-            )
-
 
 def make_check_function(func):
     def check_function(app_configs, **kwargs):
@@ -427,23 +285,7 @@ def make_check_function(func):
     return check_function
 
 
-def make_check_function_run_once(func):
-    def check_function(app_configs, **kwargs):
-        otree_app_config = apps.get_app_config('otree')
-        # ignore app_configs list -- just run once
-        errors = []
-        helper = AppCheckHelper(otree_app_config, errors)
-        func(helper, **kwargs)
-        return errors
-
-    return check_function
-
-
 def register_system_checks():
-    for func in [unique_room_names, unique_sessions_names]:
-        check_function = make_check_function_run_once(func)
-        register(check_function)
-
-    for func in [model_classes, files, constants, pages_function, template_encoding]:
+    for func in [model_classes, files, constants, pages_function]:
         check_function = make_check_function(func)
         register(check_function)

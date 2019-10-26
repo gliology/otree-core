@@ -2,8 +2,8 @@ import threading
 import time
 
 import django.utils.timezone
-import otree.common_internal
-import otree.constants_internal as constants
+import otree.common
+import otree.constants
 import otree.models
 import otree.views.admin
 import otree.views.mturk
@@ -13,7 +13,7 @@ from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
 from django.utils.translation import ugettext as _
-from otree.common_internal import make_hash, add_params_to_url, get_redis_conn
+from otree.common import make_hash, add_params_to_url, get_redis_conn
 import otree.channels.utils as channel_utils
 from otree.models import Participant, Session
 from otree.models_concrete import ParticipantRoomVisit, BrowserBotsLauncherSessionCode
@@ -51,7 +51,7 @@ class InitializeParticipant(vanilla.UpdateView):
 
             # participant.label might already have been set
             participant.label = participant.label or self.request.GET.get(
-                constants.participant_label
+                otree.constants.participant_label
             )
 
             now = django.utils.timezone.now()
@@ -215,7 +215,7 @@ class AssignVisitorToRoom(GenericWaitPageMixin, vanilla.View):
 
         session = room.get_session()
         if session is None:
-            self.tab_unique_id = otree.common_internal.random_chars_10()
+            self.tab_unique_id = otree.common.random_chars_10()
             self._socket_url = channel_utils.room_participant_path(
                 room_name=self.room_name,
                 participant_label=label,

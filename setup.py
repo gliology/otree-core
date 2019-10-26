@@ -11,14 +11,9 @@ import otree
 
 version = otree.__version__
 
-with open('README.rst', encoding='utf-8') as f:
-    README = f.read()
-
-with open('requirements.txt', encoding='utf-8') as f:
-    required = f.read().splitlines()
-
-with open('requirements_mturk.txt', encoding='utf-8') as f:
-    required_mturk = f.read().splitlines()
+README = Path('README.rst').read_text('utf8')
+required = Path('requirements.txt').read_text().splitlines()
+required_mturk = Path('requirements_mturk.txt').read_text().splitlines()
 
 
 if sys.argv[-1] == 'publish':
@@ -52,12 +47,6 @@ if sys.version_info < (3, 7):
     sys.exit(MSG_PY_VERSION)
 
 # need to consider also whether Heroku supports 3.8
-MSG_PY_38 = '''
-This version of oTree requires Python 3.7.x.
-'''
-
-if sys.version_info >= (3, 8):
-    sys.exit(MSG_PY_38)
 
 
 setup(

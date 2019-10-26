@@ -1,40 +1,39 @@
-import json
+import base64
+import datetime
+import io
 import logging
+import time
+import traceback
+import urllib.parse
+
 import django.db
 import django.utils.timezone
-import traceback
-import time
-import urllib.parse
-from asgiref.sync import sync_to_async
+from channels.db import database_sync_to_async
 from channels.generic.websocket import (
-    JsonWebsocketConsumer,
     AsyncJsonWebsocketConsumer,
     WebsocketConsumer,
 )
+from django.conf import settings
 from django.core.signing import Signer, BadSignature
+from django.shortcuts import reverse
+
+import otree.bots.browser
+import otree.channels.utils as channel_utils
 import otree.session
 from otree.channels.utils import get_chat_group
-from otree.models import Participant, Session
+from otree.common import get_models_module
+from otree.export import export_wide, export_app
+from otree.models import Participant
 from otree.models_concrete import (
     CompletedGroupWaitPage,
     CompletedSubsessionWaitPage,
     ChatMessage,
     WaitPagePassage,
 )
-from otree.common_internal import get_models_module
-import otree.channels.utils as channel_utils
 from otree.models_concrete import ParticipantRoomVisit, BrowserBotsLauncherSessionCode
 from otree.room import ROOM_DICT
-import otree.bots.browser
-from otree.export import export_wide, export_app
-import io
-import base64
-import datetime
-from django.conf import settings
-from django.shortcuts import reverse
-from otree.views.admin import CreateSessionForm
 from otree.session import SESSION_CONFIGS_DICT
-from channels.db import database_sync_to_async
+from otree.views.admin import CreateSessionForm
 
 logger = logging.getLogger(__name__)
 
@@ -718,7 +717,6 @@ class ExportData(_OTreeAsyncJsonWebsocketConsumer):
         content.update(file_name=file_name, data=data, mime_type=mime_type)
         # this doesn't go through channel layer, so it is probably safer
         # in terms of sending large data
-
         await self.send_json(content)
 
     def group_name(self, **kwargs):
@@ -727,27 +725,6 @@ class ExportData(_OTreeAsyncJsonWebsocketConsumer):
 
 class NoOp(WebsocketConsumer):
     pass
-
-
-class LifespanApp:
-    '''
-    temporary shim for https://github.com/django/channels/issues/1216
-    needed so that hypercorn doesn't display an error.
-    this uses ASGI 2.0 format, not the newer 3.0 single callable
-    '''
-
-    def __init__(self, scope):
-        self.scope = scope
-
-    async def __call__(self, receive, send):
-        if self.scope['type'] == 'lifespan':
-            while True:
-                message = await receive()
-                if message['type'] == 'lifespan.startup':
-                    await send({'type': 'lifespan.startup.complete'})
-                elif message['type'] == 'lifespan.shutdown':
-                    await send({'type': 'lifespan.shutdown.complete'})
-                    return
 
 
 def parse_querystring(query_string) -> dict:

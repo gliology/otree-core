@@ -16,7 +16,7 @@ from django.core.management import get_commands, load_command_class
 import django
 from django.apps import apps
 from django.core.management.base import BaseCommand
-from django.utils import autoreload, six
+from django.utils import autoreload
 
 # "from .settings import ..." actually imports the whole settings module
 # confused me, it was overwriting django.conf.settings above
@@ -44,13 +44,13 @@ resetdb
 runprodserver
 runprodserver1of2
 runprodserver2of2
-runzip
 shell
 startapp
 startproject
 test
 unzip
 zip
+zipserver
 '''
 
 
@@ -140,9 +140,9 @@ def execute_from_command_line(*args, **kwargs):
         if warning:
             logger.warning(warning)
 
-    runserver_or_devserver = subcommand in ['runserver', 'devserver']
+    is_devserver = subcommand == 'devserver'
 
-    if runserver_or_devserver:
+    if is_devserver:
         # apparently required by restart_with_reloader
         # otherwise, i get:
         # python.exe: can't open file 'C:\oTree\venv\Scripts\otree':
@@ -161,7 +161,7 @@ def execute_from_command_line(*args, **kwargs):
     # The hardcoded condition is a code smell but we can't rely on a
     # flag on the command class because we haven't located it yet.
 
-    if runserver_or_devserver and '--noreload' not in argv:
+    if is_devserver and '--noreload' not in argv:
         try:
             autoreload.check_errors(do_django_setup)()
         except Exception:

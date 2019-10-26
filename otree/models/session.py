@@ -1,29 +1,21 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import logging
-import channels
-import json
-from django.urls import reverse
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-from otree.channels.utils import auto_advance_group
+import time
 
-from otree import constants_internal
-import otree.common_internal
-from otree.common_internal import (
+from django.template import TemplateDoesNotExist
+from django.template.loader import select_template
+
+import otree.common
+import otree.constants
+from otree.channels.utils import auto_advance_group
+from otree.common import (
     random_chars_8,
     random_chars_10,
     get_admin_secret_code,
     get_app_label_from_name,
+    FieldTrackerWithVarsSupport,
 )
-import time
-
 from otree.db import models
-from otree.models_concrete import ParticipantToPlayerLookup, RoomToSession
-from django.template.loader import select_template
-from django.template import TemplateDoesNotExist
-from .varsmixin import ModelWithVars
+from otree.models_concrete import RoomToSession
 
 
 logger = logging.getLogger('otree')
@@ -31,19 +23,16 @@ logger = logging.getLogger('otree')
 
 ADMIN_SECRET_CODE = get_admin_secret_code()
 
-import model_utils
 
-
-class Session(ModelWithVars):
-    _ft = model_utils.FieldTracker()
-
+class Session(models.Model):
     class Meta:
         app_label = "otree"
         # if i don't set this, it could be in an unpredictable order
         ordering = ['pk']
 
-    _pickle_fields = ['vars', 'config']
-    config = models._PickleField(default=dict, null=True)  # type: dict
+    _ft = FieldTrackerWithVarsSupport()
+    vars: dict = models._PickleField(default=dict)
+    config: dict = models._PickleField(default=dict, null=True)
 
     # label of this session instance
     label = models.CharField(
@@ -140,7 +129,7 @@ class Session(ModelWithVars):
         lst = []
         app_sequence = self.config['app_sequence']
         for app in app_sequence:
-            models_module = otree.common_internal.get_models_module(app)
+            models_module = otree.common.get_models_module(app)
             subsessions = models_module.Subsession.objects.filter(
                 session=self
             ).order_by('round_number')
@@ -214,8 +203,8 @@ class Session(ModelWithVars):
                     resp = client.post(
                         current_form_page_url,
                         data={
-                            constants_internal.timeout_happened: True,
-                            constants_internal.admin_secret_code: ADMIN_SECRET_CODE,
+                            otree.constants.timeout_happened: True,
+                            otree.constants.admin_secret_code: ADMIN_SECRET_CODE,
                         },
                         follow=True,
                     )
@@ -273,7 +262,7 @@ class Session(ModelWithVars):
         admin_report_app_names = []
         num_rounds_list = []
         for app_name in self.config['app_sequence']:
-            models_module = otree.common_internal.get_models_module(app_name)
+            models_module = otree.common.get_models_module(app_name)
             app_label = get_app_label_from_name(app_name)
             try:
                 select_template(

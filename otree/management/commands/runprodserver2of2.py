@@ -1,6 +1,4 @@
-#!/usr/bin/env python
 import os
-import sys
 from sys import exit as sys_exit
 
 from honcho.manager import Manager as HonchoManager

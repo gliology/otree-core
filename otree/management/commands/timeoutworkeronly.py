@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # run the worker to enforce page timeouts
 # even if the user closes their browser
 from huey.contrib.djhuey.management.commands.run_huey import Command as HueyCommand
@@ -18,7 +16,7 @@ class Command(HueyCommand):
         # need to set USE_REDIS = True, because it uses the test client
         # to submit pages, and if the next page has a timeout as well,
         # its timeout task should be queued.
-        import otree.common_internal
+        import otree.common
 
-        otree.common_internal.USE_REDIS = True
+        otree.common.USE_REDIS = True
         super().handle(*args, **options)

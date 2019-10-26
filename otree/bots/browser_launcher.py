@@ -35,7 +35,7 @@ BROWSER_CMDS = {
         'chrome': [
             'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
             'C:/Program Files/Google/Chrome/Application/chrome.exe',
-            os.getenv('LOCALAPPDATA', '') + r"\Google\Chrome\Application\chrome.exe",
+            os.getenv('LOCALAPPDATA', '') + r"/Google/Chrome/Application/chrome.exe",
         ]
     },
     OSEnum.mac: {
@@ -270,26 +270,24 @@ class Launcher:
 
         except:
             raise Exception(
-                'Could not connect to server at {}.'
+                f'Could not connect to server at {self.server_url}.'
                 'Before running this command, '
-                'you need to run the server (see --server-url flag).'.format(
-                    self.server_url
-                )
+                'you need to run the server (see --server-url flag).'
             )
         if not resp.ok:
             raise Exception(
-                'Could not open page at {}.'
-                '(HTTP status code: {})'.format(self.login_url, resp.status_code)
+                f'Could not open page at {self.login_url}.'
+                f'(HTTP status code: {resp.status_code})'
             )
 
     def create_session(self, session_config_name, num_participants, case_number):
         resp = self.post(
             self.create_session_url,
-            data={
-                'session_config_name': session_config_name,
-                'num_participants': num_participants,
-                'case_number': case_number,
-            },
+            data=dict(
+                session_config_name=session_config_name,
+                num_participants=num_participants,
+                case_number=case_number,
+            ),
         )
         assert resp.ok, 'Failed to create session. Check the server logs.'
         session_code = resp.text

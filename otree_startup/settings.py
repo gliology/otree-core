@@ -98,7 +98,6 @@ def get_default_settings(user_settings: dict):
     }
 
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
-    BASE_DIR = user_settings.get('BASE_DIR', '')
 
     # I thought about just checking if REDIS_URL is defined,
     # but using Redis when it's not necessary makes things much slower.
@@ -120,11 +119,7 @@ def get_default_settings(user_settings: dict):
         AWS_ACCESS_KEY_ID=os.environ.get('AWS_ACCESS_KEY_ID'),
         AWS_SECRET_ACCESS_KEY=os.environ.get('AWS_SECRET_ACCESS_KEY'),
         AUTH_LEVEL=os.environ.get('OTREE_AUTH_LEVEL'),
-        DATABASES={
-            'default': dj_database_url.config(
-                default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
-            )
-        },
+        DATABASES={'default': dj_database_url.config(default='sqlite:///db.sqlite3')},
         HUEY={
             'name': 'otree-huey',
             'connection': {'url': REDIS_URL},
@@ -140,11 +135,11 @@ def get_default_settings(user_settings: dict):
                 'loglevel': 'warning',
             },
         },
-        STATIC_ROOT=os.path.join(BASE_DIR, '__temp_static_root'),
+        STATIC_ROOT='__temp_static_root',
         STATIC_URL='/static/',
-        STATICFILES_STORAGE=('whitenoise.storage.CompressedManifestStaticFilesStorage'),
+        STATICFILES_STORAGE='whitenoise.storage.CompressedManifestStaticFilesStorage',
         ROOT_URLCONF='otree.urls',
-        TIME_ZONE='UTC',
+        TIME_ZONE='Europe/Zurich',
         USE_TZ=True,
         ALLOWED_HOSTS=['*'],
         LOGGING=logging,
@@ -160,7 +155,7 @@ def get_default_settings(user_settings: dict):
         CHANNEL_LAYERS={'default': channel_layer},
         REDIS_URL=REDIS_URL,
         MTURK_NUM_PARTICIPANTS_MULTIPLE=2,
-        LOCALE_PATHS=[os.path.join(user_settings.get('BASE_DIR', ''), 'locale')],
+        LOCALE_PATHS=['locale'],
         BOTS_CHECK_HTML=True,
     )
     return default_settings
@@ -288,25 +283,6 @@ def augment_settings(settings: dict):
 
     new_installed_apps = collapse_to_unique_list(no_experiment_apps, all_otree_apps)
 
-    # TEMPLATES
-    _template_dir = os.path.join(settings['BASE_DIR'], '_templates')
-    if os.path.exists(_template_dir):
-        new_template_dirs = [_template_dir]
-    else:
-        new_template_dirs = []
-
-    # STATICFILES
-    _static_dir = os.path.join(settings['BASE_DIR'], '_static')
-
-    if os.path.exists(_static_dir):
-        additional_static_dirs = [_static_dir]
-    else:
-        additional_static_dirs = []
-
-    new_staticfiles_dirs = collapse_to_unique_list(
-        settings.get('STATICFILES_DIRS'), additional_static_dirs
-    )
-
     new_middleware = collapse_to_unique_list(
         DEFAULT_MIDDLEWARE, settings.get('MIDDLEWARE')
     )
@@ -316,7 +292,7 @@ def augment_settings(settings: dict):
         TEMPLATES=[
             {
                 'BACKEND': 'django.template.backends.django.DjangoTemplates',
-                'DIRS': new_template_dirs,
+                'DIRS': ['_templates'],
                 'APP_DIRS': True,
                 'OPTIONS': {
                     'debug': True,
@@ -331,7 +307,9 @@ def augment_settings(settings: dict):
                 },
             }
         ],
-        STATICFILES_DIRS=new_staticfiles_dirs,
+        STATICFILES_DIRS=collapse_to_unique_list(
+            settings.get('STATICFILES_DIRS'), ['_static']
+        ),
         MIDDLEWARE=new_middleware,
         INSTALLED_OTREE_APPS=all_otree_apps,
         MESSAGE_TAGS={messages.ERROR: 'danger'},

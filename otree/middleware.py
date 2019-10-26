@@ -1,6 +1,6 @@
 from django.http import HttpResponseServerError
 import time
-from otree.common_internal import missing_db_tables
+from otree.common import missing_db_tables
 import logging
 
 logger = logging.getLogger('otree.perf')

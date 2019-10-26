@@ -7,7 +7,7 @@ import colorama
 from django.apps import AppConfig
 from django.db.models import signals
 
-from otree.common_internal import ensure_superuser_exists
+from otree.common import ensure_superuser_exists
 from otree.strict_templates import patch_template_silent_failures
 
 try:
@@ -61,9 +61,8 @@ def patched_execute(self, sql, params=None):
         # this will only work on postgres, but if they are using sqlite they should be using
         # devserver anyway.
         if CauseClass in (UndefinedColumn, UndefinedTable):
-            raise ExceptionClass(f'{exc} - try resetting the database.').with_traceback(
-                tb
-            ) from None
+            msg = f'{exc} - try resetting the database.'
+            raise ExceptionClass(msg).with_traceback(tb) from None
         raise
 
 

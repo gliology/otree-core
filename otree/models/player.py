@@ -1,9 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-from otree.common_internal import (
+from otree.common import (
     add_field_tracker,
-    get_models_module,
     in_round,
     in_rounds,
 )
@@ -121,6 +117,5 @@ class BasePlayer(models.Model):
             group_model, null=True, on_delete=models.CASCADE
         )
         ensure_field(cls, 'group', group_field)
-        import model_utils
 
         add_field_tracker(cls)

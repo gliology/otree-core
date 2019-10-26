@@ -1,5 +1,5 @@
 from otree.db import models
-from otree.common_internal import (
+from otree.common import (
     get_models_module,
     in_round,
     in_rounds,

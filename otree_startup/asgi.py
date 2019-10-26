@@ -8,7 +8,7 @@ configure_settings()
 django.setup()
 application = get_default_application()
 
-from otree.common_internal import release_any_stale_locks, get_redis_conn  # noqa
+from otree.common import release_any_stale_locks, get_redis_conn  # noqa
 
 # clear any tasks in Huey DB, so they don't pile up over time,
 # especially if you run the server without the timeoutworker to consume the

@@ -6,7 +6,7 @@ from django.conf import settings
 
 import vanilla
 
-import otree.common_internal
+import otree.common
 import otree.models
 import otree.export
 from otree.models.participant import Participant
@@ -38,23 +38,6 @@ class ExportIndex(vanilla.TemplateView):
             **kwargs
         )
 
-
-class ExportAppDocs(vanilla.View):
-
-    url_pattern = r"^ExportAppDocs/(?P<app_name>[\w.]+)/$"
-
-    def _doc_file_name(self, app_name):
-        return '{} - documentation ({}).txt'.format(
-            app_name, datetime.date.today().isoformat()
-        )
-
-    def get(self, request, app_name):
-        response = HttpResponse(content_type='text/plain')
-        response['Content-Disposition'] = 'attachment; filename="{}"'.format(
-            self._doc_file_name(app_name)
-        )
-        otree.export.export_docs(response, app_name)
-        return response
 
 
 def get_export_response(request, file_prefix):

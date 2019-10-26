@@ -1,19 +1,19 @@
 from django.utils import numberformat, formats
 from otree.currency.locale import CURRENCY_SYMBOLS, get_currency_format
-from six import __init__
+
 
 _original_number_format = numberformat.format
 
 
 def otree_number_format(number, *args, **kwargs):
     if isinstance(number, BaseCurrency):
-        return six.text_type(number)
+        return str(number)
     return _original_number_format(number, *args, **kwargs)
 
 
 from decimal import Decimal, ROUND_HALF_UP
 
-import six
+
 from django.conf import settings
 from django.utils import formats, numberformat
 from django.utils.translation import ungettext
@@ -123,11 +123,11 @@ class BaseCurrency(Decimal):
 
     def __format__(self, format_spec):
         if format_spec in {'', 's'}:
-            formatted = six.text_type(self)
+            formatted = str(self)
         else:
             formatted = format(Decimal(self), format_spec)
 
-        if isinstance(format_spec, six.binary_type):
+        if isinstance(format_spec, bytes):
             return formatted.encode('utf-8')
         else:
             return formatted
@@ -138,7 +138,7 @@ class BaseCurrency(Decimal):
     def __eq__(self, other):
         if isinstance(other, BaseCurrency):
             return Decimal.__eq__(self, other)
-        elif isinstance(other, six.integer_types + (float, Decimal)):
+        elif isinstance(other, (int, float, Decimal)):
             return Decimal.__eq__(self, self._sanitize(other))
         else:
             return False
@@ -253,3 +253,30 @@ def format_currency(number, lc, LO, CUR):
     if number < 0:
         retval = '-{}'.format(retval)
     return retval
+
+
+def currency_range(first, last, increment):
+    assert last >= first
+    if Currency(increment) == 0:
+        if settings.USE_POINTS:
+            setting_name = 'POINTS_DECIMAL_PLACES'
+        else:
+            setting_name = 'REAL_WORLD_CURRENCY_DECIMAL_PLACES'
+        raise ValueError(
+            (
+                'currency_range() step argument must not be zero. '
+                'Maybe your {} setting is '
+                'causing it to be rounded to 0.'
+            ).format(setting_name)
+        )
+
+    assert increment > 0  # not negative
+
+    values = []
+    current_value = Currency(first)
+
+    while True:
+        if current_value > last:
+            return values
+        values.append(current_value)
+        current_value += increment

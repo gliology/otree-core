@@ -5,7 +5,7 @@ import otree
 import re
 import otree.bots.browser
 import otree.channels.utils as channel_utils
-import otree.common_internal
+import otree.common
 import otree.export
 import otree.models
 import vanilla
@@ -16,8 +16,8 @@ from django.template.loader import select_template
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from otree import forms
-from otree.common import RealWorldCurrency
-from otree.common_internal import (
+from otree.currency import RealWorldCurrency
+from otree.common import (
     missing_db_tables,
     get_models_module,
     get_app_label_from_name,
@@ -122,11 +122,7 @@ class SessionStartLinks(AdminSessionPageMixin, vanilla.TemplateView):
         session = self.session
         room = session.get_room()
 
-        context = dict(
-            use_browser_bots=session.use_browser_bots,
-            sqlite=settings.DATABASES['default']['ENGINE'].endswith('sqlite3'),
-            runserver='runserver' in sys.argv or 'devserver' in sys.argv,
-        )
+        context = dict(use_browser_bots=session.use_browser_bots)
 
         session_start_urls = [
             self.request.build_absolute_uri(participant._start_url())
@@ -156,7 +152,7 @@ class SessionStartLinks(AdminSessionPageMixin, vanilla.TemplateView):
         return context
 
 
-class SessionEditPropertiesForm(forms.ModelForm):
+class SessionEditPropertiesForm(forms.Form):
     participation_fee = forms.RealWorldCurrencyField(
         required=False,
         # it seems that if this is omitted, the step defaults to an integer,
@@ -165,50 +161,47 @@ class SessionEditPropertiesForm(forms.ModelForm):
     )
     real_world_currency_per_point = forms.FloatField(required=False)
 
-    class Meta:
-        model = Session
-        fields = ['label', 'comment']
+    label = forms.CharField(required=False)
+    comment = forms.CharField(required=False)
 
 
-class SessionEditProperties(AdminSessionPageMixin, vanilla.UpdateView):
-    # required for vanilla.UpdateView
-    lookup_field = 'code'
-    model = Session
+class SessionEditProperties(AdminSessionPageMixin, vanilla.FormView):
     form_class = SessionEditPropertiesForm
     template_name = 'otree/admin/SessionEditProperties.html'
 
     def get_form(self, data=None, files=None, **kwargs):
-        form = super(SessionEditProperties, self).get_form(data, files, **kwargs)
-        config = self.session.config
-        form.fields['participation_fee'].initial = config['participation_fee']
-        form.fields['real_world_currency_per_point'].initial = config[
+        form = super().get_form(data, files, **kwargs)
+        session = self.session
+        config = session.config
+        fields = form.fields
+        fields['participation_fee'].initial = config['participation_fee']
+        fields['real_world_currency_per_point'].initial = config[
             'real_world_currency_per_point'
         ]
-        if self.session.mturk_HITId:
-            form.fields['participation_fee'].widget.attrs['readonly'] = 'True'
+        fields['label'].initial = session.label
+        fields['comment'].initial = session.comment
+        if session.mturk_HITId:
+            fields['participation_fee'].widget.attrs['readonly'] = 'True'
         return form
 
-    def get_success_url(self):
-        return reverse('SessionEditProperties', args=(self.session.code,))
-
     def form_valid(self, form):
-        super().form_valid(form)
+        session = self.session
+        session.label = form.cleaned_data['label']
+        session.comment = form.cleaned_data['comment']
+
         participation_fee = form.cleaned_data['participation_fee']
-        real_world_currency_per_point = form.cleaned_data[
-            'real_world_currency_per_point'
-        ]
-        config = self.session.config
-        if form.cleaned_data['participation_fee'] is not None:
-            config[
-                'participation_fee'
-                # need to convert back to RealWorldCurrency, because easymoney
-                # MoneyFormField returns a decimal, not Money (not sure why)
-            ] = RealWorldCurrency(participation_fee)
-        if form.cleaned_data['real_world_currency_per_point'] is not None:
-            config['real_world_currency_per_point'] = real_world_currency_per_point
+        rwc_per_point = form.cleaned_data['real_world_currency_per_point']
+
+        if participation_fee is not None:
+            # need to convert back to RealWorldCurrency, because easymoney
+            # MoneyFormField returns a decimal, not Money (not sure why)
+            session.config['participation_fee'] = RealWorldCurrency(participation_fee)
+        if rwc_per_point is not None:
+            session.config['real_world_currency_per_point'] = rwc_per_point
+
         self.session.save()
         messages.success(self.request, 'Properties have been updated')
-        return HttpResponseRedirect(self.get_success_url())
+        return redirect('SessionEditProperties', session.code)
 
 
 class SessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
@@ -511,7 +504,7 @@ class ServerCheck(vanilla.TemplateView):
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(
-            sqlite=settings.DATABASES['default']['ENGINE'].endswith('sqlite3'),
+            sqlite=otree.common.is_sqlite(),
             debug=settings.DEBUG,
             auth_level=settings.AUTH_LEVEL,
             auth_level_ok=settings.AUTH_LEVEL in {'DEMO', 'STUDY'},
@@ -525,15 +518,7 @@ class CreateBrowserBotsSession(vanilla.View):
     url_pattern = r"^create_browser_bots_session/$"
 
     def get(self, request, *args, **kwargs):
-        # return browser bots check
-        sqlite = settings.DATABASES['default']['ENGINE'].endswith('sqlite3')
-
-        return JsonResponse(
-            {
-                'sqlite': sqlite,
-                'runserver': 'runserver' in sys.argv or 'devserver' in sys.argv,
-            }
-        )
+        return JsonResponse({})
 
     def post(self, request):
         num_participants = int(request.POST['num_participants'])

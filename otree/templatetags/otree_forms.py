@@ -1,18 +1,13 @@
-from collections import namedtuple
-import sys
-from typing import List, Dict
+from typing import Dict
+
 from django.db import models
 from django.template import Node
 from django.template import TemplateSyntaxError
 from django.template import Variable, Context
-from django.template import VariableDoesNotExist
+from django.template.base import Token, FilterExpression
 from django.template.base import token_kwargs
-from django.template.loader import render_to_string
-
-from django.utils import six
 
 from otree.models_concrete import UndefinedFormModel
-from django.template.base import Token, FilterExpression
 
 
 class FormFieldNode(Node):
@@ -50,19 +45,7 @@ class FormFieldNode(Node):
         self.label_arg = label
 
     def get_form_instance(self, context):
-        try:
-            return Variable('form').resolve(context)
-        except VariableDoesNotExist as exception:
-            msg = (
-                "The 'formfield' templatetag expects a 'form' variable "
-                "in the context."
-            )
-            ExceptionClass = type(exception)
-            six.reraise(
-                ExceptionClass,
-                ExceptionClass(msg + ' ' + str(exception)),
-                sys.exc_info()[2],
-            )
+        return Variable('form').resolve(context)
 
     def resolve_bound_field(self, context):
         bound_field = Variable(self.field_variable_name).resolve(context)

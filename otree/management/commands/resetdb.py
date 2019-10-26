@@ -6,7 +6,7 @@ from django.core.management import call_command
 from django.db import connection, transaction
 from dataclasses import dataclass
 
-from otree import common_internal
+from otree import common
 from typing import Tuple, List
 
 logger = logging.getLogger('otree')
@@ -37,7 +37,7 @@ def db_label_and_drop_cmd(db_engine: str) -> DBDeletionInfo:
             ),
         )
     # put this last for test coverage
-    if 'sqlite3' in db_engine_lower:
+    if common.is_sqlite():
         return DBDeletionInfo('SQLite', 'DROP TABLE {table};')
     raise ValueError(
         'resetdb command does not recognize DB engine "{}"'.format(db_engine)
@@ -53,7 +53,7 @@ def migrate_db(options):
     # it doesn't exist.
     # Tried setting MIGRATIONS_MODULES but doesn't work
     # (causes ModuleNotFoundError)
-    common_internal.patch_migrations_module()
+    common.patch_migrations_module()
 
     call_command('migrate', interactive=False, run_syncdb=True, **options)
 
@@ -116,7 +116,7 @@ class Command(BaseCommand):
         tables = self._get_tables()
 
         logger.info(f"Dropping {len(tables)} tables...")
-        is_sqlite = 'sqlite' in db_engine.lower()
+        is_sqlite = common.is_sqlite()
         if is_sqlite:
             # otherwise, when I drop tables I get:
             # django.db.utils.IntegrityError: FOREIGN KEY constraint failed

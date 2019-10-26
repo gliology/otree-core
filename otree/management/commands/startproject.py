@@ -57,18 +57,6 @@ class Command(startproject.Command):
             if os.path.exists(project_name):
                 os.rmdir(project_name)
 
-            is_macos = sys.platform.startswith('darwin')
-            if is_macos and 'CERTIFICATE_VERIFY_FAILED' in str(exc):
-                py_major, py_minor = sys.version_info[:2]
-                msg = (
-                    'CERTIFICATE_VERIFY_FAILED: '
-                    'Before downloading the sample games, '
-                    'you need to install SSL certificates. '
-                    'Usually this can be resolved by entering this command:\n'
-                    '/Applications/Python\\ {}.{}/Install\\ Certificates.command'
-                ).format(py_major, py_minor)
-                self.stdout.write(msg)
-                sys.exit(-1)
             raise
         # this assumes the 'directory' arg was unused, which will be true
         # for 99% of oTree users.

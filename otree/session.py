@@ -1,31 +1,24 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import random
-import sys
-from functools import reduce
 from collections import OrderedDict
+from collections import defaultdict
 from decimal import Decimal
-import warnings
-from django.urls import reverse
+from functools import reduce
+from typing import List, Dict
 from django.conf import settings
 from django.db import transaction
-from django.db.utils import OperationalError
 
+import otree.bots.browser
+import otree.common
 import otree.db.idmap
-from otree.models import Participant, Session
-from otree.common_internal import (
+from otree import common
+from otree.common import (
     get_models_module,
     get_app_constants,
     validate_alphanumeric,
     get_bots_module,
 )
-from otree import common_internal
-import otree.common_internal
-from otree.common import RealWorldCurrency
+from otree.currency import RealWorldCurrency
+from otree.models import Participant, Session
 from otree.models_concrete import ParticipantLockModel, ParticipantToPlayerLookup
-import otree.bots.browser
-from collections import defaultdict
 
 
 def gcd(a, b):
@@ -79,48 +72,10 @@ class SessionConfig(dict):
 
     def clean(self):
 
-        required_keys = [
-            'name',
-            'app_sequence',
-            'num_demo_participants',
-            'participation_fee',
-            'real_world_currency_per_point',
-        ]
-
-        for key in required_keys:
-            if key not in self:
-                raise SessionConfigError(
-                    'settings.SESSION_CONFIGS: all configs must have a '
-                    '"{}"'.format(key)
-                )
-
-        datatypes = {'app_sequence': list, 'num_demo_participants': int, 'name': str}
-
-        for key, datatype in datatypes.items():
-            if not isinstance(self[key], datatype):
-                msg = (
-                    'SESSION_CONFIGS "{}": ' 'the entry "{}" must be of type {}'
-                ).format(self['name'], key, datatype.__name__)
+        for k in ['name', 'app_sequence', 'num_demo_participants']:
+            if k not in self:
+                msg = f'Session config is missing "{k}"'
                 raise SessionConfigError(msg)
-
-        # Allow non-ASCII chars in session config keys, because they are
-        # configurable in the admin, so need to be readable by non-English
-        # speakers. However, don't allow punctuation, spaces, etc.
-        # They make it harder to reason about and could cause problems
-        # later on. also could uglify the user's code.
-
-        INVALID_IDENTIFIER_MSG = (
-            'Key "{}" in settings.SESSION_CONFIGS '
-            'must not contain spaces, punctuation, '
-            'or other special characters. '
-            'It can contain non-English characters, '
-            'but it must be a valid Python variable name '
-            'according to string.isidentifier().'
-        )
-
-        for key in self:
-            if not key.isidentifier():
-                raise SessionConfigError(INVALID_IDENTIFIER_MSG.format(key))
 
         validate_alphanumeric(
             self['name'], identifier_description='settings.SESSION_CONFIGS name'
@@ -250,17 +205,25 @@ class SessionConfig(dict):
         return [self.editable_field_html(k) for k in self.custom_editable_fields()]
 
 
-def get_session_configs_dict():
-    SESSION_CONFIGS_DICT = OrderedDict()
-    for config_dict in settings.SESSION_CONFIGS:
-        config_obj = SessionConfig(settings.SESSION_CONFIG_DEFAULTS)
+def get_session_configs_dict(
+    SESSION_CONFIGS: List[Dict], SESSION_CONFIG_DEFAULTS: Dict
+):
+    SESSION_CONFIGS_DICT = {}
+    for config_dict in SESSION_CONFIGS:
+        config_obj = SessionConfig(SESSION_CONFIG_DEFAULTS)
         config_obj.update(config_dict)
         config_obj.clean()
-        SESSION_CONFIGS_DICT[config_dict['name']] = config_obj
+        config_name = config_dict['name']
+        if config_name in SESSION_CONFIGS_DICT:
+            msg = f"Duplicate SESSION_CONFIG name: {config_name}"
+            raise SessionConfigError(msg)
+        SESSION_CONFIGS_DICT[config_name] = config_obj
     return SESSION_CONFIGS_DICT
 
 
-SESSION_CONFIGS_DICT = get_session_configs_dict()
+SESSION_CONFIGS_DICT = get_session_configs_dict(
+    settings.SESSION_CONFIGS, settings.SESSION_CONFIG_DEFAULTS
+)
 
 
 def create_session(
@@ -271,7 +234,7 @@ def create_session(
     room_name=None,
     is_mturk=False,
     is_demo=False,
-    edited_session_config_fields=None
+    edited_session_config_fields=None,
 ) -> Session:
 
     num_subsessions = 0
@@ -299,6 +262,19 @@ def create_session(
         # to be a bit discouraged: http://goo.gl/dEXZpv
         # 2014-9-22: preassign to groups for demo mode.
 
+        # check that it divides evenly
+        session_lcm = session_config.get_lcm()
+        if num_participants is None:
+            # most games are multiplayer, so if it's under 2, we bump it to 2
+            num_participants = max(session_lcm, 2)
+        else:
+            if num_participants % session_lcm:
+                msg = (
+                    'Session Config {}: Number of participants ({}) is not a multiple '
+                    'of group size ({})'
+                ).format(session_config['name'], num_participants, session_lcm)
+                raise ValueError(msg)
+
         if is_mturk:
             mturk_num_participants = (
                 num_participants / settings.MTURK_NUM_PARTICIPANTS_MULTIPLE
@@ -313,15 +289,6 @@ def create_session(
             num_participants=num_participants,
             mturk_num_participants=mturk_num_participants,
         )  # type: Session
-
-        # check that it divides evenly
-        session_lcm = session_config.get_lcm()
-        if num_participants % session_lcm:
-            msg = (
-                'Session Config {}: Number of participants ({}) is not a multiple '
-                'of group size ({})'
-            ).format(session_config['name'], num_participants, session_lcm)
-            raise ValueError(msg)
 
         Participant.objects.bulk_create(
             [
@@ -344,7 +311,7 @@ def create_session(
 
         for app_name in session_config['app_sequence']:
 
-            views_module = common_internal.get_pages_module(app_name)
+            views_module = common.get_pages_module(app_name)
             models_module = get_models_module(app_name)
             Constants = models_module.Constants
             num_subsessions += Constants.num_rounds

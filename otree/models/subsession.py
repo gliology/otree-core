@@ -1,9 +1,11 @@
 from django.db.models import Prefetch
+
+import otree.common
 from otree.db import models
-from otree.common_internal import get_models_module, in_round, in_rounds
-from otree import matching
+from otree.common import get_models_module, in_round, in_rounds
 import copy
-from otree.common_internal import has_group_by_arrival_time, add_field_tracker
+from otree.common import has_group_by_arrival_time, add_field_tracker
+from django.apps import apps
 
 
 class GroupMatrixError(ValueError):
@@ -168,52 +170,15 @@ class BaseSubsession(models.Model):
 
         self.set_group_matrix(group_matrix)
 
-    def new_group_like_round(self, round_number):
-        '''test this, could work'''
-        matrix = self.in_round(round_number).get_group_matrix()
-        for row in matrix:
-            for col in row:
-                matrix[row][col] = matrix[row][col].id_in_subsession
-        self.set_group_matrix(matrix)
-
-    '''
-    def group_like_round(self, round_number):
-        PlayerClass = self._PlayerClass()
-        last_round_info = PlayerClass.objects.filter(
-            session_id=self.session_id,
-            round_number=round_number
-        ).values(
-            'id_in_group', 'participant_id', 'group__id_in_subsession'
-        ).order_by('group__id_in_subsession', 'id_in_group')
-
-        player_lookups = {p.participant_id: p for p in self.get_players()}
-
-        self.player_set.update(group=None)
-        self.group_set.all().delete()
-
-        # UNFINISHED
-        GroupClass = self._GroupClass()
-        for i, row in enumerate(matrix, start=1):
-            group = GroupClass.objects.create(
-                subsession=self, id_in_subsession=i,
-                session=self.session, round_number=self.round_number)
-
-            group.set_players(row)
-    '''
-
-    def set_groups(self, matrix):
-        '''renamed this to set_group_matrix, but keeping in for compat'''
-        return self.set_group_matrix(matrix)
-
     @property
     def _Constants(self):
         return get_models_module(self._meta.app_config.name).Constants
 
     def _GroupClass(self):
-        return models.get_model(self._meta.app_config.label, 'Group')
+        return apps.get_model(self._meta.app_config.label, 'Group')
 
     def _PlayerClass(self):
-        return models.get_model(self._meta.app_config.label, 'Player')
+        return apps.get_model(self._meta.app_config.label, 'Player')
 
     @classmethod
     def _has_group_by_arrival_time(cls):
@@ -221,7 +186,7 @@ class BaseSubsession(models.Model):
 
     def group_randomly(self, *, fixed_id_in_group=False):
         group_matrix = self.get_group_matrix()
-        group_matrix = matching.randomly(group_matrix, fixed_id_in_group)
+        group_matrix = otree.common._group_randomly(group_matrix, fixed_id_in_group)
         self.set_group_matrix(group_matrix)
 
     def before_session_starts(self):

@@ -1,7 +1,8 @@
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import Field
 
 
-def ensure_field(model, name, field):
+def ensure_field(model, name: str, field: Field):
     try:
         existing_field = model._meta.get_field(name)
     except FieldDoesNotExist:
