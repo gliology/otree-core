@@ -157,8 +157,6 @@ class widgets:
         pass
     class RadioSelectHorizontal:
         pass
-    class Slider:
-        pass
 
 class Session:
 

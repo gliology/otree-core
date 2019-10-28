@@ -358,7 +358,8 @@ class FieldInstanceTrackerWithVarsNumpySupport(
             return super().has_changed(field)
         except ValueError as exc:
             # we just assume it's always changed, so then we always save that field.
-            if 'The truth value of an array' in str(exc):
+            # it could be "The truth value of an array..." or "...of a DataFrame"
+            if 'The truth value of' in str(exc):
                 return True
             raise
 

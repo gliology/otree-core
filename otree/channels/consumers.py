@@ -9,10 +9,7 @@ import urllib.parse
 import django.db
 import django.utils.timezone
 from channels.db import database_sync_to_async
-from channels.generic.websocket import (
-    AsyncJsonWebsocketConsumer,
-    WebsocketConsumer,
-)
+from channels.generic.websocket import AsyncJsonWebsocketConsumer, WebsocketConsumer
 from django.conf import settings
 from django.core.signing import Signer, BadSignature
 from django.shortcuts import reverse
@@ -89,7 +86,8 @@ class _OTreeAsyncJsonWebsocketConsumer(AsyncJsonWebsocketConsumer):
             msg = 'rejected un-authenticated access to websocket path {}'.format(
                 self.scope['path']
             )
-            logger.warning(msg)
+            # print(msg)
+            logger.error(msg)
             # consider also self.accept() then send error message then self.close(code=1008)
             # this only affects otree core websockets.
         else:

@@ -146,6 +146,7 @@
               var linkId = $this.attr('id');
               var content = {
                   'file_extension': fileExtension,
+                  // link_id is just roundtripped so we can use it client-side later.
                   'link_id': linkId
               };
               var appName = $this.data('app');
@@ -153,19 +154,6 @@
                   content['app_name'] = appName;
               }
               socket.send(JSON.stringify(content));
-              $this.append('<progress></progress>');
-          })
-      });
-
-      $(function () {
-          $('.wide-link').click(function () {
-              $this = $(this);
-              var fileExtension = $this.data('fileExtension');
-              var linkId = $this.attr('id');
-              socket.send(JSON.stringify({
-                  'file_extension': fileExtension,
-                  'link_id': linkId
-              }));
               $this.append('<progress></progress>');
           })
       });

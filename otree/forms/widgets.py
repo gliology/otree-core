@@ -23,9 +23,7 @@ def make_deprecated_widget(WidgetName):
         # putting the msg on a separate line gives better tracebacks
         msg = (
             f'{WidgetName} does not exist in oTree. You should either delete it, '
-            f'or import it from Django directly, like:\n'
-            'import django.forms.widgets as dj_widgets\n'
-            f'my_field = dj_widgets.{WidgetName}'
+            f'or import it from Django directly.'
         )
         raise Exception(msg)
 

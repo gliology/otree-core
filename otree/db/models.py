@@ -358,16 +358,19 @@ class LongStringField(_OtreeModelFieldMixin, models.TextField):
     auto_submit_default = ''
 
 
+MSG_DEPRECATED_FIELD = """
+{FieldName} does not exist in oTree. 
+You should either replace it with one of oTree's field types, or import it from Django directly.
+Note that Django model fields do not accept oTree-specific arguments like label= and widget=.
+""".replace(
+    '\n', ' '
+)
+
+
 def make_deprecated_field(FieldName):
     def DeprecatedField(*args, **kwargs):
         # putting the msg on a separate line gives better tracebacks
-        msg = (
-            f'{FieldName} does not exist in oTree. You should either delete it, '
-            f'or import it from Django directly, like:\n'
-            'from django.db import models as dj_models\n'
-            f'my_field = dj_models.{FieldName}()'
-        )
-        raise Exception(msg)
+        raise Exception(MSG_DEPRECATED_FIELD.format(FieldName))
 
     return DeprecatedField
 
