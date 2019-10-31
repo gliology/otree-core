@@ -2,6 +2,7 @@ from typing import List
 import re
 import decimal
 import logging
+import operator
 
 from urllib.parse import unquote, urlsplit
 from html.parser import HTMLParser
@@ -80,42 +81,35 @@ def expect(*args):
     elif len(args) == 3:
         lhs, op, rhs = args
     else:
-        msg = f'This function takes 2 or 3 arguments, not {len(args)}'
+        msg = f'expect() takes 2 or 3 arguments'
         raise ValueError(msg)
-    allowed_operators = ['==', '!=', '>', '<', '>=', '<=', 'in', 'not in']
-    if op not in allowed_operators:
-        raise ValueError(
-            f'Operator "{op}" not allowed. '
-            f'Allowed operators are: {allowed_operators}'
-        )
-    if op == '==':
-        res = lhs == rhs
-        if not res:
-            msg = f'Expected {rhs!r}, actual value is {lhs!r}'
-            raise ExpectError(msg)
-    elif op == 'in':
-        res = lhs in rhs
-        if not res:
-            msg = f'{lhs!r} was not found'
-            raise ExpectError(msg)
-    elif op == 'not in':
-        res = lhs not in rhs
-        if not res:
-            msg = f'{lhs!r} was not expected but was found anyway'
-            raise ExpectError(msg)
-    elif op == '!=':
-        res = lhs != rhs
-    elif op == '>':
-        res = lhs > rhs
-    elif op == '<':
-        res = lhs < rhs
-    elif op == '>=':
-        res = lhs >= rhs
-    elif op == '<=':
-        res = lhs <= rhs
 
-    if not bool(res):
-        msg = f'"{lhs!r} {op} {rhs!r}" is not true'
+    operators = {
+        '==': operator.eq,
+        '!=': operator.ne,
+        '>': operator.gt,
+        '<': operator.lt,
+        '>=': operator.ge,
+        '<=': operator.le,
+        # operator.contains() has args in opposite order (rhs, lhs), so use this:
+        'in': lambda a, b: a in b,
+        'not in': lambda a, b: a not in b,
+    }
+
+    if op not in operators:
+        msg = f'"{op}" not allowed in expect()'
+        raise ValueError(msg)
+
+    res = operators[op](lhs, rhs)
+    if not res:
+        error_messages = {
+            '==': f'Expected {rhs!r}, actual value is {lhs!r}',
+            # rhs might be huge, can't print it
+            'in': f'{lhs!r} was not found',
+            'not in': f'{lhs!r} was not expected but was found anyway',
+        }
+        default_msg = f'Assertion failed: {lhs!r} {op} {rhs!r}'
+        msg = error_messages.get(op, default_msg)
         raise ExpectError(msg)
 
 

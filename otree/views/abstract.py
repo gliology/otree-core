@@ -22,6 +22,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _, ugettext_lazy
 from django.views.decorators.cache import never_cache, cache_control
 import django.forms.models
+from django.views.decorators.csrf import csrf_exempt
 
 import otree.bots.browser as browser_bots
 import otree.channels.utils as channel_utils
@@ -248,6 +249,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
     def _redirect_to_page_the_user_should_be_on(self):
         return HttpResponseRedirect(self.participant._url_i_should_be_on())
 
+    @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
     @method_decorator(
         cache_control(must_revalidate=True, max_age=0, no_cache=True, no_store=True)

@@ -1,17 +1,17 @@
 import logging
-from subprocess import check_output, Popen
+import os
 import sys
 import time
-import os
-from requests import session as requests_session
+from enum import Enum
+from subprocess import check_output, Popen
+from urllib.parse import urljoin
+
 from django.conf import settings
 from django.urls import reverse
-from urllib.parse import urljoin
-import otree.channels.utils as channel_utils
-
-from otree.session import SESSION_CONFIGS_DICT
 from ws4py.client.threadedclient import WebSocketClient
-from enum import Enum
+
+import otree.channels.utils as channel_utils
+from otree.session import SESSION_CONFIGS_DICT
 
 AUTH_FAILURE_MESSAGE = """
 Could not login to the server using your ADMIN_USERNAME
@@ -22,6 +22,14 @@ on the server.
 """
 
 logger = logging.getLogger(__name__)
+
+try:
+    from requests import session as requests_session
+except ModuleNotFoundError:
+    sys.exit(
+        'To use command-line browser bots, you need to install the "requests" library locally. '
+        'Do: "pip3 install requests"'
+    )
 
 
 class OSEnum(Enum):
@@ -344,6 +352,15 @@ class Launcher:
             args = [browser_cmd]
             if os.environ.get('BROWSER_BOTS_USE_HEADLESS'):
                 args.append('--headless')
+                # needed in windows
+                args.append('--disable-gpu')
+
+                # for some reason --screenshot OR --remote-debugging-port is necessary to get my JS to execute?!?
+                # NO idea why. --remote-debugging-port gets me further than --screenshot, which gets stuck
+                # on skip_lookahead
+                # --remote-debugging-port=9222 works also
+                args.append('--remote-debugging-port=9222')
+
             for i in range(num_participants):
                 args.append(wait_room_url)
             try:
