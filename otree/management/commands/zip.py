@@ -101,7 +101,7 @@ def zip_project(project_path: Path):
     if not runtime_existed:
         # don't use sys.version_info because it might be newer than what
         # heroku supports
-        runtime_txt.write_text(f'python-3.7.3')
+        runtime_txt.write_text(f'python-3.7.5')
     try:
         with tarfile.open(archive_name, 'w:gz') as tar:
             # if i omit arcname, it nests the project 2 levels deep.
@@ -151,17 +151,19 @@ def check_requirements_files(project_path: Path):
 
     if reqs_base_exists != reqs_base_should_exist:
         if reqs_base_should_exist:
-            raise RequirementsError(
+            msg = (
                 'Your requirements.txt calls requirements_base.txt, '
                 'but requirements_base.txt was not found.'
             )
+            raise RequirementsError(msg)
         else:
-            raise RequirementsError(
+            msg = (
                 'Your requirements_base.txt '
                 'is being ignored. '
                 'Add the following line to requirements.txt:\n'
                 '-r requirements_base.txt'
             )
+            raise RequirementsError(msg)
 
     if reqs_base_exists:
         with reqs_base_path.open() as f:
@@ -173,10 +175,11 @@ def check_requirements_files(project_path: Path):
             psycopg2_found = True
 
     if not psycopg2_found:
-        raise RequirementsError(
+        msg = (
             'Your requirements.txt must have a line that says "psycopg2", '
             'which is necessary for Postgres. '
         )
+        raise RequirementsError(msg)
 
     # check duplicates
     already_seen = set()
@@ -187,13 +190,14 @@ def check_requirements_files(project_path: Path):
             package = m.group(1)
             if package in already_seen:
                 if reqs_base_exists:
-                    raise RequirementsError(
+                    msg = (
                         f'"{package}" is listed more than once '
                         'in your requirements_base.txt and/or requirements.txt. '
                     )
                 else:
-                    raise RequirementsError(
+                    msg = (
                         f'"{package}" is listed more than once '
                         'in your requirements.txt. '
                     )
+                raise RequirementsError(msg)
             already_seen.add(package)

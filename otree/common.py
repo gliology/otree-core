@@ -171,10 +171,10 @@ def get_admin_secret_code():
 def validate_alphanumeric(identifier, identifier_description):
     if re.match(r'^[a-zA-Z0-9_]+$', identifier):
         return identifier
-    raise ValueError(
-        '{} "{}" can only contain letters, numbers, '
-        'and underscores (_)'.format(identifier_description, identifier)
+    msg = '{} "{}" can only contain letters, numbers, ' 'and underscores (_)'.format(
+        identifier_description, identifier
     )
+    raise ValueError(msg)
 
 
 EMPTY_ADMIN_USERNAME_MSG = 'settings.ADMIN_USERNAME is empty'
@@ -277,11 +277,10 @@ def in_round(ModelClass, round_number, **kwargs):
     try:
         return ModelClass.objects.get(round_number=round_number, **kwargs)
     except ModelClass.DoesNotExist:
-        raise InvalidRoundError(
-            'No corresponding {} found with round_number={}'.format(
-                ModelClass.__name__, round_number
-            )
-        ) from None
+        msg = 'No corresponding {} found with round_number={}'.format(
+            ModelClass.__name__, round_number
+        )
+        raise InvalidRoundError(msg) from None
 
 
 def in_rounds(ModelClass, first, last, **kwargs):
@@ -296,11 +295,10 @@ def in_rounds(ModelClass, first, last, **kwargs):
     num_results = len(ret)
     expected_num_results = last - first + 1
     if num_results != expected_num_results:
-        raise InvalidRoundError(
-            'Database contains {} records for rounds {}-{}, but expected {}'.format(
-                num_results, first, last, expected_num_results
-            )
+        msg = 'Database contains {} records for rounds {}-{}, but expected {}'.format(
+            num_results, first, last, expected_num_results
         )
+        raise InvalidRoundError(msg)
     return ret
 
 

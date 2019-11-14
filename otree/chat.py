@@ -24,10 +24,11 @@ def chat_template_tag(context, *, channel=UNDEFINED, nickname=UNDEFINED):
     # channel name should not contain illegal chars,
     # so that it can be used in JS and URLs
     if not re.match(r'^[a-zA-Z0-9_-]+$', channel):
-        raise ChatTagError(
+        msg = (
             "'channel' can only contain ASCII letters, numbers, underscores, and hyphens. "
             "Value given was: {}".format(channel)
         )
+        raise ChatTagError(msg)
     # prefix the channel name with session code and app name
     prefixed_channel = '{}-{}-{}'.format(
         context['session'].id,

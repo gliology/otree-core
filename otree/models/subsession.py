@@ -98,16 +98,18 @@ class BaseSubsession(models.Model):
                         for j, val in enumerate(row):
                             matrix[i][j] = players_from_db[val - 1]
                 else:
-                    raise GroupMatrixError(
+                    msg = (
                         'If you pass a matrix of integers to this function, '
                         'It must contain all integers from 1 to '
                         'the number of players in the subsession.'
-                    ) from None
+                    )
+                    raise GroupMatrixError(msg) from None
             else:
-                raise GroupMatrixError(
+                msg = (
                     'The elements of the group matrix '
                     'must either be Player objects, or integers.'
-                ) from None
+                )
+                raise GroupMatrixError(msg) from None
         else:
             existing_pks = list(
                 self.player_set.values_list('pk', flat=True).order_by('pk')
@@ -119,16 +121,18 @@ class BaseSubsession(models.Model):
                     if p.round_number != self.round_number
                 ]
                 if wrong_round_numbers:
-                    raise GroupMatrixError(
+                    msg = (
                         'You are setting the groups for round {}, '
                         'but the matrix contains players from round {}.'.format(
                             self.round_number, wrong_round_numbers[0]
                         )
                     )
-                raise GroupMatrixError(
+                    raise GroupMatrixError(msg)
+                msg = (
                     'The group matrix must contain each player '
                     'in the subsession exactly once.'
                 )
+                raise GroupMatrixError(msg)
 
         # Before deleting groups, Need to set the foreignkeys to None
         # 2016-11-8: does this need to be in a transaction?

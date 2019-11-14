@@ -65,10 +65,11 @@ class Command(BaseCommand):
         if addrport:
             m = re.match(naiveip_re, addrport)
             if m is None:
-                raise CommandError(
+                msg = (
                     '"%s" is not a valid port number '
                     'or address:port pair.' % addrport
                 )
+                raise CommandError(msg)
             addr, _, _, _, port = m.groups()
         else:
             addr = None

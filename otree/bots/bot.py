@@ -237,12 +237,13 @@ class ParticipantBot(test.Client):
         actual_url = resolve(self.path).url_name
 
         if not expected_url == actual_url:
-            raise AssertionError(
+            msg = (
                 "Bot expects to be on page {}, "
                 "but current page is {}. "
                 "Check your bot code, "
                 "then create a new session.".format(expected_url, actual_url)
             )
+            raise AssertionError(msg)
 
     @property
     def response(self):
@@ -407,11 +408,12 @@ def _Submission(
 
     # easy way to check if it's a wait page, without any messy imports
     if hasattr(PageClass, 'wait_for_all_groups'):
-        raise AssertionError(
+        msg = (
             "Your bot yielded '{}', which is a wait page. "
             "You should delete this line, because bots handle wait pages "
             "automatically.".format(PageClass)
         )
+        raise AssertionError(msg)
 
     for key in post_data:
         if isinstance(post_data[key], Currency):

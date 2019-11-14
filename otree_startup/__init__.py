@@ -98,8 +98,9 @@ def execute_from_command_line(*args, **kwargs):
     if os.getcwd() not in sys.path:
         sys.path.insert(0, os.getcwd())
 
-    # to match manage.py
-    # make it configurable so i can test it
+    # to match manage.py:
+    # make it configurable so i can test it.
+    # and it must be an env var, because
     # note: we will never get ImproperlyConfigured,
     # because that only happens when DJANGO_SETTINGS_MODULE is not set
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
@@ -120,13 +121,8 @@ def execute_from_command_line(*args, **kwargs):
     else:
         try:
             configure_settings(DJANGO_SETTINGS_MODULE)
-        except ImportSettingsError:
-            # need to differentiate between an ImportError because settings.py
-            # was not found, vs. ImportError because settings.py imports another
-            # module that is not found.
-            if os.path.isfile('{}.py'.format(DJANGO_SETTINGS_MODULE)):
-                raise
-            else:
+        except ModuleNotFoundError as exc:
+            if exc.name == DJANGO_SETTINGS_MODULE.split('.')[-1]:
                 msg = (
                     "Cannot find oTree settings. "
                     "Please 'cd' to your oTree project folder, "
@@ -134,6 +130,7 @@ def execute_from_command_line(*args, **kwargs):
                 )
                 logger.warning(msg)
                 return
+            raise
         warning = check_update_needed(
             Path('.').resolve().joinpath('requirements_base.txt')
         )
@@ -185,15 +182,8 @@ def execute_from_command_line(*args, **kwargs):
         fetch_command(subcommand).run_from_argv(argv)
 
 
-class ImportSettingsError(ImportError):
-    pass
-
-
 def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings'):
-    try:
-        user_settings_module = import_module(DJANGO_SETTINGS_MODULE)
-    except ImportError:
-        raise ImportSettingsError
+    user_settings_module = import_module(DJANGO_SETTINGS_MODULE)
     user_settings_dict = {}
     user_settings_dict['BASE_DIR'] = os.path.dirname(
         os.path.abspath(user_settings_module.__file__)

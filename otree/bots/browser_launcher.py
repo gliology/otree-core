@@ -8,7 +8,6 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.urls import reverse
-from ws4py.client.threadedclient import WebSocketClient
 
 import otree.channels.utils as channel_utils
 from otree.session import SESSION_CONFIGS_DICT
@@ -25,10 +24,11 @@ logger = logging.getLogger(__name__)
 
 try:
     from requests import session as requests_session
+    from ws4py.client.threadedclient import WebSocketClient
 except ModuleNotFoundError:
     sys.exit(
-        'To use command-line browser bots, you need to install the "requests" library locally. '
-        'Do: "pip3 install requests"'
+        'To use command-line browser bots, you need to install "requests" and "ws4py" locally. '
+        'Do: "pip3 install requests ws4py"'
     )
 
 
@@ -137,9 +137,8 @@ class Launcher:
         session_config_name = self.session_config_name
         if session_config_name:
             if session_config_name not in SESSION_CONFIGS_DICT:
-                raise ValueError(
-                    'No session config named "{}"'.format(session_config_name)
-                )
+                msg = 'No session config named "{}"'.format(session_config_name)
+                raise ValueError(msg)
             session_config_names = [session_config_name]
 
         else:
@@ -277,16 +276,18 @@ class Launcher:
             resp = self.client.get(self.login_url)
 
         except:
-            raise Exception(
+            msg = (
                 f'Could not connect to server at {self.server_url}.'
                 'Before running this command, '
                 'you need to run the server (see --server-url flag).'
             )
+            raise Exception(msg)
         if not resp.ok:
-            raise Exception(
+            msg = (
                 f'Could not open page at {self.login_url}.'
                 f'(HTTP status code: {resp.status_code})'
             )
+            raise Exception(msg)
 
     def create_session(self, session_config_name, num_participants, case_number):
         resp = self.post(
@@ -340,10 +341,11 @@ class Launcher:
         # make sure room is closed
         resp = self.post(urljoin(self.server_url, URLs.close_browser_bots))
         if not resp.ok:
-            raise AssertionError(
+            msg = (
                 'Request to close existing browser bots session failed. '
                 'Response: {} {}'.format(repr(resp), resp.text)
             )
+            raise AssertionError(msg)
 
     def launch_browser(self, num_participants):
         wait_room_url = urljoin(self.server_url, URLs.browser_bots_start)

@@ -39,9 +39,10 @@ def db_label_and_drop_cmd(db_engine: str) -> DBDeletionInfo:
     # put this last for test coverage
     if common.is_sqlite():
         return DBDeletionInfo('SQLite', 'DROP TABLE {table};')
-    raise ValueError(
+    msg = (
         'resetdb command does not recognize DB engine "{}"'.format(db_engine)
     )
+    raise ValueError(msg)
 
 
 def cursor_execute_drop_cmd(cursor, stmt):

@@ -9,9 +9,10 @@ def ensure_field(model, name: str, field: Field):
         field.contribute_to_class(model, name)
     else:
         if not isinstance(existing_field, field.__class__):
-            raise TypeError(
+            msg = (
                 '{model} requires a field with name {name} of type {type}.'.format(
                     model=model, name=name, type=field.__class__.__name__
                 )
             )
+            raise TypeError(msg)
     return field

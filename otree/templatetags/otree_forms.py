@@ -31,13 +31,15 @@ class FormFieldNode(Node):
         bits = token.split_contents()
         tagname = bits.pop(0)
         if len(bits) < 1:
-            raise TemplateSyntaxError(f"{tagname} requires the name of the field.")
+            msg = f"{tagname} requires the name of the field."
+            raise TemplateSyntaxError(msg)
         field_name = bits.pop(0)
         if bits[:1] == ['with']:
             bits.pop(0)
         arg_dict = token_kwargs(bits, parser, support_legacy=False)
         if bits:
-            raise TemplateSyntaxError(f'Unused parameter to formfield tag: {bits[0]}')
+            msg = f'Unused parameter to formfield tag: {bits[0]}'
+            raise TemplateSyntaxError(msg)
         return cls(field_name, **arg_dict)
 
     def __init__(self, field_variable_name, label: FilterExpression = None):
@@ -64,40 +66,30 @@ class FormFieldNode(Node):
             if isinstance(instance_in_template, models.Model):
                 instance_from_view = form.instance
                 if type(instance_from_view) == UndefinedFormModel:
-                    raise ValueError(
+                    msg = (
                         'Template contains a formfield, but '
                         'you did not set form_model on the Page class.'
                     )
+                    raise ValueError(msg)
                 elif type(instance_in_template) != type(instance_from_view):
-                    raise ValueError(
+                    msg = (
                         'In the page class, you set form_model to {!r}, '
                         'but in the template you have a formfield for '
                         '"{}", which is a different model.'.format(
                             type(instance_from_view), instance_name_in_template
                         )
                     )
-                # we should ensure that Player and Group have readable
-                # __repr__
-                elif instance_in_template != instance_from_view:
-                    raise ValueError(
-                        "You have a formfield for '{}' "
-                        "({!r}), which is different from "
-                        "the expected model instance "
-                        "({!r}).".format(
-                            instance_name_in_template,
-                            instance_in_template,
-                            form.instance,
-                        )
-                    )
+                    raise ValueError(msg)
                 try:
                     return form[field_name]
                 except KeyError:
-                    raise ValueError(
+                    msg = (
                         "'{field_name}' was used as a formfield in the template, "
                         "but was not included in the Page's 'form_fields'".format(
                             field_name=field_name
                         )
-                    ) from None
+                    )
+                    raise ValueError(msg) from None
 
         # Second we try to resolve it to a bound field.
         # No field found, so we return None.
@@ -110,12 +102,13 @@ class FormFieldNode(Node):
             or not hasattr(bound_field, 'as_hidden')
             or not hasattr(bound_field, 'errors')
         ):
-            raise ValueError(
+            msg = (
                 "The given variable '{variable_name}' ({variable!r}) is "
                 "neither a model field nor a form field.".format(
                     variable_name=self.field_variable_name, variable=bound_field
                 )
             )
+            raise ValueError(msg)
         return bound_field
 
     def get_tag_specific_context(self, context: Context) -> Dict:

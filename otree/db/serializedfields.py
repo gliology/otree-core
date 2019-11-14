@@ -24,12 +24,13 @@ class VarsError(Exception):
 
 def inspect_obj(obj):
     if isinstance(obj, models.Model):
-        raise VarsError(
+        msg = (
             "Cannot store '{}' object in vars. "
             "participant.vars and session.vars "
             "cannot contain model instances, "
             "like Players, Groups, etc.".format(repr(obj))
         )
+        raise VarsError(msg)
 
 
 def scan_for_model_instances(vars_dict: dict):

@@ -29,10 +29,6 @@ i removed many linebreaks to make output HTML cleaner
         {% endif %}
     </div>
 {% endblock %}
-{% block internal_styles %}
-{{ block.super }}
-<link rel="stylesheet" href="{% static 'otree/css/page.css' %}">
-{% endblock %}
 {% block internal_scripts %}
     {{ block.super }}
     <script id="websocket-redirect" src="{% static 'otree/js/page-websocket-redirect.js' %}"

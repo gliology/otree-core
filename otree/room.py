@@ -14,10 +14,11 @@ class Room:
             name, identifier_description='settings.ROOMS room name'
         )
         if use_secure_urls and not participant_label_file:
-            raise ValueError(
+            msg = (
                 'Room "{}": you must either set "participant_label_file", '
                 'or set "use_secure_urls": False'.format(name)
             )
+            raise ValueError(msg)
         self.participant_label_file = participant_label_file
         self.display_name = display_name
         # secure URLs are complicated, don't use them by default

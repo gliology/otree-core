@@ -186,7 +186,7 @@ def ping(redis_conn, *, timeout):
     result = redis_conn.blpop(response_key, timeout)
 
     if result is None:
-        raise BotWorkerPingError(
+        msg = (
             'Ping to botworker failed. '
             'If you want to use browser bots, '
             'you need to be running the botworker '
@@ -194,6 +194,7 @@ def ping(redis_conn, *, timeout):
             'Otherwise, set ("use_browser_bots": False) in the session config '
             'in settings.py.'
         )
+        raise BotWorkerPingError(msg)
 
 
 def load_redis_response_dict(response_bytes: bytes):

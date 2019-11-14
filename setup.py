@@ -11,9 +11,42 @@ import otree
 
 version = otree.__version__
 
+
+MSG_PY_VERSION = f"""
+Error: This version of oTree requires Python 3.7 or higher.
+
+If you're seeing this message on oTree Hub, 
+upgrade oTree locally and run "otree zip" again.
+
+If using Heroku without oTree Hub, you should create a runtime.txt 
+as described in the Heroku documentation.
+"""
+
+if sys.version_info < (3, 7):
+    sys.exit(MSG_PY_VERSION)
+
+# need to consider also whether Heroku supports 3.8
+MSG_PY_38 = '''
+This version of oTree requires Python 3.7.x.
+'''
+
+if sys.version_info >= (3, 8):
+    sys.exit(MSG_PY_38)
+
+
+def clean_requirements(requirements_text):
+    required_raw = requirements_text.splitlines()
+    required = []
+    for line in required_raw:
+        req = line.split('#')[0].strip()
+        if req:
+            required.append(req)
+    return required
+
+
 README = Path('README.rst').read_text('utf8')
-required = Path('requirements.txt').read_text().splitlines()
-required_mturk = Path('requirements_mturk.txt').read_text().splitlines()
+required = clean_requirements(Path('requirements.txt').read_text())
+required_mturk = clean_requirements(Path('requirements_mturk.txt').read_text())
 
 
 if sys.argv[-1] == 'publish':
@@ -32,21 +65,6 @@ if sys.argv[-1] == 'publish':
             raise AssertionError
 
     sys.exit()
-
-MSG_PY_VERSION = f"""
-Error: This version of oTree requires Python 3.7 or higher.
-
-If you're seeing this message on oTree Hub, 
-upgrade oTree locally and run "otree zip" again.
-
-If using Heroku without oTree Hub, you should create a runtime.txt 
-as described in the Heroku documentation.
-"""
-
-if sys.version_info < (3, 7):
-    sys.exit(MSG_PY_VERSION)
-
-# need to consider also whether Heroku supports 3.8
 
 
 setup(

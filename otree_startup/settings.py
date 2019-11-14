@@ -1,3 +1,4 @@
+import sys
 import os
 import os.path
 from django.contrib.messages import constants as messages
@@ -217,10 +218,12 @@ def validate_user_settings(settings: dict):
         'ADMIN_USERNAME': str,
     }
     for SETTING in required_settings:
-        if SETTING not in settings:
-            raise ValueError(f'Required setting {SETTING} is missing from settings.py.')
-        elif settings.get(SETTING) is None:
-            raise ValueError(f'settings.py: setting {SETTING} cannot be None.')
+        if not settings.get(SETTING):
+            msg = f'settings.py: setting {SETTING} is missing.'
+            raise ValueError(msg)
+
+
+UNMAINTAINED_APPS = ['otree_tools', 'otree_mturk_utils']
 
 
 def augment_settings(settings: dict):
@@ -272,13 +275,20 @@ def augment_settings(settings: dict):
         # but that will require people to set the env vars.
         settings['SECRET_KEY'] = os.environ['OTREE_SECRET_KEY']
 
+    EXTENSION_APPS = settings.get('EXTENSION_APPS', [])
+    for unmaintained_extension in UNMAINTAINED_APPS:
+        if unmaintained_extension in EXTENSION_APPS:
+            msg = (
+                f'{unmaintained_extension} does not work with recent versions of oTree. '
+                'You should remove it from your settings.py.'
+            )
+            sys.exit(msg)
+
     # order is important:
     # otree unregisters User & Group, which are installed by auth.
     # otree templates need to get loaded before the admin.
     no_experiment_apps = collapse_to_unique_list(
-        no_experiment_apps,
-        settings['INSTALLED_APPS'],
-        settings.get('EXTENSION_APPS', []),
+        no_experiment_apps, settings['INSTALLED_APPS'], EXTENSION_APPS
     )
 
     new_installed_apps = collapse_to_unique_list(no_experiment_apps, all_otree_apps)

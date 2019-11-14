@@ -93,9 +93,8 @@ class SessionConfig(dict):
             raise SessionConfigError(msg.format(self['name']))
 
         if len(app_sequence) == 0:
-            raise SessionConfigError(
-                'settings.SESSION_CONFIGS: app_sequence cannot be empty.'
-            )
+            msg = 'settings.SESSION_CONFIGS: app_sequence cannot be empty.'
+            raise SessionConfigError(msg)
 
         self.setdefault('display_name', self['name'])
         self.setdefault('doc', '')
