@@ -211,14 +211,14 @@ def validate_user_settings(settings: dict):
 
     # currently not using the datatypes, maybe do that later
     required_settings = {
-        'SESSION_CONFIG_DEFAULTS': dict,
-        'SESSION_CONFIGS': list,
-        'LANGUAGE_CODE': str,
-        'SECRET_KEY': str,
-        'ADMIN_USERNAME': str,
+        'SESSION_CONFIG_DEFAULTS',
+        'SESSION_CONFIGS',
+        'LANGUAGE_CODE',
+        'SECRET_KEY',
+        'ADMIN_USERNAME',
     }
     for SETTING in required_settings:
-        if not settings.get(SETTING):
+        if not SETTING in settings:
             msg = f'settings.py: setting {SETTING} is missing.'
             raise ValueError(msg)
 
