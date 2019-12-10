@@ -167,8 +167,9 @@ class ParticipantBot(test.Client):
 
     def get_submits(self):
         for player_bot in self.player_bots:
-            # play_round populates legacy submit list
             generator = player_bot.play_round()
+            if generator is None:
+                continue
             try:
                 for submission in generator:
                     # Submission or SubmissionMustFail returns a dict
@@ -178,20 +179,6 @@ class ParticipantBot(test.Client):
                     self.assert_correct_page(submission)
                     self.assert_html_ok(submission)
                     yield submission
-            # handle the case where it's empty
-            # it's fragile to rely on a substring in the exception,
-            # but i have a test case covering this
-            except TypeError as exc:
-                if 'is not iterable' in str(exc):
-                    # we used to raise StopIteration here. But shouldn't
-                    # do that, because then the whole participant bot
-                    # stops running (e.g. doesn't play any of the
-                    # PlayerBots in the following apps).
-                    # this was causing a bug where we got "bot completed"
-                    # but the bot had only played half the game
-                    pass
-                else:
-                    raise
             except ExpectError as exc:
                 # the point is to re-raise so that i can reference the original
                 # exception as exc.__cause__ or exc.__context__, since that exception

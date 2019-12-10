@@ -52,26 +52,22 @@ def scan_for_model_instances(vars_dict: dict):
 
 class _PickleField(models.TextField):
     """
-    PickleField is a generic textfield that neatly serializes/unserializes
-    any python objects seamlessly"""
+    PickleField is a generic textfield that serializes/unserializes
+    any nested dict"""
 
     def to_python(self, value):
-        """Convert our string value to JSON after we load it from the DB"""
-        if value == "":
-            return None
-
-        try:
-            if isinstance(value, str):
-                return deserialize_from_string(value)
-        except ValueError:
-            pass
-
-        return value
+        return deserialize_from_string(value)
 
     def get_prep_value(self, value):
         """Convert our object to a string before we save"""
-        if value == "" or value is None:
-            return None
+        if not isinstance(value, dict):
+            type_name = type(value).__name__
+            model_instance_name = self.model.__name__.lower()
+            field_name = self.name
+            msg = (
+                f'{model_instance_name}.{field_name} must be a dict, not {type_name}. '
+            )
+            raise ValueError(msg)
 
         scan_for_model_instances(value)
         value = serialize_to_string(value)

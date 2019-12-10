@@ -296,22 +296,29 @@ class BaseCreateSession(_OTreeAsyncJsonWebsocketConsumer):
                     session_pk=session.pk, case_number=None
                 )
         except Exception as e:
-
-            # full error message is printed to console (though sometimes not?)
             error_message = 'Failed to create session: "{}"'.format(e)
             traceback_str = traceback.format_exc()
             await self.send_response_to_browser(
                 dict(error=error_message, traceback=traceback_str)
             )
-            raise
+            # i used to do "raise" here.
+            # if I raise, then in non-demo sessions, the traceback is not displayed
+            # as it should be.
+            # Instead, there is an error
+            # "Server error occurred, check Sentry or the logs"
+            # I guess the websocket gets cut off? that's also why my test_traceback test was failing.
+            # why did I use raise in the first place?
+            # was it just so the traceback would go to the console or Sentry?
+            # if we show it in the browser, there's no need to show it anywhere else, right?
+            # maybe it was just a fallback in case the TB was truncated?
+        else:
+            session_home_view = (
+                'MTurkCreateHIT' if session.is_mturk() else 'SessionStartLinks'
+            )
 
-        session_home_view = (
-            'MTurkCreateHIT' if session.is_mturk() else 'SessionStartLinks'
-        )
-
-        await self.send_response_to_browser(
-            {'session_url': reverse(session_home_view, args=[session.code])}
-        )
+            await self.send_response_to_browser(
+                {'session_url': reverse(session_home_view, args=[session.code])}
+            )
 
 
 class CreateDemoSession(BaseCreateSession):
