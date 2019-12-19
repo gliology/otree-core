@@ -49,10 +49,12 @@ class SessionBotRunner:
                     except StopIteration:
                         # this bot is finished
                         self.bots.pop(pk)
-                        progress_made = True
                     else:
                         bot.submit(**submission)
-                        progress_made = True
+                    progress_made = True
+                    # need to set this so that we only count *consecutive* unsuccessful loops
+                    # see Manu's error on 2019-12-19.
+                    loops_without_progress = 0
             if not progress_made:
                 loops_without_progress += 1
 
@@ -98,9 +100,7 @@ def run_bots(session: Session, case_number=None):
     runner.play()
 
 
-def run_all_bots_for_session_config(
-    session_config_name, num_participants, export_path
-):
+def run_all_bots_for_session_config(session_config_name, num_participants, export_path):
     """
     this means all test cases are in 1 big test case.
     so if 1 fails, the others will not get run.
@@ -121,16 +121,12 @@ def run_all_bots_for_session_config(
         num_bot_cases = config.get_num_bot_cases()
         for case_number in range(num_bot_cases):
             logger.info(
-                "Creating '{}' session (test case {})".format(
-                    config_name, case_number
-                )
+                "Creating '{}' session (test case {})".format(config_name, case_number)
             )
 
             session = otree.session.create_session(
                 session_config_name=config_name,
-                num_participants=(
-                    num_participants or config['num_demo_participants']
-                ),
+                num_participants=(num_participants or config['num_demo_participants']),
             )
             run_bots(session, case_number=case_number)
 

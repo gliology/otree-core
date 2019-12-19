@@ -123,6 +123,13 @@ def model_classes(helper: AppCheckHelper, **kwargs):
     Group = app_config.get_model('Group')
     Subsession = app_config.get_model('Subsession')
 
+    if any(f.name == 'payoff' for f in Player._meta.fields):
+        msg = (
+            'You must remove the field "payoff" from Player, '
+            "because it is already defined on BasePlayer."
+        )
+        helper.add_error(msg, numeric_id=114)
+
     for Model in [Player, Group, Subsession]:
         for attr_name in dir(Model):
             if attr_name not in base_model_attrs[Model.__name__]:
