@@ -23,6 +23,7 @@ from django.utils.translation import ugettext as _, ugettext_lazy
 from django.views.decorators.cache import never_cache, cache_control
 import django.forms.models
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.log import log_response
 
 import otree.bots.browser as browser_bots
 import otree.channels.utils as channel_utils
@@ -52,6 +53,7 @@ from otree.models_concrete import (
     ParticipantLockModel,
     ParticipantToPlayerLookup,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +120,14 @@ def response_for_exception(request, exc):
     signals.got_request_exception.send(sender=None, request=request)
     exc_info = (type(exc), exc, exc.__traceback__)
     response = handle_uncaught_exception(request, get_resolver(get_urlconf()), exc_info)
+    log_response(
+        '%s: %s',
+        response.reason_phrase,
+        request.path,
+        response=response,
+        request=request,
+        exc_info=exc,
+    )
     if settings.DEBUG:
         response_content = response.content.split(b'<div id="requestinfo">')[0]
         response_content += TECHNICAL_500_AUTORELOAD_JS

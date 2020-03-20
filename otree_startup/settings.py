@@ -92,7 +92,7 @@ def get_default_settings(user_settings: dict):
             },
             'django.request': {
                 'handlers': ['console'],
-                'propagate': True,
+                'propagate': False,
                 'level': 'DEBUG',
             },
         },
