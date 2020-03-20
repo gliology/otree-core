@@ -34,16 +34,8 @@ i removed many linebreaks to make output HTML cleaner
     <script id="websocket-redirect" src="{% static 'otree/js/page-websocket-redirect.js' %}"
             data-socket-url="{{ view.socket_url|safe }}"
             data-redirect-url="{{ view.redirect_url|safe }}"
-            data-is-browser-bot="{{ participant.is_browser_bot  }}"
             data-is-debug="{{ view.is_debug|default:"" }}"
     ></script>
-    {% comment %}
-    the below is a special flag.
-    2018-04-25: why not put it in a response header?
-    ...this had to do with handling an edge case with OutOfRangeNotification.
-    look at this again when i have time.
-    {% endcomment %}
-    {% if participant.is_browser_bot %} <!-- browser-bot-auto-submit -->{% endif %}
     {% if view.remaining_timeout_seconds != None %}
         {% include 'otree/includes/TimeLimit.js.html' %}
     {% endif %}

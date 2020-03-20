@@ -525,7 +525,7 @@ class CreateBrowserBotsSession(vanilla.View):
         session_config_name = request.POST['session_config_name']
         case_number = int(request.POST['case_number'])
         session = create_session(
-            session_config_name=session_config_name, num_participants=num_participants
+            session_config_name=session_config_name, num_participants=num_participants,
         )
         otree.bots.browser.initialize_session(
             session_pk=session.pk, case_number=case_number
@@ -606,3 +606,5 @@ class DeleteSessions(vanilla.View):
     def post(self, request):
         Session.objects.filter(code__in=request.POST.getlist('session')).delete()
         return redirect('Sessions')
+
+

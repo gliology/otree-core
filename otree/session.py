@@ -42,6 +42,15 @@ class SessionConfigError(Exception):
     pass
 
 
+NON_EDITABLE_FIELDS = {
+    'name',
+    'display_name',
+    'app_sequence',
+    'num_demo_participants',
+    'doc',
+}
+
+
 class SessionConfig(dict):
 
     # convenient access
@@ -117,16 +126,6 @@ class SessionConfig(dict):
             app_sequence.append(subsssn)
         return app_sequence
 
-    non_editable_fields = {
-        'app_sequence',
-        'name',
-        'display_name',
-        'app_sequence',
-        'num_demo_participants',
-        'doc',
-        'num_bots',
-    }
-
     def builtin_editable_fields(self):
         fields = ['participation_fee']
         if settings.USE_POINTS:
@@ -144,7 +143,7 @@ class SessionConfig(dict):
         return [
             k
             for k, v in self.items()
-            if k not in self.non_editable_fields
+            if k not in NON_EDITABLE_FIELDS
             and k not in self.builtin_editable_fields()
             and type(v) in [bool, int, float, str]
         ]
@@ -233,11 +232,10 @@ def create_session(
     room_name=None,
     is_mturk=False,
     is_demo=False,
-    edited_session_config_fields=None,
+    modified_session_config_fields=None,
 ) -> Session:
 
     num_subsessions = 0
-    edited_session_config_fields = edited_session_config_fields or {}
 
     try:
         session_config = SESSION_CONFIGS_DICT[session_config_name]
@@ -248,7 +246,16 @@ def create_session(
         # copy so that we don't mutate the original
         # .copy() returns a dict, so need to convert back to SessionConfig
         session_config = SessionConfig(session_config.copy())
-        session_config.update(edited_session_config_fields)
+
+        modified_config = modified_session_config_fields or {}
+        # this is for API. don't want to mislead people
+        # to put stuff in the session config that should be in the session.
+        bad_keys = modified_config.keys() & NON_EDITABLE_FIELDS
+        if bad_keys:
+            raise Exception(
+                f'The following session config fields are not editable: {bad_keys}'
+            )
+        session_config.update(modified_config)
 
         # check validity and converts serialized decimal & currency values
         # back to their original data type (because they were serialized
@@ -438,7 +445,6 @@ def create_session(
             # but this will only help people who didn't override creating_session
             # in that case, the session usually creates quickly, anyway.
             for subsession in session.get_subsessions():
-                subsession.before_session_starts()
                 subsession.creating_session()
             otree.db.idmap.save_objects()
 

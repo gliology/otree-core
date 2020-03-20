@@ -193,10 +193,6 @@ class BaseSubsession(models.Model):
         group_matrix = otree.common._group_randomly(group_matrix, fixed_id_in_group)
         self.set_group_matrix(group_matrix)
 
-    def before_session_starts(self):
-        '''Deprecated and renamed to creating_session'''
-        pass
-
     def creating_session(self):
         pass
 

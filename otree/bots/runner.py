@@ -96,6 +96,9 @@ def run_bots(session: Session, case_number=None):
     bot_list = make_bots(
         session_pk=session.pk, case_number=case_number, use_browser_bots=False
     )
+    if session.get_room() is None:
+        session.mock_exogenous_data()
+    session.save()
     runner = SessionBotRunner(bots=bot_list)
     runner.play()
 

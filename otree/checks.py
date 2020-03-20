@@ -123,6 +123,13 @@ def model_classes(helper: AppCheckHelper, **kwargs):
     Group = app_config.get_model('Group')
     Subsession = app_config.get_model('Subsession')
 
+    if hasattr(Subsession, 'before_session_starts'):
+        msg = (
+            'before_session_starts no longer exists. '
+            "You should rename it to creating_session."
+        )
+        helper.add_error(msg, numeric_id=119)
+
     if any(f.name == 'payoff' for f in Player._meta.fields):
         msg = (
             'You must remove the field "payoff" from Player, '

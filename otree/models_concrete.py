@@ -3,6 +3,7 @@ from collections import defaultdict
 from typing import Iterable
 
 from django.db import models
+import json
 
 
 class PageCompletion(models.Model):
@@ -86,6 +87,25 @@ class ParticipantLockModel(models.Model):
     participant_code = models.CharField(max_length=16, unique=True)
 
     locked = models.BooleanField(default=False)
+
+
+class ParticipantVarsFromREST(models.Model):
+    class Meta:
+        app_label = "otree"
+        index_together = ['participant_label', 'room_name']
+        unique_together = ['participant_label', 'room_name']
+
+    participant_label = models.CharField(max_length=255)
+    room_name = models.CharField(max_length=255)
+    _json_data = models.TextField(default='')
+
+    @property
+    def vars(self):
+        return json.loads(self._json_data)
+
+    @vars.setter
+    def vars(self, value):
+        self._json_data = json.dumps(value)
 
 
 class UndefinedFormModel(models.Model):

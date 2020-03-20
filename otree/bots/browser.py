@@ -60,7 +60,8 @@ class Worker:
     def __init__(self, redis_conn=None):
         self.redis_conn = redis_conn
         self.participants_by_session = OrderedDict()
-        self.browser_bots = {}  # type: Dict[str, ParticipantBot]
+        self.browser_bots: Dict[str, ParticipantBot] = {}
+        self.queued_post_data: Dict[str, Dict] = {}
 
     def initialize_session(self, session_pk, case_number):
         self.prune()
@@ -99,10 +100,10 @@ class Worker:
             )
             raise BotRequestError(msg)
 
-    def get_next_post_data(self, participant_code):
+    def enqueue_next_post_data(self, participant_code) -> bool:
         bot = self.get_bot(participant_code)
         try:
-            submission = next(bot.submits_generator)
+            self.queued_post_data[participant_code] = next(bot.submits_generator)
         except StopIteration:
             # don't prune it because can cause flakiness if
             # there are other GET requests coming in. it will be pruned
@@ -111,12 +112,17 @@ class Worker:
             # return None instead of raising an exception, because
             # None can easily be serialized in Redis. Means the code can be
             # basically the same for Redis and non-Redis
-            return None
+            return False
         else:
-            # because we are returning it through Redis, need to pop it
-            # here
-            submission.pop('page_class')
-            return submission['post_data']
+            return True
+
+    def pop_enqueued_post_data(self, participant_code) -> Dict:
+        # because we are returning it through Redis, need to pop it
+        # here
+        submission = self.queued_post_data[participant_code]
+        # 2020-03-16: why do we remove page_class when we are only going to use post_data anyway?
+        submission.pop('page_class')
+        return submission['post_data']
 
     def set_attributes(self, participant_code, request_path, html):
         bot = self.get_bot(participant_code)
@@ -261,8 +267,12 @@ def set_attributes(**kwargs):
     return wrap_method_call('set_attributes', kwargs)
 
 
-def get_next_post_data(**kwargs) -> dict:
-    return wrap_method_call('get_next_post_data', kwargs)
+def enqueue_next_post_data(**kwargs) -> dict:
+    return wrap_method_call('enqueue_next_post_data', kwargs)
+
+
+def pop_enqueued_post_data(**kwargs) -> dict:
+    return wrap_method_call('pop_enqueued_post_data', kwargs)
 
 
 def initialize_session(**kwargs):

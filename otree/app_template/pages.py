@@ -8,7 +8,8 @@ class MyPage(Page):
 
 
 class ResultsWaitPage(WaitPage):
-    pass
+    def after_all_players_arrive(self):
+        pass
 
 
 class Results(Page):

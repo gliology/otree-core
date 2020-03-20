@@ -11,6 +11,8 @@ class Currency(Currency):
 def currency_range(first, last, increment) -> List[Currency]:
     pass
 
+def safe_json(obj):
+    pass
 
 # mocking the public API for PyCharm autocomplete.
 # one downside is that PyCharm doesn't seem to fully autocomplete arguments
@@ -209,9 +211,7 @@ class BaseSubsession:
         pass
     def group_randomly(self, fixed_id_in_group: bool = False):
         pass
-    def vars_for_admin_report(self):
-        pass
-    def group_by_arrival_time_method(self, waiting_players):
+    def vars_for_admin_report(self) -> dict:
         pass
     # this is so PyCharm doesn't flag attributes that are only defined on the app's Subsession,
     # not on the BaseSubsession
@@ -257,7 +257,7 @@ class BasePlayer:
         pass
     def get_others_in_subsession(self) -> List[BasePlayer]:
         pass
-    def role(self):
+    def role(self) -> str:
         pass
     def in_round(self, round_number) -> BasePlayer:
         pass
@@ -272,46 +272,41 @@ class WaitPage:
     title_text: str
     body_text: str
     template_name: str
-    after_all_players_arrive: str
     round_number: int
     participant: Participant
     session: Session
-    def is_displayed(self):
+    def is_displayed(self) -> bool:
         pass
-    def js_vars(self):
+    def after_all_players_arrive(self):
         pass
-    def vars_for_template(self):
-        pass
-    def app_after_this_page(self, upcoming_apps):
+    def get_players_for_group(self, waiting_players) -> Optional[list]:
         pass
 
 class Page:
     round_number: int
     template_name: str
     timeout_seconds: int
+    timeout_submission: dict
     timeout_happened: bool
     timer_text: str
     participant: Participant
     session: Session
     form_model: str
     form_fields: List[str]
-    def get_form_fields(self):
+    def get_form_fields(self) -> List[str]:
         pass
-    def vars_for_template(self):
-        pass
-    def js_vars(self):
+    def vars_for_template(self) -> dict:
         pass
     def before_next_page(self):
         pass
-    def is_displayed(self):
+    def is_displayed(self) -> bool:
         pass
-    def error_message(self, values):
+    def error_message(self, values) -> Optional[str]:
         pass
-    def get_timeout_seconds(self):
+    def get_timeout_seconds(self) -> Optional[float]:
         pass
-    def app_after_this_page(self, upcoming_apps):
+    def app_after_this_page(self, upcoming_apps: List[str]) -> Optional[str]:
         pass
-
 
 class Bot:
     html: str

@@ -47,8 +47,7 @@ db_engine = settings.DATABASES['default']['ENGINE'].lower()
 if otree.common.is_sqlite():
     ADVICE_DELETE_DB = (
         'ADVICE: Stop the server, '
-        'then delete the file db.sqlite3 in your project folder, '
-        'then run "otree devserver", not "otree resetdb".'
+        'then delete the file db.sqlite3 in your project folder.'
     )
 else:
     if 'postgres' in db_engine:

@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 
@@ -5,24 +6,36 @@ import django.utils.timezone
 import otree.common
 import otree.constants
 import otree.models
+from otree.session import create_session
 import otree.views.admin
 import otree.views.mturk
 import vanilla
-from django.urls import reverse
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
+from django.http import (
+    HttpResponse,
+    HttpResponseRedirect,
+    HttpResponseNotFound,
+    Http404,
+)
 from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
 from django.utils.translation import ugettext as _
-from otree.common import make_hash, add_params_to_url, get_redis_conn
+from otree.common import make_hash, get_redis_conn, BotError
 import otree.channels.utils as channel_utils
+import otree.db.idmap
 from otree.models import Participant, Session
-from otree.models_concrete import ParticipantRoomVisit, BrowserBotsLauncherSessionCode
+from otree.models_concrete import (
+    ParticipantRoomVisit,
+    BrowserBotsLauncherSessionCode,
+    ParticipantVarsFromREST,
+)
 from otree.room import ROOM_DICT
 from otree.views.abstract import (
     GenericWaitPageMixin,
     get_redis_lock,
     NO_PARTICIPANTS_LEFT_MSG,
+    BaseRESTView,
 )
+import otree.bots.browser as browser_bots
 
 
 start_link_thread_lock = threading.RLock()
@@ -30,11 +43,29 @@ start_link_thread_lock = threading.RLock()
 
 class OutOfRangeNotification(vanilla.View):
     name_in_url = 'shared'
+    url_pattern = r'^OutOfRangeNotification/(?P<participant_code>[a-z0-9]+)/$'
 
-    def dispatch(self, request):
+    def dispatch(self, request, participant_code):
+        participant = get_object_or_404(Participant, code=participant_code)
+        if participant.is_browser_bot:
+            session = participant.session
+            has_next_submission = browser_bots.enqueue_next_post_data(
+                participant_code=participant.code
+            )
+
+            if has_next_submission:
+                msg = (
+                    'Finished the last page, '
+                    'but the bot is still trying '
+                    'to submit more pages.'
+                )
+                raise BotError(msg)
+
+            browser_bots.send_completion_message(
+                session_code=session.code, participant_code=participant.code
+            )
+
         return TemplateResponse(request, 'otree/OutOfRangeNotification.html')
-
-    url_pattern = '^OutOfRangeNotification/$'
 
 
 class InitializeParticipant(vanilla.UpdateView):
@@ -57,8 +88,18 @@ class InitializeParticipant(vanilla.UpdateView):
             now = django.utils.timezone.now()
             participant.time_started = now
             participant._last_page_timestamp = time.time()
-
             participant.save()
+
+            player_lookup = participant.player_lookup()
+            app_name = player_lookup['app_name']
+            models_module = otree.common.get_models_module(app_name)
+            PlayerClass = getattr(models_module, 'Player')
+            _player_pk = player_lookup['player_pk']
+            with otree.db.idmap.use_cache():
+                player = PlayerClass.objects.get(pk=_player_pk)
+                player.start()
+                otree.db.idmap.save_objects()
+
         first_url = participant._url_i_should_be_on()
         return HttpResponseRedirect(first_url)
 
@@ -151,16 +192,17 @@ def participant_start_page_or_404(session, *, label, cookies=None):
         else:
             participant = get_participant_with_cookie_check(session, cookies)
         if not participant:
-            return HttpResponseNotFound(NO_PARTICIPANTS_LEFT_MSG)
+            raise Http404(NO_PARTICIPANTS_LEFT_MSG)
 
         # needs to be here even if it's also set in
         # the next view to prevent race conditions
         participant.visited = True
         if label:
             participant.label = label
+
         participant.save()
 
-    return HttpResponseRedirect(participant._start_url())
+    return participant
 
 
 class JoinSessionAnonymously(vanilla.View):
@@ -172,7 +214,8 @@ class JoinSessionAnonymously(vanilla.View):
             otree.models.Session, _anonymous_code=anonymous_code
         )
         label = self.request.GET.get('participant_label')
-        return participant_start_page_or_404(session, label=label)
+        participant = participant_start_page_or_404(session, label=label)
+        return HttpResponseRedirect(participant._start_url())
 
 
 class AssignVisitorToRoom(GenericWaitPageMixin, vanilla.View):
@@ -241,7 +284,18 @@ class AssignVisitorToRoom(GenericWaitPageMixin, vanilla.View):
         # participant_label_file, 2 requests for the same start URL with same label
         # will return the same participant. Not sure if the previous behavior
         # (assigning to 2 different participants) was intentional or bug.
-        return participant_start_page_or_404(session, label=label, cookies=cookies)
+        participant = participant_start_page_or_404(
+            session, label=label, cookies=cookies
+        )
+        if label:  # whether the room has participant labels or not
+            passed_vars = ParticipantVarsFromREST.objects.filter(
+                room_name=self.room_name, participant_label=label
+            ).first()
+            if passed_vars:
+                participant.vars.update(passed_vars.vars)
+                participant.save()
+                passed_vars.delete()
+        return HttpResponseRedirect(participant._start_url())
 
     def get_context_data(self, **kwargs):
         return {'room': self.room_name}
@@ -314,3 +368,45 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
 
     def redirect_url(self):
         return self.request.get_full_path()
+
+
+class PostParticipantVarsThroughREST(BaseRESTView):
+
+    url_pattern = r'^api/v1/participant_vars/$'
+
+    def inner_post(self, room_name, participant_label, vars):
+        room = ROOM_DICT[room_name]
+        session = room.get_session()
+        if session:
+            participant = session.participant_set.filter(
+                label=participant_label
+            ).first()
+            if participant:
+                participant.vars.update(vars)
+                participant.save()
+                return HttpResponse('ok')
+        obj, _ = ParticipantVarsFromREST.objects.update_or_create(
+            participant_label=participant_label,
+            room_name=room_name,
+            defaults=dict(_json_data=json.dumps(vars)),
+        )
+        return HttpResponse('ok')
+
+
+class RESTCreateSession(BaseRESTView):
+    '''
+    TODO: doesn't reallly belong in participant.py
+    '''
+
+    url_pattern = r'^api/v1/sessions/$'
+
+    def inner_post(self, **kwargs):
+        '''
+        Notes:
+        - This allows you to pass parameters that did not exist in the original config,
+        as well as params that are blocked from editing in the UI,
+        either because of datatype.
+        I can't see any specific problem with this.
+        '''
+        session = create_session(**kwargs)
+        return HttpResponse(session.code)

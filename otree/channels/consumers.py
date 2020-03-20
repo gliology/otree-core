@@ -185,6 +185,9 @@ class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
 
     unrestricted_when = ALWAYS_UNRESTRICTED
 
+    app_name: str
+    player_id: int
+
     def clean_kwargs(self):
         d = parse_querystring(self.scope['query_string'])
         return {
@@ -213,9 +216,18 @@ class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
             session_id=session_pk,
         ).exists()
 
+    def mark_ready_status(self, is_ready):
+        models_module = get_models_module(self.app_name)
+        models_module.Player.objects.filter(id=self.player_id).update(
+            _gbat_arrived=is_ready
+        )
+
     async def post_connect(
         self, app_name, player_id, page_index, session_pk, participant_id
     ):
+        self.app_name = app_name
+        self.player_id = player_id
+        await database_sync_to_async(self.mark_ready_status)(True)
         if await database_sync_to_async(self.is_ready)(
             app_name=app_name,
             player_id=player_id,
@@ -233,6 +245,7 @@ class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
     async def pre_disconnect(
         self, app_name, player_id, page_index, session_pk, participant_id
     ):
+        await database_sync_to_async(self.mark_ready_status)(False)
         await create_waitpage_passage(
             participant_id=participant_id, session_pk=session_pk, is_enter=False
         )
@@ -295,6 +308,10 @@ class BaseCreateSession(_OTreeAsyncJsonWebsocketConsumer):
                 await database_sync_to_async(otree.bots.browser.initialize_session)(
                     session_pk=session.pk, case_number=None
                 )
+            # the "elif" is because if it uses browser bots, then exogenous data is mocked
+            # as part of run_bots.
+            elif session.is_demo:
+                session.mock_exogenous_data()
         except Exception as e:
             error_message = 'Failed to create session: "{}"'.format(e)
             traceback_str = traceback.format_exc()
@@ -369,7 +386,7 @@ class CreateSession(BaseCreateSession):
         if is_mturk:
             num_participants *= settings.MTURK_NUM_PARTICIPANTS_MULTIPLE
 
-        edited_session_config_fields = {}
+        modified_session_config_fields = {}
 
         for field in config.editable_fields():
             html_field_name = config.html_field_name(field)
@@ -387,7 +404,7 @@ class CreateSession(BaseCreateSession):
             if isinstance(old_value, bool):
                 new_value = bool(form_data.get(html_field_name))
                 if old_value != new_value:
-                    edited_session_config_fields[field] = new_value
+                    modified_session_config_fields[field] = new_value
             else:
                 new_value_raw = form_data.get(html_field_name, '')
                 if new_value_raw != '':
@@ -398,9 +415,9 @@ class CreateSession(BaseCreateSession):
                     else:
                         new_value = type(old_value)(new_value_raw)
                     if old_value != new_value:
-                        edited_session_config_fields[field] = new_value
+                        modified_session_config_fields[field] = new_value
 
-        use_browser_bots = edited_session_config_fields.get(
+        use_browser_bots = modified_session_config_fields.get(
             'use_browser_bots', config.get('use_browser_bots', False)
         )
 
@@ -412,7 +429,7 @@ class CreateSession(BaseCreateSession):
             num_participants=num_participants,
             is_demo=False,
             is_mturk=is_mturk,
-            edited_session_config_fields=edited_session_config_fields,
+            modified_session_config_fields=modified_session_config_fields,
             use_browser_bots=use_browser_bots,
             room_name=room_name,
         )

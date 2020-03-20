@@ -49,14 +49,4 @@ $(document).ready(function () {
     }
 
     initWebSocket();
-    
-    if (isBrowserBot === 'True') {
-        var form = $('#form');
-        form.submit();
-
-        // prevent duplicate submissions, e.g. timeout_seconds
-        form.on('submit', function (e) {
-            e.preventDefault();
-        });
-    }
 });

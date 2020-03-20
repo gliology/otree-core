@@ -1,6 +1,8 @@
 import contextlib
 import importlib
+import json
 import logging
+import os
 import time
 from typing import Optional
 
@@ -12,7 +14,13 @@ from django.core import signals
 from django.core.exceptions import PermissionDenied, SuspiciousOperation
 from django.core.handlers.exception import handle_uncaught_exception
 from django.db.models import Max, Min
-from django.http import HttpResponseRedirect, Http404, HttpResponse
+from django.http import (
+    HttpResponseRedirect,
+    Http404,
+    HttpResponse,
+    HttpResponseNotFound,
+    HttpResponseForbidden,
+)
 from django.http.multipartparser import MultiPartParserError
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -314,24 +322,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
                 response = response_for_exception(self.request, exc)
 
             otree.db.idmap.save_objects()
-            if self.participant.is_browser_bot:
-                html = response.content.decode('utf-8')
-                # 2018-04-25: not sure why i didn't use an HTTP header.
-                # the if statement doesn't even seem to make a difference.
-                # shouldn't it always submit, if we're in a Page class?
-                # or why not just set an attribute directly on the response object?
-                # OTOH, this is pretty guaranteed to work. whereas i'm not sure
-                # that we can isolate the exact set of cases when we have to
-                # add the auto-submit flag (only GET requests, not wait pages,
-                # ...etc?)
-                if 'browser-bot-auto-submit' in html:
-                    # needs to happen in GET, so that we can set the .html
-                    # attribute on the bot.
-                    browser_bots.set_attributes(
-                        participant_code=self.participant.code,
-                        request_path=self.request.path,
-                        html=html,
-                    )
+            # print('returning HTTP response', response, self.request.path)
             return response
 
     def get_context_data(self, **context):
@@ -529,6 +520,10 @@ class FormPageOrInGameWaitPage(vanilla.View):
         page_index_to_skip_to = self._get_next_page_index_if_skipping_apps()
         is_skipping_apps = bool(page_index_to_skip_to)
 
+        # the pk/class that we last ran .start() for.
+        ran_start_pk = self._player_pk
+        ran_start_cls = self.PlayerClass
+
         for page_index in range(
             # go to max_page_index+2 because range() skips the last index
             # and it's possible to go to max_page_index + 1 (OutOfRange)
@@ -548,8 +543,14 @@ class FormPageOrInGameWaitPage(vanilla.View):
             page = Page()
 
             page.set_attributes(self.participant, lazy=True)
-            if (not is_skipping_apps) and page._is_displayed():
-                break
+            if not is_skipping_apps:
+                if page.PlayerClass != ran_start_cls or page._player_pk != ran_start_pk:
+                    # we have moved to a new round.
+                    page.player.start()
+                    ran_start_pk = page._player_pk
+                    ran_start_cls = page.PlayerClass
+                if page._is_displayed():
+                    break
 
             # if it's a wait page, record that they visited
             # but don't run after_all_players_arrive
@@ -684,6 +685,39 @@ class Page(FormPageOrInGameWaitPage):
             return self.post()
         return self.get()
 
+    def browser_bot_stuff(self, response: TemplateResponse):
+        if self.participant.is_browser_bot:
+            if hasattr(response, 'render'):
+                response.render()
+            browser_bots.set_attributes(
+                participant_code=self.participant.code,
+                request_path=self.request.path,
+                html=response.content.decode('utf-8'),
+            )
+            has_next_submission = browser_bots.enqueue_next_post_data(
+                participant_code=self.participant.code
+            )
+            if has_next_submission:
+                # this doesn't work because we also would need to do this on OutOfRange page.
+                # sometimes the player submits the last page, especially during development.
+                # if self._index_in_pages == self.participant._max_page_index:
+                auto_submit_js = '''
+                <script>
+                    var form = document.querySelector('#form');
+                    form.submit();
+                    // browser-bot-auto-submit
+                    form.on('submit', function (e) {
+                        e.preventDefault();
+                    });
+                </script>
+                '''
+                response.content += auto_submit_js.encode('utf8')
+            else:
+                browser_bots.send_completion_message(
+                    session_code=self.session.code,
+                    participant_code=self.participant.code,
+                )
+
     def get(self):
         if not self._is_displayed():
             self._increment_index_in_pages()
@@ -694,9 +728,12 @@ class Page(FormPageOrInGameWaitPage):
         # see that function for an explanation.
         self.participant._current_form_page_url = self.request.path
         self.object = self.get_object()
+
         form = self.get_form(instance=self.object)
         context = self.get_context_data(form=form)
-        return self.render_to_response(context)
+        response = self.render_to_response(context)
+        self.browser_bot_stuff(response)
+        return response
 
     def get_template_names(self):
         if self.template_name is not None:
@@ -774,36 +811,29 @@ class Page(FormPageOrInGameWaitPage):
         self.object = self.get_object()
 
         if self.participant.is_browser_bot:
-            submission = browser_bots.get_next_post_data(
+            submission = browser_bots.pop_enqueued_post_data(
                 participant_code=self.participant.code
             )
-            if submission is None:
-                browser_bots.send_completion_message(
-                    session_code=self.session.code,
-                    participant_code=self.participant.code,
-                )
-                return HttpResponse(BOT_COMPLETE_HTML_MESSAGE)
-            else:
-                # convert MultiValueKeyDict to regular dict
-                # so that we can add entries to it in a simple way
-                # before, we used dict(request.POST), but that caused
-                # errors with BooleanFields with blank=True that were
-                # submitted empty...it said [''] is not a valid value
-                post_data = request.POST.dict()
-                post_data.update(submission)
+            # convert MultiValueKeyDict to regular dict
+            # so that we can add entries to it in a simple way
+            # before, we used dict(request.POST), but that caused
+            # errors with BooleanFields with blank=True that were
+            # submitted empty...it said [''] is not a valid value
+            post_data = request.POST.dict()
+            post_data.update(submission)
         else:
             post_data = request.POST
 
         form = self.get_form(data=post_data, files=request.FILES, instance=self.object)
         self.form = form
 
-        auto_submitted = request.POST.get(otree.constants.timeout_happened)
+        auto_submitted = post_data.get(otree.constants.timeout_happened)
 
         # if the page doesn't have a timeout_seconds, only the timeoutworker
         # should be able to auto-submit it.
         # otherwise users could append timeout_happened to the URL to skip pages
         has_secret_code = (
-            request.POST.get(otree.constants.admin_secret_code) == ADMIN_SECRET_CODE
+            post_data.get(otree.constants.admin_secret_code) == ADMIN_SECRET_CODE
         )
 
         # todo: make sure users can't change the result by removing 'timeout_happened'
@@ -828,7 +858,6 @@ class Page(FormPageOrInGameWaitPage):
                 # assigning to self.object is not really necessary
                 self.object = form.save()
             else:
-                response = self.form_invalid(form)
                 if is_bot:
                     PageName = self.__class__.__name__
                     if not post_data.get('must_fail'):
@@ -859,38 +888,14 @@ class Page(FormPageOrInGameWaitPage):
                                 )
                             )
                             raise BotError(msg)
+                response = self.form_invalid(form)
+                self.browser_bot_stuff(response)
                 return response
         try:
             self.before_next_page()
         except Exception as exc:
             # why not raise ResponseForException?
             return response_for_exception(self.request, exc)
-
-        if self.participant.is_browser_bot:
-            if self._index_in_pages == self.participant._max_page_index:
-                # fixme: is it right to set html=''?
-                # could this break any asserts?
-                browser_bots.set_attributes(
-                    participant_code=self.participant.code,
-                    request_path=self.request.path,
-                    html='',
-                )
-                submission = browser_bots.get_next_post_data(
-                    participant_code=self.participant.code
-                )
-                if submission is None:
-                    browser_bots.send_completion_message(
-                        session_code=self.session.code,
-                        participant_code=self.participant.code,
-                    )
-                    return HttpResponse(BOT_COMPLETE_HTML_MESSAGE)
-                else:
-                    msg = (
-                        'Finished the last page, '
-                        'but the bot is still trying '
-                        'to submit more data ({}).'.format(submission)
-                    )
-                    raise BotError(msg)
         self._increment_index_in_pages()
         return self._redirect_to_page_the_user_should_be_on()
 
@@ -1580,3 +1585,33 @@ class AdminSessionPageMixin:
 
 class InvalidAppError(Exception):
     pass
+
+
+REST_KEY_NAME = 'OTREE_REST_KEY'
+REST_KEY_HEADER = REST_KEY_NAME.replace('_', '-')
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class BaseRESTView(vanilla.View):
+    def post(self, request):
+        REST_KEY = os.getenv(REST_KEY_NAME)  # put it here for easy testing
+        if not REST_KEY:
+            return HttpResponseNotFound(
+                f'Env var {REST_KEY_NAME} must be defined to use REST API'
+            )
+        # hack to force plain text 500 page (Django checks .is_ajax())
+        request.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
+        submitted_rest_key = request.headers.get(REST_KEY_HEADER)
+        if not submitted_rest_key:
+            return HttpResponseForbidden(
+                f'HTTP Request Header {REST_KEY_NAME} is missing'
+            )
+        if REST_KEY != submitted_rest_key:
+            return HttpResponseForbidden(
+                f'HTTP Request Header {REST_KEY_NAME} is incorrect'
+            )
+        payload = json.loads(request.body.decode("utf-8"))
+        return self.inner_post(**payload)
+
+    def inner_post(self, **kwargs):
+        raise NotImplementedError

@@ -18,6 +18,8 @@ ALWAYS_UNRESTRICTED = {
     'OutOfRangeNotification',
     'ParticipantRoomHeartbeat',
     'ParticipantHeartbeatGBAT',
+    'RESTCreateSession',
+    'PostParticipantVarsThroughREST',
 }
 
 

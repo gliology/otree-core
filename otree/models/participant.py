@@ -8,7 +8,6 @@ from otree.models_concrete import ParticipantToPlayerLookup
 
 
 class Participant(models.Model):
-
     class Meta:
         ordering = ['pk']
         app_label = "otree"
@@ -16,7 +15,6 @@ class Participant(models.Model):
 
     _ft = FieldTrackerWithVarsSupport()
     vars: dict = models._PickleField(default=dict)
-
 
     session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
 
@@ -159,7 +157,7 @@ class Participant(models.Model):
             return self._start_url()
         if self._index_in_pages <= self._max_page_index:
             return self.player_lookup()['url']
-        return reverse('OutOfRangeNotification')
+        return reverse('OutOfRangeNotification', args=[self.code])
 
     def _start_url(self):
         return otree.common.participant_start_url(self.code)

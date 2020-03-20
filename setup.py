@@ -12,7 +12,7 @@ import otree
 version = otree.__version__
 
 
-MSG_PY_VERSION = f"""
+MSG_PY_VERSION = """
 Error: This version of oTree requires Python 3.7 or higher.
 
 If you're seeing this message on oTree Hub, 
@@ -25,13 +25,8 @@ as described in the Heroku documentation.
 if sys.version_info < (3, 7):
     sys.exit(MSG_PY_VERSION)
 
-# need to consider also whether Heroku supports 3.8
-MSG_PY_38 = '''
-This version of oTree requires Python 3.7.x.
-'''
-
-if sys.version_info >= (3, 8):
-    sys.exit(MSG_PY_38)
+if sys.version_info >= (3, 9):
+    sys.exit('This version of oTree is not compatible with Python 3.9.')
 
 
 def clean_requirements(requirements_text):

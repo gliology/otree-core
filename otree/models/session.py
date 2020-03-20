@@ -16,7 +16,7 @@ from otree.common import (
 )
 from otree.db import models
 from otree.models_concrete import RoomToSession
-
+import otree.db.idmap
 
 logger = logging.getLogger('otree')
 
@@ -121,6 +121,20 @@ class Session(models.Model):
     @property
     def use_browser_bots(self):
         return self.config.get('use_browser_bots', False)
+
+    def mock_exogenous_data(self):
+        '''
+        It's for any exogenous data:
+        - participant labels (which are not passed in through REST API)
+        - participant vars
+        - session vars (if we enable that)
+        '''
+        if self.config.get('mock_exogenous_data'):
+            import utils as user_utils
+
+            with otree.db.idmap.use_cache():
+                user_utils.mock_exogenous_data(self)
+                otree.db.idmap.save_objects()
 
     def is_mturk(self):
         return (not self.is_demo) and (self.mturk_num_participants > 0)

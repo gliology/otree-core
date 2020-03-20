@@ -1,8 +1,4 @@
-from otree.common import (
-    add_field_tracker,
-    in_round,
-    in_rounds,
-)
+from otree.common import add_field_tracker, in_round, in_rounds
 
 from otree.db import models
 from otree.models.fieldchecks import ensure_field
@@ -46,6 +42,7 @@ class BasePlayer(models.Model):
 
     round_number = models.PositiveIntegerField(db_index=True)
 
+    # actually should be called _gbat_is_waiting
     _gbat_arrived = models.BooleanField(default=False)
     _gbat_grouped = models.BooleanField(default=False)
 
@@ -119,3 +116,6 @@ class BasePlayer(models.Model):
         ensure_field(cls, 'group', group_field)
 
         add_field_tracker(cls)
+
+    def start(self):
+        pass
