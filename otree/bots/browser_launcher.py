@@ -1,5 +1,6 @@
 import logging
 import os
+
 import sys
 import time
 from enum import Enum
@@ -11,6 +12,7 @@ from django.urls import reverse
 
 import otree.channels.utils as channel_utils
 from otree.session import SESSION_CONFIGS_DICT
+from otree.common import random_chars
 
 AUTH_FAILURE_MESSAGE = """
 Could not login to the server using your ADMIN_USERNAME
@@ -19,6 +21,8 @@ browser bots on a remote server, make sure the username
 and password on your local oTree installation match that
 on the server.
 """
+
+REST_KEY = os.getenv('OTREE_REST_KEY')
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +67,8 @@ def windows_mac_or_linux() -> OSEnum:
 
 
 class URLs:
-    login = '/accounts/login/'
     create_browser_bots = reverse('CreateBrowserBotsSession')
     close_browser_bots = reverse('CloseBrowserBotsSession')
-    browser_bots_start = reverse('BrowserBotStartLink')
 
 
 WEBSOCKET_COMPLETED_MESSAGE = b'closed_by_browser_launcher'
@@ -129,8 +131,7 @@ class Launcher:
         self.check_browser()
         self.set_urls()
         self.client = requests_session()
-        self.ping_server()
-        self.server_configuration_check()
+        self.client.headers.update({'otree-rest-key': REST_KEY})
 
         sessions_to_create = []
 
@@ -182,13 +183,18 @@ class Launcher:
     def run_session(self, session_config_name, num_participants, case_number):
         self.close_existing_session()
 
-        browser_process = self.launch_browser(num_participants)
+        pre_create_id = random_chars(5)
+
+        browser_process = self.launch_browser(num_participants, pre_create_id)
 
         row_fmt = "{:<%d} {:>2} participants..." % (self.max_name_length + 1)
         print(row_fmt.format(session_config_name, num_participants), end='')
 
-        session_code = self.create_session(
-            session_config_name, num_participants, case_number
+        session_code = self.create_bb_session(
+            session_config_name=session_config_name,
+            num_participants=num_participants,
+            case_number=case_number,
+            pre_create_id=pre_create_id,
         )
 
         time_spent = self.websocket_listen(session_code, num_participants)
@@ -225,79 +231,16 @@ class Launcher:
             server_url = 'http://' + server_url
         self.server_url = server_url
 
-        # CREATE_SESSION URL
-        self.create_session_url = urljoin(server_url, URLs.create_browser_bots)
+    def post(self, url, json=None):
+        json = json or {}
+        return self.client.post(urljoin(self.server_url, url), json=json)
 
-        # LOGIN URL
-        # TODO: use reverse? reverse('django.contrib.auth.views.login')
-        self.login_url = urljoin(server_url, URLs.login)
+    def get(self, url, json=None):
+        json = json or {}
+        return self.client.get(urljoin(self.server_url, url), json=json)
 
-    def post(self, url, data=None):
-        data = data or {}
-        data.update(csrfmiddlewaretoken=self.client.cookies['csrftoken'])
-        # need to set the referer for CSRF protection to work when using HTTPS
-        return self.client.post(url, data, headers={'referer': url})
-
-    def server_configuration_check(self):
-        # .get just returns server readiness info
-        # try to get this page without logging in
-        # we don't want to login if it isn't necessary, because maybe
-        # settings.ADMIN_PASSWORD is empty, and therefore no user account
-        # exists.
-        resp = self.client.get(self.create_session_url)
-
-        # if AUTH_LEVEL is set on remote server, then this will redirect
-        # to a login page
-        login_url = self.login_url
-        if login_url in resp.url:
-            # login
-            resp = self.post(
-                login_url,
-                data={
-                    'username': settings.ADMIN_USERNAME,
-                    'password': settings.ADMIN_PASSWORD,
-                },
-            )
-
-            if login_url in resp.url:
-                raise Exception(AUTH_FAILURE_MESSAGE)
-
-            # get it again, we are logged in now
-            resp = self.client.get(self.create_session_url)
-        assert resp.ok
-
-    def ping_server(self):
-
-        logging.getLogger("requests").setLevel(logging.WARNING)
-
-        try:
-            # open this just to populate CSRF cookie
-            # (because login page contains a form)
-            resp = self.client.get(self.login_url)
-
-        except:
-            msg = (
-                f'Could not connect to server at {self.server_url}.'
-                'Before running this command, '
-                'you need to run the server (see --server-url flag).'
-            )
-            raise Exception(msg)
-        if not resp.ok:
-            msg = (
-                f'Could not open page at {self.login_url}.'
-                f'(HTTP status code: {resp.status_code})'
-            )
-            raise Exception(msg)
-
-    def create_session(self, session_config_name, num_participants, case_number):
-        resp = self.post(
-            self.create_session_url,
-            data=dict(
-                session_config_name=session_config_name,
-                num_participants=num_participants,
-                case_number=case_number,
-            ),
-        )
+    def create_bb_session(self, **payload):
+        resp = self.post(URLs.create_browser_bots, json=payload)
         assert resp.ok, 'Failed to create session. Check the server logs.'
         session_code = resp.text
         return session_code
@@ -339,7 +282,7 @@ class Launcher:
 
     def close_existing_session(self):
         # make sure room is closed
-        resp = self.post(urljoin(self.server_url, URLs.close_browser_bots))
+        resp = self.post(URLs.close_browser_bots)
         if not resp.ok:
             msg = (
                 'Request to close existing browser bots session failed. '
@@ -347,8 +290,10 @@ class Launcher:
             )
             raise AssertionError(msg)
 
-    def launch_browser(self, num_participants):
-        wait_room_url = urljoin(self.server_url, URLs.browser_bots_start)
+    def launch_browser(self, num_participants, pre_create_id):
+        wait_room_url = urljoin(
+            self.server_url, '/browser_bot_start/{}'.format(pre_create_id)
+        )
 
         for browser_cmd in self.browser_cmds:
             args = [browser_cmd]

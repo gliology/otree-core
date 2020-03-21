@@ -20,6 +20,9 @@ ALWAYS_UNRESTRICTED = {
     'ParticipantHeartbeatGBAT',
     'RESTCreateSession',
     'PostParticipantVarsThroughREST',
+    'CreateBrowserBotsSession',
+    'CloseBrowserBotsSession',
+    'BrowserBotStartLink',
 }
 
 
@@ -166,6 +169,7 @@ def get_urlpatterns():
     urlpatterns += url_patterns_from_builtin_module('otree.views.room')
     urlpatterns += url_patterns_from_builtin_module('otree.views.mturk')
     urlpatterns += url_patterns_from_builtin_module('otree.views.export')
+    urlpatterns += url_patterns_from_builtin_module('otree.views.rest')
 
     urlpatterns += extensions_urlpatterns()
     urlpatterns += extensions_export_urlpatterns()

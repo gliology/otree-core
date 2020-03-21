@@ -1,10 +1,8 @@
 import json
-import sys
 from collections import OrderedDict
 import otree
 import re
 import otree.bots.browser
-import otree.channels.utils as channel_utils
 import otree.common
 import otree.export
 import otree.models
@@ -13,7 +11,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.urls import reverse
 from django.template.loader import select_template
-from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from otree import forms
 from otree.currency import RealWorldCurrency
@@ -25,8 +23,8 @@ from otree.common import (
 )
 from otree.forms import widgets
 from otree.models import Participant, Session
-from otree.models_concrete import BrowserBotsLauncherSessionCode, add_time_spent_waiting
-from otree.session import SESSION_CONFIGS_DICT, create_session, SessionConfig
+from otree.models_concrete import add_time_spent_waiting
+from otree.session import SESSION_CONFIGS_DICT, SessionConfig
 from otree.views.abstract import AdminSessionPageMixin
 from django.db.models import Case, Value, When
 
@@ -512,43 +510,6 @@ class ServerCheck(vanilla.TemplateView):
             pypi_results=get_installed_and_pypi_version(),
             **kwargs,
         )
-
-
-class CreateBrowserBotsSession(vanilla.View):
-    url_pattern = r"^create_browser_bots_session/$"
-
-    def get(self, request, *args, **kwargs):
-        return JsonResponse({})
-
-    def post(self, request):
-        num_participants = int(request.POST['num_participants'])
-        session_config_name = request.POST['session_config_name']
-        case_number = int(request.POST['case_number'])
-        session = create_session(
-            session_config_name=session_config_name, num_participants=num_participants,
-        )
-        otree.bots.browser.initialize_session(
-            session_pk=session.pk, case_number=case_number
-        )
-        BrowserBotsLauncherSessionCode.objects.update_or_create(
-            # i don't know why the update_or_create arg is called 'defaults'
-            # because it will update even if the instance already exists
-            # maybe for consistency with get_or_create
-            defaults={'code': session.code}
-        )
-        channel_utils.sync_group_send_wrapper(
-            type='browserbot_sessionready', group='browser_bot_wait', event={}
-        )
-
-        return HttpResponse(session.code)
-
-
-class CloseBrowserBotsSession(vanilla.View):
-    url_pattern = r"^close_browser_bots_session/$"
-
-    def post(self, request):
-        BrowserBotsLauncherSessionCode.objects.all().delete()
-        return HttpResponse('ok')
 
 
 class AdvanceSession(vanilla.View):

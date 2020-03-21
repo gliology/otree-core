@@ -144,6 +144,7 @@ class BrowserBotsLauncherSessionCode(models.Model):
         app_label = "otree"
 
     code = models.CharField(max_length=10)
+    pre_create_id = models.CharField(max_length=10)
 
     # hack to enforce singleton
     is_only_record = models.BooleanField(unique=True, default=True)

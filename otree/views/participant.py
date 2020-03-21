@@ -1,4 +1,3 @@
-import json
 import threading
 import time
 
@@ -6,7 +5,6 @@ import django.utils.timezone
 import otree.common
 import otree.constants
 import otree.models
-from otree.session import create_session
 import otree.views.admin
 import otree.views.mturk
 import vanilla
@@ -33,7 +31,6 @@ from otree.views.abstract import (
     GenericWaitPageMixin,
     get_redis_lock,
     NO_PARTICIPANTS_LEFT_MSG,
-    BaseRESTView,
 )
 import otree.bots.browser as browser_bots
 
@@ -335,12 +332,14 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
     because the rest of these views are accessible without password login.
     '''
 
-    url_pattern = r'^browser_bot_start/$'
+    url_pattern = r'^browser_bot_start/(?P<pre_create_id>\w+)/$'
 
-    def dispatch(self, request):
+    def dispatch(self, request, pre_create_id):
         get_redis_conn()  # why do we do this?
         session_info = BrowserBotsLauncherSessionCode.objects.first()
         if session_info:
+            if pre_create_id != session_info.pre_create_id:
+                return HttpResponseNotFound('Incorrect pre_create_id')
             session = Session.objects.get(code=session_info.code)
             with get_redis_lock(name='start_links') or start_link_thread_lock:
                 participant = (
@@ -353,7 +352,6 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
                 # the next view to prevent race conditions
                 participant.visited = True
                 participant.save()
-
             return HttpResponseRedirect(participant._start_url())
         else:
             ctx = {
@@ -368,45 +366,3 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
 
     def redirect_url(self):
         return self.request.get_full_path()
-
-
-class PostParticipantVarsThroughREST(BaseRESTView):
-
-    url_pattern = r'^api/v1/participant_vars/$'
-
-    def inner_post(self, room_name, participant_label, vars):
-        room = ROOM_DICT[room_name]
-        session = room.get_session()
-        if session:
-            participant = session.participant_set.filter(
-                label=participant_label
-            ).first()
-            if participant:
-                participant.vars.update(vars)
-                participant.save()
-                return HttpResponse('ok')
-        obj, _ = ParticipantVarsFromREST.objects.update_or_create(
-            participant_label=participant_label,
-            room_name=room_name,
-            defaults=dict(_json_data=json.dumps(vars)),
-        )
-        return HttpResponse('ok')
-
-
-class RESTCreateSession(BaseRESTView):
-    '''
-    TODO: doesn't reallly belong in participant.py
-    '''
-
-    url_pattern = r'^api/v1/sessions/$'
-
-    def inner_post(self, **kwargs):
-        '''
-        Notes:
-        - This allows you to pass parameters that did not exist in the original config,
-        as well as params that are blocked from editing in the UI,
-        either because of datatype.
-        I can't see any specific problem with this.
-        '''
-        session = create_session(**kwargs)
-        return HttpResponse(session.code)

@@ -1588,28 +1588,29 @@ class InvalidAppError(Exception):
 
 
 REST_KEY_NAME = 'OTREE_REST_KEY'
-REST_KEY_HEADER = REST_KEY_NAME.replace('_', '-')
+REST_KEY_HEADER = 'otree-rest-key'
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class BaseRESTView(vanilla.View):
     def post(self, request):
-        REST_KEY = os.getenv(REST_KEY_NAME)  # put it here for easy testing
-        if not REST_KEY:
-            return HttpResponseNotFound(
-                f'Env var {REST_KEY_NAME} must be defined to use REST API'
-            )
         # hack to force plain text 500 page (Django checks .is_ajax())
         request.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
-        submitted_rest_key = request.headers.get(REST_KEY_HEADER)
-        if not submitted_rest_key:
-            return HttpResponseForbidden(
-                f'HTTP Request Header {REST_KEY_NAME} is missing'
-            )
-        if REST_KEY != submitted_rest_key:
-            return HttpResponseForbidden(
-                f'HTTP Request Header {REST_KEY_NAME} is incorrect'
-            )
+        if settings.AUTH_LEVEL in ['DEMO', 'STUDY']:
+            REST_KEY = os.getenv(REST_KEY_NAME)  # put it here for easy testing
+            if not REST_KEY:
+                return HttpResponseNotFound(
+                    f'Env var {REST_KEY_NAME} must be defined to use REST API'
+                )
+            submitted_rest_key = request.headers.get(REST_KEY_HEADER)
+            if not submitted_rest_key:
+                return HttpResponseForbidden(
+                    f'HTTP Request Header {REST_KEY_HEADER} is missing'
+                )
+            if REST_KEY != submitted_rest_key:
+                return HttpResponseForbidden(
+                    f'HTTP Request Header {REST_KEY_HEADER} is incorrect'
+                )
         payload = json.loads(request.body.decode("utf-8"))
         return self.inner_post(**payload)
 
