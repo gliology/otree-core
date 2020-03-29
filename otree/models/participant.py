@@ -130,6 +130,7 @@ class Participant(models.Model):
     def current_page_(self):
         return self._current_page()
 
+
     def get_players(self):
         """Used to calculate payoffs"""
         lst = []

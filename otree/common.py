@@ -47,9 +47,11 @@ class _CurrencyEncoder(json.JSONEncoder):
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
+def json_dumps(obj):
+    return json.dumps(obj, cls=_CurrencyEncoder)
 
 def safe_json(obj):
-    return mark_safe(json.dumps(obj, cls=_CurrencyEncoder))
+    return mark_safe(json_dumps(obj))
 
 
 def add_params_to_url(url, params):

@@ -18,7 +18,7 @@ import otree.bots.browser
 import otree.channels.utils as channel_utils
 import otree.session
 from otree.channels.utils import get_chat_group
-from otree.common import get_models_module
+from otree.common import get_models_module, json_dumps
 from otree.export import export_wide, export_app
 from otree.models import Participant
 from otree.models_concrete import (
@@ -179,6 +179,31 @@ class GroupWaitPage(BaseWaitPage):
         await create_waitpage_passage(
             participant_id=participant_id, session_pk=session_pk, is_enter=True
         )
+
+
+class LiveConsumer(_OTreeAsyncJsonWebsocketConsumer):
+    unrestricted_when = ALWAYS_UNRESTRICTED
+
+    def group_name(self, session_code, page_index, **kwargs):
+        return channel_utils.live_group(session_code, page_index)
+
+    def clean_kwargs(self):
+        return parse_querystring(self.scope['query_string'])
+
+    async def post_receive_json(self, content, participant_code, page_name, **kwargs):
+
+        await database_sync_to_async(otree.bots.browser.send_live_payload)(
+            participant_code=participant_code, page_name=page_name, payload=content
+        )
+
+    @classmethod
+    async def encode_json(cls, content):
+        return json_dumps(content)
+
+    async def send_back_to_client(self, event):
+        pcode = self.cleaned_kwargs['participant_code']
+        if pcode in event:
+            await self.send_json(event[pcode])
 
 
 class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):

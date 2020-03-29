@@ -235,10 +235,6 @@ class Launcher:
         json = json or {}
         return self.client.post(urljoin(self.server_url, url), json=json)
 
-    def get(self, url, json=None):
-        json = json or {}
-        return self.client.get(urljoin(self.server_url, url), json=json)
-
     def create_bb_session(self, **payload):
         resp = self.post(URLs.create_browser_bots, json=payload)
         assert resp.ok, 'Failed to create session. Check the server logs.'
@@ -292,7 +288,7 @@ class Launcher:
 
     def launch_browser(self, num_participants, pre_create_id):
         wait_room_url = urljoin(
-            self.server_url, '/browser_bot_start/{}'.format(pre_create_id)
+            self.server_url, reverse('BrowserBotStartLink', args=[pre_create_id])
         )
 
         for browser_cmd in self.browser_cmds:

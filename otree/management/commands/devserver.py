@@ -132,7 +132,7 @@ class Command(runserver.Command):
         self.makemigrations_and_migrate()
 
         # initialize browser bot worker in process memory
-        otree.bots.browser.browser_bot_worker = otree.bots.browser.Worker()
+        otree.bots.browser.browser_bot_worker = otree.bots.browser.BotAndLiveWorker()
 
         # silence the lines like:
         # 2018-01-10 18:51:18,092 - INFO - worker - Listening on channels

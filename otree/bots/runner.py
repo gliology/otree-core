@@ -85,8 +85,13 @@ def make_bots(*, session_pk, case_number, use_browser_bots) -> List[ParticipantB
             lookups_per_participant[lookup.participant_code].append(lookup)
             seen_players.add(player_identifier)
 
+    executed_live_methods = set()
     for participant_code, lookups in lookups_per_participant.items():
-        bot = ParticipantBot(lookups=lookups, case_number=case_number)
+        bot = ParticipantBot(
+            lookups=lookups,
+            case_number=case_number,
+            executed_live_methods=executed_live_methods,
+        )
         bots.append(bot)
 
     return bots

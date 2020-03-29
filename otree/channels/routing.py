@@ -21,6 +21,11 @@ websocket_routes = [
     url(r'^browser_bot_wait/$', consumers.BrowserBot),
     url(
         # so it doesn't clash with addon
+        r"^live/$",
+        consumers.LiveConsumer,
+    ),
+    url(
+        # so it doesn't clash with addon
         r"^otreechat_core/(?P<params>[a-zA-Z0-9_/-]+)/$",
         consumers.ChatConsumer,
     ),

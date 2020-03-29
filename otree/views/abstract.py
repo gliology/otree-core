@@ -673,6 +673,17 @@ class FormPageOrInGameWaitPage(vanilla.View):
             # super() is a bit slower but only gets run during __init__
             super().__setattr__(attr, value)
 
+    def live_url(self):
+        return channel_utils.live_path(
+            participant_code=self.participant.code,
+            page_name=type(self).__name__,
+            page_index=self._index_in_pages,
+            session_code=self.session.code,
+            live_method_name=self.live_method,
+        )
+
+    live_method = ''
+
 
 class Page(FormPageOrInGameWaitPage):
 

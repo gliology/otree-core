@@ -4,15 +4,18 @@ import random
 import threading
 import traceback
 from collections import OrderedDict
-from typing import Dict
+from typing import Dict, Tuple
 
-import otree.channels.utils as channel_utils
+import otree.db.idmap
 import otree.common
 from otree import common
-from otree.common import get_redis_conn
-from otree.models import Session
+from otree.common import get_redis_conn, get_models_module
+from otree.models import Session, Participant
+from otree.models_concrete import ParticipantToPlayerLookup
 from .bot import ParticipantBot
 from .runner import make_bots
+import otree.channels.utils as channel_utils
+
 
 REDIS_KEY_PREFIX = 'otree-bots'
 
@@ -25,7 +28,7 @@ REDIS_KEY_PREFIX = 'otree-bots'
 SESSIONS_PRUNE_LIMIT = 80
 
 # global variable that holds the browser bot worker instance in memory
-browser_bot_worker = None  # type: Worker
+browser_bot_worker = None  # type: BotAndLiveWorker
 
 # these locks are only necessary when using runserver
 # because then the botworker stuff is done by one of the 4 worker threads.
@@ -35,7 +38,7 @@ add_or_remove_bot_lock = threading.Lock()
 logger = logging.getLogger('otree.test.browser_bots')
 
 
-class BotRequestError(Exception):
+class BadRequestError(Exception):
     '''
     if USE_REDIS==True, this exception will be converted to a dict
     and passed through Redis.
@@ -56,7 +59,54 @@ PARTICIPANT_NOT_IN_BOTWORKER_MSG = (
 )
 
 
-class Worker:
+class BaseWorker:
+    redis_conn = None
+
+    def ping(self, *args, **kwargs):
+        pass
+
+    def redis_listen(self):
+        print('botworker is listening for messages through Redis')
+        while True:
+            self.try_process_one_redis_message()
+
+    def try_process_one_redis_message(self):
+        '''break it out into a separate method for testing purposes'''
+
+        # blpop returns a tuple
+        result = None
+
+        # put it in a loop so that we can still receive KeyboardInterrupts
+        # otherwise it will block
+        while result is None:
+            result = self.redis_conn.blpop(REDIS_KEY_PREFIX, timeout=3)
+
+        key, message_bytes = result
+        message = json.loads(message_bytes.decode('utf-8'))
+        response_key = message['response_key']
+        kwargs = message['kwargs']
+        method = getattr(self, message['method'])
+
+        try:
+            retval = method(**kwargs)
+            response = {'retval': retval}
+        except BadRequestError as exc:
+            # request error means the request received through Redis
+            # was invalid.
+            # use str instead of repr here
+            response = {'error': str(exc)}
+        except Exception as exc:
+            # un-anticipated error
+            response = {'error': repr(exc), 'traceback': traceback.format_exc()}
+            # don't raise, because then this would crash.
+            # logger.exception() will record the full traceback
+            logger.exception(repr(exc))
+        finally:
+            retval_json = json.dumps(response)
+            self.redis_conn.rpush(response_key, retval_json)
+
+
+class BotAndLiveWorker(BaseWorker):
     def __init__(self, redis_conn=None):
         self.redis_conn = redis_conn
         self.participants_by_session = OrderedDict()
@@ -98,7 +148,7 @@ class Worker:
             msg = PARTICIPANT_NOT_IN_BOTWORKER_MSG.format(
                 participant_code=participant_code, prune_limit=SESSIONS_PRUNE_LIMIT
             )
-            raise BotRequestError(msg)
+            raise BadRequestError(msg)
 
     def enqueue_next_post_data(self, participant_code) -> bool:
         bot = self.get_bot(participant_code)
@@ -130,48 +180,53 @@ class Worker:
         bot.path = request_path
         bot.html = html
 
-    def ping(self, *args, **kwargs):
-        pass
+    def send_live_payload(self, participant_code, page_name, payload):
+        with otree.db.idmap.use_cache():
+            participant = Participant.objects.get(code=participant_code)
+            # we have to verify the ParticipantToPlayerLookup,
+            # to know that the user is currently on that page.
+            player_lookup = ParticipantToPlayerLookup.objects.get(
+                participant=participant, page_index=participant._index_in_pages
+            )
+            app_name = player_lookup.app_name
+            models_module = otree.common.get_models_module(app_name)
+            pages_module = otree.common.get_pages_module(app_name)
+            assert f'/{page_name}/' in player_lookup.url
+            PageClass = getattr(pages_module, page_name)
+            method_name = PageClass.live_method
+            player = models_module.Player.objects.get(id=player_lookup.player_pk)
+            group = player.group
+            method = getattr(group, method_name)
+            retval = method(player.id_in_group, payload)
+            otree.db.idmap.save_objects()
 
-    def redis_listen(self):
-        print('botworker is listening for messages through Redis')
-        while True:
-            self.try_process_one_redis_message()
+        if not retval:
+            return
+        if not isinstance(retval, dict):
+            msg = f'{method_name} must return a dict'
+            raise Exception(msg)
+        players = group.get_players()
+        pcodes_dict = {p.id_in_group: p.participant.code for p in players}
 
-    def try_process_one_redis_message(self):
-        '''break it out into a separate method for testing purposes'''
+        if 0 not in retval:
+            for pid in retval:
+                if pid not in pcodes_dict:
+                    msg = f'{method_name} has invalid return value. No player with id_in_group={repr(pid)}'
+                    raise Exception(msg) from None
 
-        # blpop returns a tuple
-        result = None
+        group_name = channel_utils.live_group(
+            participant.session.code, player_lookup.page_index
+        )
 
-        # put it in a loop so that we can still receive KeyboardInterrupts
-        # otherwise it will block
-        while result is None:
-            result = self.redis_conn.blpop(REDIS_KEY_PREFIX, timeout=3)
+        pcode_retval = {}
+        for pid, pcode in pcodes_dict.items():
+            payload = retval.get(pid) or retval.get(0)
+            if payload is not None:
+                pcode_retval[pcode] = payload
 
-        key, message_bytes = result
-        message = json.loads(message_bytes.decode('utf-8'))
-        response_key = message['response_key']
-        kwargs = message['kwargs']
-        method = getattr(self, message['method'])
-
-        try:
-            retval = method(**kwargs)
-            response = {'retval': retval}
-        except BotRequestError as exc:
-            # request error means the request received through Redis
-            # was invalid.
-            # use str instead of repr here
-            response = {'error': str(exc)}
-        except Exception as exc:
-            # un-anticipated error
-            response = {'error': repr(exc), 'traceback': traceback.format_exc()}
-            # don't raise, because then this would crash.
-            # logger.exception() will record the full traceback
-            logger.exception(repr(exc))
-        finally:
-            retval_json = json.dumps(response)
-            self.redis_conn.rpush(response_key, retval_json)
+        channel_utils.sync_group_send_wrapper(
+            group=group_name, type='send_back_to_client', event=pcode_retval
+        )
 
 
 class BotWorkerPingError(Exception):
@@ -214,7 +269,7 @@ def load_redis_response_dict(response_bytes: bytes):
         raise common.BotError(response['traceback'])
     elif 'error' in response:
         # handled exception
-        raise BotRequestError(response['error'])
+        raise BadRequestError(response['error'])
     return response['retval']
 
 
@@ -273,6 +328,10 @@ def enqueue_next_post_data(**kwargs) -> dict:
 
 def pop_enqueued_post_data(**kwargs) -> dict:
     return wrap_method_call('pop_enqueued_post_data', kwargs)
+
+
+def send_live_payload(**kwargs):
+    wrap_method_call('send_live_payload', kwargs)
 
 
 def initialize_session(**kwargs):

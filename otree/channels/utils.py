@@ -88,6 +88,18 @@ def auto_advance_group(participant_code):
     return f'auto-advance-{participant_code}'
 
 
+def live_group(session_code, page_index):
+    '''
+    live_method_hash is so that you can send messages across pages that share the same
+    live_method. But you don't want to send messages to a different live_method page.
+    '''
+    return f'live-{session_code}-{page_index}'
+
+
+def live_path(**kwargs):
+    return f'/live/?' + urlencode(kwargs)
+
+
 def chat_path(channel, participant_id):
     channel_and_id = '{}/{}'.format(channel, participant_id)
     channel_and_id_signed = Signer(sep='/').sign(channel_and_id)

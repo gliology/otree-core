@@ -1,9 +1,9 @@
-from typing import List
+from typing import List, Set, Tuple
 import re
 import decimal
 import logging
 import operator
-
+import inspect
 from urllib.parse import unquote, urlsplit
 from html.parser import HTMLParser
 
@@ -21,6 +21,7 @@ from otree.common import (
     get_admin_secret_code,
     get_models_module,
 )
+import otree.db.idmap
 
 ADMIN_SECRET_CODE = get_admin_secret_code()
 
@@ -121,6 +122,7 @@ class ParticipantBot(test.Client):
         lookups: List[ParticipantToPlayerLookup] = None,
         load_player_bots=True,
         case_number=None,
+        executed_live_methods=None,
     ):
 
         # usually lookups should be passed in. for ad-hoc testing,
@@ -144,9 +146,12 @@ class ParticipantBot(test.Client):
         self._html = None
         self.path = None
         self.submits = None
+        if executed_live_methods is None:
+            executed_live_methods = set()
+        self.executed_live_methods = executed_live_methods
         super().__init__()
 
-        self.player_bots = []
+        self.player_bots: List[PlayerBot] = []
 
         # load_player_bots can be set to False when it's convenient for
         # internal testing
@@ -178,6 +183,7 @@ class ParticipantBot(test.Client):
                         submission = BareYieldToSubmission(submission)
                     self.assert_correct_page(submission)
                     self.assert_html_ok(submission)
+                    self.live_method_stuff(player_bot, submission)
                     yield submission
             except ExpectError as exc:
                 # the point is to re-raise so that i can reference the original
@@ -187,6 +193,26 @@ class ParticipantBot(test.Client):
                 # this results in much nicer output for browser bots (devserver and runprodserver)
                 # but keep the original message, which is needed for CLI bots
                 raise ExpectError(str(exc))
+
+    def live_method_stuff(self, player_bot, submission):
+        PageClass = submission['page_class']
+        live_method_name = PageClass.live_method
+        if live_method_name:
+            record = (player_bot.player.group_id, PageClass)
+            if record not in self.executed_live_methods:
+                with otree.db.idmap.use_cache():
+                    bots_module = inspect.getmodule(player_bot)
+                    method_calls_fn = getattr(bots_module, 'call_live_method', None)
+                    if method_calls_fn:
+                        method = getattr(player_bot.group, live_method_name)
+                        method_calls_fn(
+                            method=method,
+                            case=player_bot.case,
+                            round_number=player_bot.round_number,
+                            page_class=PageClass,
+                        )
+                        otree.db.idmap.save_objects()
+                self.executed_live_methods.add(record)
 
     def _play_individually(self):
         '''convenience method for testing'''
