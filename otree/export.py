@@ -164,9 +164,11 @@ def get_payoff_plus_participation_fee(session, participant_values_dict):
     return session._get_payoff_plus_participation_fee(payoff)
 
 
-def get_rows_for_wide_csv():
-
-    sessions = Session.objects.order_by('id')
+def get_rows_for_wide_csv(session_code):
+    if session_code:
+        sessions = [Session.objects.get(code=session_code)]
+    else:
+        sessions = Session.objects.order_by('id')
     session_cache = {row.id: row for row in sessions}
 
     session_config_fields = set()
@@ -432,16 +434,26 @@ def get_rows_for_live_update(subsession: BaseSubsession):
     return columns_for_models, rows
 
 
-def export_wide(fp, file_extension='csv'):
-    rows = get_rows_for_wide_csv()
-    if file_extension == 'xlsx':
-        _export_xlsx(fp, rows)
-    else:
-        _export_csv(fp, rows)
+def export_wide(fp, file_extension, session_code=None):
+    rows = get_rows_for_wide_csv(session_code=session_code)
+    _export_csv_or_xlsx(fp, rows, file_extension)
 
 
-def export_app(app_name, fp, file_extension='csv'):
+def export_app(app_name, fp, file_extension):
     rows = get_rows_for_csv(app_name)
+    _export_csv_or_xlsx(fp, rows, file_extension)
+
+
+def custom_export_app(app_name, fp, file_extension):
+    models_module = get_models_module(app_name)
+    qs = models_module.Player.objects.select_related(
+        'participant', 'group', 'subsession', 'session'
+    ).order_by('id')
+    rows = models_module.custom_export(qs)
+    _export_csv_or_xlsx(fp, rows, file_extension)
+
+
+def _export_csv_or_xlsx(fp, rows, file_extension):
     if file_extension == 'xlsx':
         _export_xlsx(fp, rows)
     else:

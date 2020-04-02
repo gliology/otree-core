@@ -71,6 +71,28 @@
       <col width="40%">
       <col width="30%">
       <col width="30%">
+      {% for app in custom_export_apps %}
+        <tr>
+          <td>
+            {{ app }} (custom)
+          </td>
+          <td>
+            <a href="javascript:void(0)" class="download-link"
+               id="app-{{ app }}-custom-xlsx"
+               data-app="{{ app }}"
+               data-custom="1"
+               data-file-extension="xlsx">Excel</a>
+          </td>
+          <td>
+            <a href="javascript:void(0)" class="download-link"
+               id="app-{{ app }}-custom-csv"
+               data-app="{{ app }}"
+               data-custom="1"
+               data-file-extension="csv">CSV</a>
+          </td>
+        </tr>
+      {% endfor %}
+
       {% for app in app_names %}
         <tr>
           <td>
@@ -90,6 +112,7 @@
           </td>
         </tr>
       {% endfor %}
+
     </table>
 
     <h3>Time spent on each page</h3>
@@ -153,6 +176,7 @@
               if (appName) {
                   content['app_name'] = appName;
               }
+              content['is_custom'] = Boolean($this.data('custom'));
               socket.send(JSON.stringify(content));
               $this.append('<progress></progress>');
           })

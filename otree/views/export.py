@@ -30,18 +30,25 @@ class ExportIndex(vanilla.TemplateView):
             for app_name in session.config['app_sequence']:
                 app_names_with_data.add(app_name)
 
+        custom_export_apps = []
+        for app_name in app_names_with_data:
+            models_module = otree.common.get_models_module(app_name)
+            if getattr(models_module, 'custom_export', None):
+                custom_export_apps.append(app_name)
+
         return super().get_context_data(
             db_is_empty=not Participant.objects.exists(),
             app_names=app_names_with_data,
             chat_messages_exist=ChatMessage.objects.exists(),
             extensions_views=get_extensions_data_export_views(),
+            custom_export_apps=custom_export_apps,
             **kwargs
         )
 
 
-
 def get_export_response(request, file_prefix):
-    if bool(request.GET.get('xlsx')):
+    GET = request.GET
+    if bool(GET.get('xlsx')):
         content_type = (
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
@@ -59,6 +66,7 @@ def get_export_response(request, file_prefix):
 
 
 class ExportApp(vanilla.View):
+    '''OBSOLETE (uses channels now, this is just for backup)'''
 
     url_pattern = r"^ExportApp/(?P<app_name>[\w.]+)/$"
 
@@ -68,13 +76,14 @@ class ExportApp(vanilla.View):
         return response
 
 
-class ExportWide(vanilla.View):
+class ExportSessionWide(vanilla.View):
+    '''used by data page'''
 
-    url_pattern = r"^ExportWide/$"
+    url_pattern = r'^ExportSessionWide/(?P<session_code>[a-z0-9]+)/$'
 
-    def get(self, request):
+    def get(self, request, session_code):
         response, file_extension = get_export_response(request, 'All apps - wide')
-        otree.export.export_wide(response, file_extension)
+        otree.export.export_wide(response, file_extension, session_code=session_code)
         return response
 
 

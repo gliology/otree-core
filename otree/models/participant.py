@@ -1,4 +1,4 @@
-from django.db import models as dj_models
+from django.db import models as djmodels
 from django.urls import reverse
 
 import otree.common
@@ -7,7 +7,7 @@ from otree.db import models
 from otree.models_concrete import ParticipantToPlayerLookup
 
 
-class Participant(models.Model):
+class Participant(models.OTreeModel):
     class Meta:
         ordering = ['pk']
         app_label = "otree"
@@ -16,7 +16,7 @@ class Participant(models.Model):
     _ft = FieldTrackerWithVarsSupport()
     vars: dict = models._PickleField(default=dict)
 
-    session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
+    session = djmodels.ForeignKey('otree.Session', on_delete=models.CASCADE)
 
     label = models.CharField(
         max_length=50,
@@ -32,7 +32,7 @@ class Participant(models.Model):
 
     payoff = models.CurrencyField(default=0)
 
-    time_started = dj_models.DateTimeField(null=True)
+    time_started = djmodels.DateTimeField(null=True)
     mturk_assignment_id = models.CharField(max_length=50, null=True)
     mturk_worker_id = models.CharField(max_length=50, null=True)
 
@@ -92,7 +92,7 @@ class Participant(models.Model):
     # only to be displayed in the admin participants changelist
     _round_number = models.PositiveIntegerField(null=True)
 
-    _current_form_page_url = dj_models.URLField()
+    _current_form_page_url = djmodels.URLField()
 
     _max_page_index = models.PositiveIntegerField()
 
@@ -129,7 +129,6 @@ class Participant(models.Model):
     # because variables used in templates can't start with an underscore
     def current_page_(self):
         return self._current_page()
-
 
     def get_players(self):
         """Used to calculate payoffs"""

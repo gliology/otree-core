@@ -162,9 +162,6 @@ class OTreeModel(IdMapModel, metaclass=OTreeModelBase):
         super().save(*args, **kwargs)
 
 
-Model = OTreeModel
-
-
 def fix_choices_arg(kwargs):
     '''allows the programmer to define choices as a list of values rather
     than (value, display_value)
@@ -338,6 +335,27 @@ class StringField(_OtreeModelFieldMixin, models.CharField):
     auto_submit_default = ''
 
 
+Model = models.Model
+
+
+class ForeignKey(models.ForeignKey):
+    def __init__(self, to, *, related_name):
+        '''Need related_name, e.g. for network games (2 player FKs)'''
+        # should we allow it to be null? That could be useful for network games.
+        kwargs = dict(to=to, on_delete=models.CASCADE)
+        if related_name:
+            kwargs['related_name'] = related_name
+        super().__init__(**kwargs)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        new_kwargs = dict(to=kwargs['to'], related_name=kwargs['related_name'])
+        return name, path, (), new_kwargs
+
+    def formfield(self, *args, **kwargs):
+        raise Exception('oTree ForeignKey cannot be used as formfield')
+
+
 class DecimalField(_OtreeNumericFieldMixin, models.DecimalField):
     pass
 
@@ -396,7 +414,6 @@ DateTimeField = make_deprecated_field("DateTimeField")
 CharField = StringField
 TextField = LongStringField
 # keep ForeignKey around
-ForeignKey = models.ForeignKey
 
 
 CASCADE = models.CASCADE

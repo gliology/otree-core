@@ -11,7 +11,7 @@ import django.core.exceptions
 from django.db import models as djmodels
 
 
-class BaseGroup(models.Model):
+class BaseGroup(models.OTreeModel):
     """Base class for all Groups.
     """
 
@@ -22,7 +22,7 @@ class BaseGroup(models.Model):
 
     id_in_subsession = models.PositiveIntegerField(db_index=True)
 
-    session = models.ForeignKey(
+    session = djmodels.ForeignKey(
         'otree.Session',
         related_name='%(app_label)s_%(class)s',
         on_delete=models.CASCADE,

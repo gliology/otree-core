@@ -24,7 +24,7 @@ logger = logging.getLogger('otree')
 ADMIN_SECRET_CODE = get_admin_secret_code()
 
 
-class Session(models.Model):
+class Session(models.OTreeModel):
     class Meta:
         app_label = "otree"
         # if i don't set this, it could be in an unpredictable order
@@ -130,7 +130,7 @@ class Session(models.Model):
         - session vars (if we enable that)
         '''
         if self.config.get('mock_exogenous_data'):
-            import utils as user_utils
+            import shared_in as user_utils
 
             with otree.db.idmap.use_cache():
                 user_utils.mock_exogenous_data(self)

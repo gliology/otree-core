@@ -6,7 +6,7 @@ from otree.common import get_models_module, in_round, in_rounds
 import copy
 from otree.common import has_group_by_arrival_time, add_field_tracker
 from django.apps import apps
-
+from django.db import models as djmodels
 
 class GroupMatrixError(ValueError):
     pass
@@ -16,7 +16,7 @@ class RoundMismatchError(GroupMatrixError):
     pass
 
 
-class BaseSubsession(models.Model):
+class BaseSubsession(models.OTreeModel):
     """Base class for all Subsessions.
     """
 
@@ -25,7 +25,7 @@ class BaseSubsession(models.Model):
         ordering = ['pk']
         index_together = ['session', 'round_number']
 
-    session = models.ForeignKey(
+    session = djmodels.ForeignKey(
         'otree.Session',
         related_name='%(app_label)s_%(class)s',
         null=True,

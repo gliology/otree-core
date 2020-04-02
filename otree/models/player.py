@@ -2,9 +2,10 @@ from otree.common import add_field_tracker, in_round, in_rounds
 
 from otree.db import models
 from otree.models.fieldchecks import ensure_field
+from django.db import models as djmodels
 
 
-class BasePlayer(models.Model):
+class BasePlayer(models.OTreeModel):
     """
     Base class for all players.
     """
@@ -28,13 +29,13 @@ class BasePlayer(models.Model):
         null=True, doc="""The payoff the player made in this subsession""", default=0
     )
 
-    participant = models.ForeignKey(
+    participant = djmodels.ForeignKey(
         'otree.Participant',
         related_name='%(app_label)s_%(class)s',
         on_delete=models.CASCADE,
     )
 
-    session = models.ForeignKey(
+    session = djmodels.ForeignKey(
         'otree.Session',
         related_name='%(app_label)s_%(class)s',
         on_delete=models.CASCADE,
@@ -106,11 +107,13 @@ class BasePlayer(models.Model):
         subsession_model = '{app_label}.Subsession'.format(
             app_label=cls._meta.app_label
         )
-        subsession_field = models.ForeignKey(subsession_model, on_delete=models.CASCADE)
+        subsession_field = djmodels.ForeignKey(
+            subsession_model, on_delete=models.CASCADE
+        )
         ensure_field(cls, 'subsession', subsession_field)
 
         group_model = '{app_label}.Group'.format(app_label=cls._meta.app_label)
-        group_field = models.ForeignKey(
+        group_field = djmodels.ForeignKey(
             group_model, null=True, on_delete=models.CASCADE
         )
         ensure_field(cls, 'group', group_field)

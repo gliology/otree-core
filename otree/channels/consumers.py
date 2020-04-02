@@ -19,7 +19,7 @@ import otree.channels.utils as channel_utils
 import otree.session
 from otree.channels.utils import get_chat_group
 from otree.common import get_models_module, json_dumps
-from otree.export import export_wide, export_app
+from otree.export import export_wide, export_app, custom_export_app
 from otree.models import Participant
 from otree.models_concrete import (
     CompletedGroupWaitPage,
@@ -732,6 +732,7 @@ class ExportData(_OTreeAsyncJsonWebsocketConsumer):
 
         file_extension = content['file_extension']
         app_name = content.get('app_name')
+        is_custom = content.get('is_custom')
 
         if file_extension == 'xlsx':
             mime_type = (
@@ -745,7 +746,11 @@ class ExportData(_OTreeAsyncJsonWebsocketConsumer):
         iso_date = datetime.date.today().isoformat()
         with IOClass() as fp:
             if app_name:
-                await database_sync_to_async(export_app)(
+                if is_custom:
+                    fxn = custom_export_app
+                else:
+                    fxn = export_app
+                await database_sync_to_async(fxn)(
                     app_name, fp, file_extension=file_extension
                 )
                 file_name_prefix = app_name
