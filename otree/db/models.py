@@ -335,29 +335,37 @@ class StringField(_OtreeModelFieldMixin, models.CharField):
     auto_submit_default = ''
 
 
-Model = models.Model
+# currently it's just a regular model, but we might customize it in the future
+# (e.g. custom model manager)
+ExtraModel = models.Model
 
 
-class ForeignKey(models.ForeignKey):
-    def __init__(self, to, *, related_name):
-        '''Need related_name, e.g. for network games (2 player FKs)'''
+class Link(models.ForeignKey):
+    def __init__(self, to):
         # should we allow it to be null? That could be useful for network games.
+        # maybe add null=True as a kwarg later. the biggest concern is that
+        # people will forget to pass player or group.
+        # also maybe add reverse_name later.
         kwargs = dict(to=to, on_delete=models.CASCADE)
-        if related_name:
-            kwargs['related_name'] = related_name
-        super().__init__(**kwargs)
+        # don't make reverse relation, then we don't have to worry about conflicting
+        # related_name error.
+        super().__init__(related_name="+", **kwargs)
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
-        new_kwargs = dict(to=kwargs['to'], related_name=kwargs['related_name'])
+        new_kwargs = dict(to=kwargs['to'])
         return name, path, (), new_kwargs
 
     def formfield(self, *args, **kwargs):
-        raise Exception('oTree ForeignKey cannot be used as formfield')
+        raise Exception('oTree Link cannot be used as formfield')
 
 
 class DecimalField(_OtreeNumericFieldMixin, models.DecimalField):
     pass
+
+
+Model = models.Model
+ForeignKey = models.ForeignKey
 
 
 class FloatField(_OtreeNumericFieldMixin, models.FloatField):
