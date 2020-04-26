@@ -24,7 +24,7 @@ msgstr ""
 #: .\chat.py:21
 #, python-brace-format
 msgid "Player {id_in_group}"
-msgstr ""
+msgstr "Joueur {id_in_group}"
 
 #. Translators: the name someone sees displayed for themselves in a chat.
 #. It's their nickname followed by "(Me)". For example:
@@ -32,7 +32,7 @@ msgstr ""
 #: .\chat.py:60
 #, python-brace-format
 msgid "{nickname} (Me)"
-msgstr ""
+msgstr "{nickname} (Moi)"
 
 #. Translators: for required form fields
 #: .\constants_internal.py:56
@@ -86,7 +86,7 @@ msgstr "S'il vous plaît, veuillez corriger les erreurs dans le formulaire."
 
 #: .\templates\otree\RoomInputLabel.html:7
 msgid "Welcome"
-msgstr ""
+msgstr "Bienvenue"
 
 #. Translators: If the user enters an invalid participant label
 #: .\templates\otree\RoomInputLabel.html:13
@@ -118,7 +118,7 @@ msgstr "Suivant"
 #. Translators: Chat widget "send" button text
 #: .\templates\otreechat_core\widget.html:7
 msgid "Send"
-msgstr ""
+msgstr "Envoyer"
 
 #: .\views\abstract.py:886
 msgid "Time left to complete this page:"

@@ -1,7 +1,7 @@
 import json
 
 import vanilla
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseNotFound
 
 import otree
 from otree.channels import utils as channel_utils
@@ -20,6 +20,8 @@ class PostParticipantVarsThroughREST(BaseRESTView):
     url_pattern = r'^api/v1/participant_vars/$'
 
     def inner_post(self, room_name, participant_label, vars):
+        if room_name not in ROOM_DICT:
+            return HttpResponseNotFound(f'Room {room_name} not found')
         room = ROOM_DICT[room_name]
         session = room.get_session()
         if session:

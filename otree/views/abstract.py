@@ -19,6 +19,7 @@ from django.http import (
     Http404,
     HttpResponse,
     HttpResponseNotFound,
+    HttpResponseBadRequest,
     HttpResponseForbidden,
 )
 from django.http.multipartparser import MultiPartParserError
@@ -1610,7 +1611,7 @@ class BaseRESTView(vanilla.View):
         if settings.AUTH_LEVEL in ['DEMO', 'STUDY']:
             REST_KEY = os.getenv(REST_KEY_NAME)  # put it here for easy testing
             if not REST_KEY:
-                return HttpResponseNotFound(
+                return HttpResponseForbidden(
                     f'Env var {REST_KEY_NAME} must be defined to use REST API'
                 )
             submitted_rest_key = request.headers.get(REST_KEY_HEADER)

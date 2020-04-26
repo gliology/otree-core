@@ -169,6 +169,9 @@ def get_rows_for_wide_csv(session_code):
         sessions = [Session.objects.get(code=session_code)]
     else:
         sessions = Session.objects.order_by('id')
+    participants = (
+        Participant.objects.filter(session__in=sessions).order_by('id').values()
+    )
     session_cache = {row.id: row for row in sessions}
 
     session_config_fields = set()
@@ -177,7 +180,6 @@ def get_rows_for_wide_csv(session_code):
             session_config_fields.add(field_name)
     session_config_fields = list(session_config_fields)
 
-    participants = Participant.objects.order_by('id').values()
     if not participants:
         # 1 empty row
         return [[]]

@@ -32,7 +32,7 @@ msgstr ""
 #: .\chat.py:60
 #, python-brace-format
 msgid "{nickname} (Me)"
-msgstr ""
+msgstr "{nickname}(我)"
 
 #. Translators: for required form fields
 #: .\constants_internal.py:56
@@ -117,7 +117,7 @@ msgstr "下一页"
 #. Translators: Chat widget "send" button text
 #: .\templates\otreechat_core\widget.html:7
 msgid "Send"
-msgstr ""
+msgstr "发送"
 
 #: .\views\abstract.py:886
 msgid "Time left to complete this page:"

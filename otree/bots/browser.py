@@ -181,19 +181,20 @@ class BotAndLiveWorker(BaseWorker):
         bot.html = html
 
     def send_live_payload(self, participant_code, page_name, payload):
+        participant = Participant.objects.get(code=participant_code)
+        # we have to verify the ParticipantToPlayerLookup,
+        # to know that the user is currently on that page.
+        player_lookup = ParticipantToPlayerLookup.objects.get(
+            participant=participant, page_index=participant._index_in_pages
+        )
+        app_name = player_lookup.app_name
+        models_module = otree.common.get_models_module(app_name)
+        pages_module = otree.common.get_pages_module(app_name)
+        assert f'/{page_name}/' in player_lookup.url
+        PageClass = getattr(pages_module, page_name)
+        method_name = PageClass.live_method
+
         with otree.db.idmap.use_cache():
-            participant = Participant.objects.get(code=participant_code)
-            # we have to verify the ParticipantToPlayerLookup,
-            # to know that the user is currently on that page.
-            player_lookup = ParticipantToPlayerLookup.objects.get(
-                participant=participant, page_index=participant._index_in_pages
-            )
-            app_name = player_lookup.app_name
-            models_module = otree.common.get_models_module(app_name)
-            pages_module = otree.common.get_pages_module(app_name)
-            assert f'/{page_name}/' in player_lookup.url
-            PageClass = getattr(pages_module, page_name)
-            method_name = PageClass.live_method
             player = models_module.Player.objects.get(id=player_lookup.player_pk)
             group = player.group
             method = getattr(group, method_name)

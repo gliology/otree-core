@@ -12,6 +12,7 @@ i removed many linebreaks to make output HTML cleaner
         {% if view.remaining_timeout_seconds != None %}
             {% include 'otree/includes/TimeLimit.html' with form_element_id="form" %}
         {% endif %}
+        {% if view.live_method %}<form id="liveform"></form>{% endif %}
         {% if form.errors %}
             <div class="otree-form-errors alert alert-danger">
                 {{ form.non_field_errors }}
@@ -44,6 +45,7 @@ i removed many linebreaks to make output HTML cleaner
 
 {% block live %}
   {% if view.live_method %}
+    <form id="liveform"></form>
     <script src="{% static 'otree/js/live.js' %}" id="otree-live" data-socket-url="{{ view.live_url }}"></script>
   {% endif %}
 {% endblock %}

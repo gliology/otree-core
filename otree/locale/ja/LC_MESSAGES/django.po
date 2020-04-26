@@ -77,7 +77,7 @@ msgstr "ポイント"
 
 #: .\templates\otree\OutOfRangeNotification.html:9
 msgid "No more pages left to show."
-msgstr "これ以上表示するページはりません"
+msgstr "これ以上表示するページはありません"
 
 #: .\templates\otree\Page.html:17
 #: .\templates\otree\admin\MTurkCreateHIT.html:67
@@ -86,16 +86,16 @@ msgstr "誤りのある欄を修正してください"
 
 #: .\templates\otree\RoomInputLabel.html:7
 msgid "Welcome"
-msgstr ""
+msgstr "ようこそ"
 
 #. Translators: If the user enters an invalid participant label
 #: .\templates\otree\RoomInputLabel.html:13
 msgid "Invalid entry; try again."
-msgstr ""
+msgstr "正しい値を入力してください"
 
 #: .\templates\otree\RoomInputLabel.html:15
 msgid "Please enter your participant label."
-msgstr ""
+msgstr "参加者番号を入力してください"
 
 #: .\templates\otree\WaitPage.html:49
 msgid ""
@@ -139,4 +139,4 @@ msgstr "他の参加者をお待ちください"
 
 #: .\views\participant.py:292
 msgid "Waiting for your session to begin"
-msgstr ""
+msgstr "セッションが始まるまでお待ちください"
