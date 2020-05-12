@@ -11,8 +11,6 @@ class Currency(Currency):
 def currency_range(first, last, increment) -> List[Currency]:
     pass
 
-def safe_json(obj):
-    pass
 
 # mocking the public API for PyCharm autocomplete.
 # one downside is that PyCharm doesn't seem to fully autocomplete arguments
@@ -145,6 +143,9 @@ class models:
             **kwargs
         ):
             pass
+    class Link:
+        def __init__(self, to):
+            pass
 
 class widgets:
     def __getattr__(self, item):
@@ -211,7 +212,9 @@ class BaseSubsession:
         pass
     def group_randomly(self, fixed_id_in_group: bool = False):
         pass
-    def vars_for_admin_report(self) -> dict:
+    def vars_for_admin_report(self):
+        pass
+    def group_by_arrival_time_method(self, waiting_players):
         pass
     # this is so PyCharm doesn't flag attributes that are only defined on the app's Subsession,
     # not on the BaseSubsession
@@ -249,6 +252,8 @@ class BasePlayer:
     group: BaseGroup
     subsession: BaseSubsession
     round_number: int
+    def start(self):
+        pass
     def in_previous_rounds(self) -> List[BasePlayer]:
         pass
     def in_all_rounds(self) -> List[BasePlayer]:
@@ -257,7 +262,7 @@ class BasePlayer:
         pass
     def get_others_in_subsession(self) -> List[BasePlayer]:
         pass
-    def role(self) -> str:
+    def role(self):
         pass
     def in_round(self, round_number) -> BasePlayer:
         pass
@@ -266,47 +271,56 @@ class BasePlayer:
     def __getattribute__(self, item):
         pass
 
+class ExtraModel:
+    pass
+
 class WaitPage:
     wait_for_all_groups = False
     group_by_arrival_time = False
     title_text: str
     body_text: str
     template_name: str
+    after_all_players_arrive: str
     round_number: int
     participant: Participant
     session: Session
-    def is_displayed(self) -> bool:
+    def is_displayed(self):
         pass
-    def after_all_players_arrive(self):
+    def js_vars(self):
         pass
-    def get_players_for_group(self, waiting_players) -> Optional[list]:
+    def vars_for_template(self):
+        pass
+    def app_after_this_page(self, upcoming_apps):
         pass
 
 class Page:
     round_number: int
     template_name: str
     timeout_seconds: int
-    timeout_submission: dict
     timeout_happened: bool
     timer_text: str
     participant: Participant
     session: Session
     form_model: str
     form_fields: List[str]
-    def get_form_fields(self) -> List[str]:
+    live_method: str
+    def get_form_fields(self):
         pass
-    def vars_for_template(self) -> dict:
+    def vars_for_template(self):
+        pass
+    def js_vars(self):
         pass
     def before_next_page(self):
         pass
-    def is_displayed(self) -> bool:
+    def is_displayed(self):
         pass
-    def error_message(self, values) -> Optional[str]:
+    def error_message(self, values):
         pass
-    def get_timeout_seconds(self) -> Optional[float]:
+    def get_timeout_seconds(self):
         pass
-    def app_after_this_page(self, upcoming_apps: List[str]) -> Optional[str]:
+    def app_after_this_page(self, upcoming_apps):
         pass
+
 
 class Bot:
     html: str

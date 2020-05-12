@@ -13,6 +13,5 @@ class Command(BaseCommand):
         redis_conn = get_redis_conn()
         otree.bots.browser.redis_flush_bots(redis_conn)
         worker = otree.bots.browser.BotAndLiveWorker(redis_conn)
-        worker = otree.bots.browser.BotAndLiveWorker(redis_conn)
 
         worker.redis_listen()

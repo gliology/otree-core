@@ -1,5 +1,4 @@
 from importlib import import_module as _import_module
-
 from otree.models import BaseSubsession, BaseGroup, BasePlayer  # noqa
 from otree.constants import BaseConstants  # noqa
 from otree.views import Page, WaitPage  # noqa
