@@ -213,7 +213,7 @@ class BotAndLiveWorker(BaseWorker):
             for pid in retval:
                 if pid not in pcodes_dict:
                     msg = f'{method_name} has invalid return value. No player with id_in_group={repr(pid)}'
-                    raise Exception(msg) from None
+                    raise Exception(msg)
 
         group_name = channel_utils.live_group(
             participant.session.code, player_lookup.page_index
@@ -249,12 +249,9 @@ def ping(redis_conn, *, timeout):
 
     if result is None:
         msg = (
-            'Ping to botworker failed. '
-            'If you want to use browser bots, '
-            'you need to be running the botworker '
-            '(which is started automatically if you run "otree runprodserver" '
-            'Otherwise, set ("use_browser_bots": False) in the session config '
-            'in settings.py.'
+            'If you want to use browser bots or live pages, '
+            'you need to start the worker process. '
+            'If using Heroku, you must turn on the second dyno.'
         )
         raise BotWorkerPingError(msg)
 

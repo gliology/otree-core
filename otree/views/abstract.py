@@ -933,10 +933,8 @@ class Page(FormPageOrInGameWaitPage):
         # need full path because we use query string
         return self.request.get_full_path()
 
-    def _get_auto_submit_values(self):
-        # TODO: auto_submit_values deprecated on 2015-05-28
-        auto_submit_values = getattr(self, 'auto_submit_values', {})
-        timeout_submission = self.timeout_submission or auto_submit_values
+    def _get_timeout_submission(self):
+        timeout_submission = self.timeout_submission or {}
         for field_name in self.get_form_fields():
             if field_name not in timeout_submission:
                 # get default value for datatype if the user didn't specify
@@ -953,7 +951,7 @@ class Page(FormPageOrInGameWaitPage):
         # an empty submitted form looks like this:
         # {'f_currency': None, 'f_bool': None, 'f_int': None, 'f_char': ''}
         '''
-        auto_submit_values = self._get_auto_submit_values()
+        timeout_submission = self._get_timeout_submission()
 
         # force the form to be cleaned
         form.is_valid()
@@ -974,11 +972,11 @@ class Page(FormPageOrInGameWaitPage):
         if has_non_field_error:
             # non-field errors exist.
             # ignore form, use timeout_submission entirely
-            auto_submit_values_to_use = auto_submit_values
+            auto_submit_values_to_use = timeout_submission
         elif form.errors:
             auto_submit_values_to_use = {}
             for field_name in form.errors:
-                auto_submit_values_to_use[field_name] = auto_submit_values[field_name]
+                auto_submit_values_to_use[field_name] = timeout_submission[field_name]
             form.errors.clear()
             form.save()
         else:

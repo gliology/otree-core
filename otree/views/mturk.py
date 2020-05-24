@@ -45,7 +45,7 @@ class MTurkSettings:
     minutes_allotted_per_assignment: int
     expiration_hours: float
     qualification_requirements: List
-    grant_qualification_id: Optional[str] = None
+    qual_id: Optional[str] = None
 
 
 def get_mturk_client(*, use_sandbox=True):
@@ -205,6 +205,7 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             session.mturk_HITGroupId = hit['HITGroupId']
             session.mturk_use_sandbox = use_sandbox
             session.mturk_expiration = hit['Expiration'].timestamp()
+            session.mturk_qual_id = mturk_settings.qual_id or ''
             session.save()
 
         return redirect('MTurkCreateHIT', session.code)
@@ -292,34 +293,11 @@ class PayMTurk(vanilla.View):
             mturk_worker_id__in=request.POST.getlist('workers')
         )
 
-        # we require only that there's enough for paying the bonuses,
-        # because the participation fee (reward) is already deducted from
-        # available balance and held in escrow. (see forum post from 2019-06-19)
-        # The 1.2 is because of the 20% surcharge to bonuses, as described here:
-        # https://requester.mturk.com/pricing
-        required_balance = Decimal(
-            sum(p.payoff_in_real_world_currency() for p in participants) * 1.2
-        )
-
-        available_balance = Decimal(
-            mturk_client.get_account_balance()['AvailableBalance']
-        )
-
-        if available_balance < required_balance:
-            msg = (
-                f'Insufficient balance: you have ${available_balance:.2f}, '
-                f'but paying the selected participants costs ${required_balance:.2f}.'
-            )
-            messages.error(request, msg)
-            return payment_page_response
-
         for p in participants:
             # need the try/except so that we try to pay the rest of the participants
             payoff = p.payoff_in_real_world_currency()
 
             try:
-                # approve assignment
-                mturk_client.approve_assignment(AssignmentId=p.mturk_assignment_id)
                 if payoff > 0:
                     mturk_client.send_bonus(
                         WorkerId=p.mturk_worker_id,
@@ -329,12 +307,15 @@ class PayMTurk(vanilla.View):
                         UniqueRequestToken='{}_{}'.format(
                             p.mturk_worker_id, p.mturk_assignment_id
                         ),
-                        # although the Boto documentation doesn't say so,
-                        # this field is required. A user reported:
-                        # "Value null at 'reason' failed to satisfy constraint:
-                        # Member must not be null."
+                        # this field is required.
                         Reason='Thank you',
                     )
+                # approve assignment should happen AFTER bonus, so that if bonus fails,
+                # the user will still show up in assignments_not_reviewed.
+                # worst case is that bonus succeeds but approval fails.
+                # in that case, exception will be raised on send_bonus because of UniqueRequestToken.
+                # but that's OK, then you can just unselect that participant and pay the others.
+                mturk_client.approve_assignment(AssignmentId=p.mturk_assignment_id)
                 successful_payments += 1
             except Exception as e:
                 msg = (
@@ -344,6 +325,8 @@ class PayMTurk(vanilla.View):
                 messages.error(request, msg)
                 logger.error(msg)
                 failed_payments += 1
+                if failed_payments > 10:
+                    return payment_page_response
         msg = 'Successfully made {} payments.'.format(successful_payments)
         if failed_payments > 0:
             msg += ' {} payments failed.'.format(failed_payments)

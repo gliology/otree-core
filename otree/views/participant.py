@@ -112,34 +112,48 @@ class MTurkStart(vanilla.View):
     def get(self, request):
         assignment_id = self.request.GET['assignmentId']
         worker_id = self.request.GET['workerId']
-        qualification_id = self.session.config['mturk_hit_settings'].get(
+        qual_id = self.session.config['mturk_hit_settings'].get(
             'grant_qualification_id'
         )
         use_sandbox = self.session.mturk_use_sandbox
-        if qualification_id and not use_sandbox:
-            # if using sandbox, there is no point in granting quals.
-            # https://groups.google.com/forum/#!topic/otree/aAmqTUF-b60
+        with get_redis_lock(name='start_links') or start_link_thread_lock:
+            if qual_id and not use_sandbox:
+                # this is necessary because MTurk's qualification requirements
+                # don't prevent 100% of duplicate participation. See:
+                # https://groups.google.com/forum/#!topic/otree/B66HhbFE9ck
+                previous_participation = Participant.objects.exclude(
+                    session=self.session
+                ).filter(mturk_worker_id=worker_id, session__mturk_qual_id=qual_id)
+                if previous_participation.exists():
+                    return HttpResponse('You have already accepted a related HIT')
 
-            # don't pass request arg, because we don't want to show a message.
-            # using the fully qualified name because that seems to make mock.patch work
-            mturk_client = otree.views.mturk.get_mturk_client(use_sandbox=use_sandbox)
-            # seems OK to assign this multiple times
-            mturk_client.associate_qualification_with_worker(
-                QualificationTypeId=qualification_id,
-                WorkerId=worker_id,
-                # Mturk complains if I omit IntegerValue
-                IntegerValue=1,
-            )
-        try:
-            # just check if this worker already game, but
-            # don't filter for assignment, because maybe they already started
-            # and returned the previous assignment
-            # in this case, we should assign back to the same participant
-            # so that we don't get duplicates in the DB, and so people
-            # can't snoop and try the HIT first, then re-try to get a bigger bonus
-            participant = self.session.participant_set.get(mturk_worker_id=worker_id)
-        except Participant.DoesNotExist:
-            with get_redis_lock(name='start_links') or start_link_thread_lock:
+                # if using sandbox, there is no point in granting quals.
+                # https://groups.google.com/forum/#!topic/otree/aAmqTUF-b60
+
+                # don't pass request arg, because we don't want to show a message.
+                # using the fully qualified name because that seems to make mock.patch work
+                mturk_client = otree.views.mturk.get_mturk_client(
+                    use_sandbox=use_sandbox
+                )
+                # seems OK to assign this multiple times
+                mturk_client.associate_qualification_with_worker(
+                    QualificationTypeId=qual_id,
+                    WorkerId=worker_id,
+                    # Mturk complains if I omit IntegerValue
+                    IntegerValue=1,
+                )
+
+            try:
+                # just check if this worker already game, but
+                # don't filter for assignment, because maybe they already started
+                # and returned the previous assignment
+                # in this case, we should assign back to the same participant
+                # so that we don't get duplicates in the DB, and so people
+                # can't snoop and try the HIT first, then re-try to get a bigger bonus
+                participant = self.session.participant_set.get(
+                    mturk_worker_id=worker_id
+                )
+            except Participant.DoesNotExist:
                 try:
                     participant = self.session.participant_set.filter(
                         visited=False
@@ -152,11 +166,11 @@ class MTurkStart(vanilla.View):
                 # this needs to be inside the lock
                 participant.visited = True
                 participant.mturk_worker_id = worker_id
-        # reassign assignment_id, even if they are returning, because maybe they accepted
-        # and then returned, then re-accepted with a different assignment ID
-        # if it's their second time
-        participant.mturk_assignment_id = assignment_id
-        participant.save()
+            # reassign assignment_id, even if they are returning, because maybe they accepted
+            # and then returned, then re-accepted with a different assignment ID
+            # if it's their second time
+            participant.mturk_assignment_id = assignment_id
+            participant.save()
         return HttpResponseRedirect(participant._start_url())
 
 

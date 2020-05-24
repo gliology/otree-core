@@ -40,7 +40,6 @@ i removed many linebreaks to make output HTML cleaner
     {% if view.remaining_timeout_seconds != None %}
         {% include 'otree/includes/TimeLimit.js.html' %}
     {% endif %}
-    {{ form.media|default:"" }}
 {% endblock %}
 
 {% block live %}

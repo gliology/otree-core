@@ -80,6 +80,7 @@ class Session(models.OTreeModel):
     # is a pain to work with (e.g. naive vs aware datetime objects)
     # and there is no need here for DateTime
     mturk_expiration = models.FloatField(null=True)
+    mturk_qual_id = models.CharField(default='', max_length=50)
 
     archived = models.BooleanField(
         default=False,
@@ -130,7 +131,7 @@ class Session(models.OTreeModel):
         - session vars (if we enable that)
         '''
         if self.config.get('mock_exogenous_data'):
-            import shared_in as user_utils
+            import shared_out as user_utils
 
             with otree.db.idmap.use_cache():
                 user_utils.mock_exogenous_data(self)
