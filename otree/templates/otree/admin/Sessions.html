@@ -173,7 +173,10 @@
           let socket = makeReconnectingWebSocket("/delete_sessions/");
           let progressDiv = $('#delete-session-wait');
 
-          $('#btn-confirm-delete').click(function (e) {
+          let $btnConfirmDelete = $('#btn-confirm-delete');
+
+          $btnConfirmDelete.click(function (e) {
+              $btnConfirmDelete.prop('disabled', true);
               progressDiv.show();
 
               let ary = $('#delete-archive-form').serializeArray();
