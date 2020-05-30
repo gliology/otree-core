@@ -1,7 +1,7 @@
 function makeReconnectingWebSocket(path) {
     // https://github.com/pladaria/reconnecting-websocket/issues/91#issuecomment-431244323
     var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-    var ws_path = `${ws_scheme}://${window.location.host}${path}`;
+    var ws_path = ws_scheme + '://' + window.location.host + path;
     var socket = new ReconnectingWebSocket(ws_path);
     socket.onclose = function (e) {
         if (e.code === 1011) {

@@ -994,7 +994,7 @@ class Page(FormPageOrInGameWaitPage):
 
     def remaining_timeout_seconds(self):
 
-        if self._remaining_timeout_seconds is not 'unset':
+        if self._remaining_timeout_seconds != 'unset':
             return self._remaining_timeout_seconds
 
         try:

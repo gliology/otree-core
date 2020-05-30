@@ -16,7 +16,7 @@ constantly==15.1.0  # Twisted
 cryptography==2.8  # channels
 daphne==2.5.0
 dj-database-url==0.5.0
-Django==2.2.4
+Django==2.2.12
 django-idmap==1.0.3
 django-model-utils==3.2.0
 django-vanilla-views==1.0.6

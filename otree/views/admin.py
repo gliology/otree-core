@@ -559,13 +559,3 @@ class ToggleArchivedSessions(vanilla.View):
         )
 
         return redirect('Sessions')
-
-
-class DeleteSessions(vanilla.View):
-    url_pattern = r'^DeleteSessions/'
-
-    def post(self, request):
-        Session.objects.filter(code__in=request.POST.getlist('session')).delete()
-        return redirect('Sessions')
-
-

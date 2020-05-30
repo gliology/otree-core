@@ -152,9 +152,10 @@ class ModelForm(forms.ModelForm):
                 self.add_error(name, e)
         if not self.errors and hasattr(self.view, 'error_message'):
             try:
-                error_string = self.view.error_message(self.cleaned_data)
+                error = self.view.error_message(self.cleaned_data)
             except:
                 raise ResponseForException
-            if error_string:
-                e = forms.ValidationError(error_string)
+            if error:
+                # error could be a string or dict
+                e = forms.ValidationError(error)
                 self.add_error(None, e)

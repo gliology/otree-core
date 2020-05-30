@@ -20,7 +20,7 @@ import otree.session
 from otree.channels.utils import get_chat_group
 from otree.common import get_models_module, json_dumps
 from otree.export import export_wide, export_app, custom_export_app
-from otree.models import Participant
+from otree.models import Participant, Session
 from otree.models_concrete import (
     CompletedGroupWaitPage,
     CompletedSubsessionWaitPage,
@@ -716,6 +716,17 @@ class ChatConsumer(_OTreeAsyncJsonWebsocketConsumer):
     async def chat_sendmessages(self, event):
         chats = event['chats']
         await self.send_json(chats)
+
+
+class DeleteSessions(_OTreeAsyncJsonWebsocketConsumer):
+    unrestricted_when = None
+
+    async def post_receive_json(self, content):
+        Session.objects.filter(code__in=content).delete()
+        await self.send_json('ok')
+
+    def group_name(self, **kwargs):
+        return None
 
 
 class ExportData(_OTreeAsyncJsonWebsocketConsumer):

@@ -1,3 +1,4 @@
+import inspect
 from django.db import models
 import pickle
 import binascii
@@ -29,6 +30,13 @@ def inspect_obj(obj):
             "participant.vars and session.vars "
             "cannot contain model instances, "
             "like Players, Groups, etc.".format(repr(obj))
+        )
+        raise VarsError(msg)
+    if type(obj).__eq__ == object.__eq__ and not inspect.isclass(obj):
+        msg = (
+            f'Cannot store {repr(obj)} in vars. '
+            f'Any objects stored in vars must implement value equality '
+            'via an __eq__ method.'
         )
         raise VarsError(msg)
 
