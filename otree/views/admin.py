@@ -120,31 +120,31 @@ class SessionStartLinks(AdminSessionPageMixin, vanilla.TemplateView):
         session = self.session
         room = session.get_room()
 
-        context = dict(use_browser_bots=session.use_browser_bots)
+        p_codes = session.participant_set.order_by('id_in_session').values_list(
+            'code', flat=True
+        )
+        participant_urls = []
+        for code in p_codes:
+            rel_url = otree.common.participant_start_url(code)
+            url = self.request.build_absolute_uri(rel_url)
+            participant_urls.append(url)
+
+        context = dict(
+            use_browser_bots=session.use_browser_bots, participant_urls=participant_urls
+        )
 
         if room:
             context.update(
-                participant_urls=room.get_participant_urls(self.request),
                 room_wide_url=room.get_room_wide_url(self.request),
                 room=room,
                 collapse_links=True,
             )
         else:
-            p_codes = session.participant_set.order_by('id_in_session').values_list(
-                'code', flat=True
-            )
-            participant_urls = []
-            for code in p_codes:
-                rel_url = otree.common.participant_start_url(code)
-                url = self.request.build_absolute_uri(rel_url)
-                participant_urls.append(url)
-
             anonymous_url = self.request.build_absolute_uri(
                 reverse('JoinSessionAnonymously', args=[session._anonymous_code])
             )
 
             context.update(
-                participant_urls=participant_urls,
                 anonymous_url=anonymous_url,
                 num_participants=len(participant_urls),
                 splitscreen_mode_on=len(participant_urls) <= 3,

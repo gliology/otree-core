@@ -45,7 +45,7 @@ class MTurkSettings:
     minutes_allotted_per_assignment: int
     expiration_hours: float
     qualification_requirements: List
-    qual_id: Optional[str] = None
+    grant_qualification_id: Optional[str] = None
 
 
 def get_mturk_client(*, use_sandbox=True):
@@ -205,7 +205,7 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             session.mturk_HITGroupId = hit['HITGroupId']
             session.mturk_use_sandbox = use_sandbox
             session.mturk_expiration = hit['Expiration'].timestamp()
-            session.mturk_qual_id = mturk_settings.qual_id or ''
+            session.mturk_qual_id = mturk_settings.grant_qualification_id or ''
             session.save()
 
         return redirect('MTurkCreateHIT', session.code)

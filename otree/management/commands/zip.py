@@ -185,7 +185,7 @@ def check_requirements_files(project_path: Path):
     already_seen = set()
     for ln in all_req_lines:
 
-        m = re.match('(^[\w-]+).*?', ln)
+        m = re.match(r'(^[\w-]+).*?', ln)
         if m:
             package = m.group(1)
             if package in already_seen:

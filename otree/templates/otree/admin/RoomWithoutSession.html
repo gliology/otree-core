@@ -12,35 +12,33 @@
     {% include "otree/includes/CreateSessionForm.html" %}
 
     <hr/>
+
     <h3><span id="present_count"></span> participants present</h3>
-
     {% if room.has_participant_labels %}
-    <button class="btn" type="button" data-toggle="collapse" data-target="#participants_waiting_list">
-        Show/Hide
-    </button>
 
-    <div id="participants_waiting_list" class="collapse" style="font-size:20px">
-        {% for participant_label in room.get_participant_labels %}
-            <span style="display: none" class="badge badge-success present-participant-label" id="present-participant-label-{{ participant_label|escape }}">
+      <details>
+        <summary>Show/Hide</summary>
+        <div style="font-size:20px">
+          {% for participant_label in room.get_participant_labels %}
+            <span style="display: none" class="badge badge-success present-participant-label"
+                  id="present-participant-label-{{ participant_label|escape }}">
                 {{ participant_label }}
             </span>
-        {% endfor %}
-    </div>
+          {% endfor %}
+        </div>
+      </details>
 
-    {% endif %}
-
-    {% if room.has_participant_labels %}
     {# if there's no participant labels, there's no concept of participants absent #}
     <h3><span id="absent_count"></span> participants not present</h3>
-    <button class="btn" type="button" data-toggle="collapse" data-target="#participants_not_waiting_list">
-        Show/Hide
-    </button>
-
-    <div id="participants_not_waiting_list" class="collapse" style="font-size:20px">
-        {% for participant_label in room.get_participant_labels %}
-            <span class="badge badge-secondary absent-participant-label count-this" id="absent-participant-label-{{ participant_label|escape }}">{{ participant_label }}</span>
-        {% endfor %}
-    </div>
+      <details>
+        <summary>Show/hide</summary>
+        <div style="font-size:20px">
+          {% for participant_label in room.get_participant_labels %}
+            <span class="badge badge-secondary absent-participant-label count-this"
+                  id="absent-participant-label-{{ participant_label|escape }}">{{ participant_label }}</span>
+          {% endfor %}
+        </div>
+      </details>
 
     {% endif %}
 

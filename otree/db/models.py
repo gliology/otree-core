@@ -343,10 +343,13 @@ ExtraModel = models.Model
 class Link(models.ForeignKey):
     def __init__(self, to):
         # should we allow it to be null? That could be useful for network games.
-        # maybe add null=True as a kwarg later. the biggest concern is that
+        # or for games where we create resources that are initially unclaimed by users.
+        # it's necessary for devserver auto migrations. if you add or rename a Link field,
+        # the existing records must have null.
+        # the biggest concern is that
         # people will forget to pass player or group.
-        # also maybe add reverse_name later.
-        kwargs = dict(to=to, on_delete=models.CASCADE)
+        # but i guess i have no choice. anyway this is more advanced functionality.
+        kwargs = dict(to=to, on_delete=models.CASCADE, null=True)
         # don't make reverse relation, then we don't have to worry about conflicting
         # related_name error.
         super().__init__(related_name="+", **kwargs)

@@ -38,20 +38,17 @@
             participant's link.
         </p>
 
-        <button class="btn" type="button" data-toggle="collapse" data-target="#session_start_urls_room">
-            Show/Hide
-        </button>
-
-        <div id="session_start_urls_room" class="collapse">
-        <table class="table">
-        {% for participant_url in session_start_urls %}
-            <tr>
-                <td><strong>P{{ forloop.counter }}</strong></td>
-                <td><a href="{{ participant_url }}" class="participant-link" target="_blank">{{ participant_url }}</a></td>
-            </tr>
-        {% endfor %}
-        </table>
-        </div>
+        <details>
+          <summary>Show/Hide</summary>
+          <table class="table">
+          {% for participant_url in participant_urls %}
+              <tr>
+                  <td><strong>P{{ forloop.counter }}</strong></td>
+                  <td><a href="{{ participant_url }}" class="participant-link" target="_blank">{{ participant_url }}</a></td>
+              </tr>
+          {% endfor %}
+          </table>
+        </details>
 
     {% endif %}
 

@@ -32,13 +32,6 @@ def inspect_obj(obj):
             "like Players, Groups, etc.".format(repr(obj))
         )
         raise VarsError(msg)
-    if type(obj).__eq__ == object.__eq__ and not inspect.isclass(obj):
-        msg = (
-            f'Cannot store {repr(obj)} in vars. '
-            f'Any objects stored in vars must implement value equality '
-            'via an __eq__ method.'
-        )
-        raise VarsError(msg)
 
 
 def scan_for_model_instances(vars_dict: dict):
