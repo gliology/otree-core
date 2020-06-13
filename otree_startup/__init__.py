@@ -41,9 +41,9 @@ create_session
 devserver
 django_test
 resetdb
-runprodserver
-runprodserver1of2
-runprodserver2of2
+prodserver
+prodserver1of2
+prodserver2of2
 shell
 startapp
 startproject
@@ -106,8 +106,21 @@ def execute_from_command_line(*args, **kwargs):
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
     DJANGO_SETTINGS_MODULE = os.environ['DJANGO_SETTINGS_MODULE']
 
-    # help and --help must have settings configured, so that otree can be in
-    # INSTALLED_APPS, so those management commands are available.
+    if subcommand in ['help', '--help', '-h'] and len(argv) == 2:
+        sys.stdout.write(MAIN_HELP_TEXT)
+        return
+
+    # this env var is necessary because if the botworker submits a wait page,
+    # it needs to broadcast to redis channel layer, not in-memory.
+    # this caused an obscure bug on 2019-09-21.
+    # prodserver1of2, 2of2, etc
+    if (
+        'prodserver' in subcommand
+        or 'webandworkers' in subcommand
+        or 'timeoutworker' in subcommand
+    ):
+        os.environ['OTREE_USE_REDIS'] = '1'
+
     if subcommand in [
         'startproject',
         'version',
@@ -171,9 +184,7 @@ def execute_from_command_line(*args, **kwargs):
     else:
         do_django_setup()
 
-    if subcommand in ['help', '--help', '-h'] and len(argv) == 2:
-        sys.stdout.write(MAIN_HELP_TEXT)
-    elif subcommand == 'help' and len(argv) >= 3:
+    if subcommand == 'help' and len(argv) >= 3:
         command_to_explain = argv[2]
         fetch_command(command_to_explain).print_help('otree', command_to_explain)
     elif subcommand in ("version", "--version"):

@@ -11,6 +11,7 @@ certifi>=2019.3.9  # sentry-sdk
 cffi==1.12.3  # channels
 channels==2.4.0
 channels_redis==2.4.2
+#click==7.1.2 # uvicorn
 colorama==0.4.1  # honcho
 constantly==15.1.0  # Twisted
 cryptography==2.8  # channels
@@ -20,6 +21,7 @@ Django==2.2.12
 django-idmap==1.0.3
 django-model-utils==3.2.0
 django-vanilla-views==1.0.6
+#h11==0.9.0 # uvicorn
 honcho==1.0.1
 huey==2.1.1
 hyperlink==19.0.0  # Twisted
@@ -45,6 +47,8 @@ termcolor==1.1.0  # used for colored devserver output
 Twisted==20.3.0
 txaio==20.4.1  # daphne
 urllib3==1.25.3  # sentry-sdk
+#uvicorn==0.11.5
+#websockets==8.1 # uvicorn
 whitenoise==4.1.3
 XlsxWriter==0.9.3
 zope.interface==4.6.0 # twisted

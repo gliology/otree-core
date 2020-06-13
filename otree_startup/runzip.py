@@ -65,6 +65,7 @@ def autoreload_for_new_zipfiles() -> int:
             sleep(1)
 
     tempdirs = []
+    current_mtime = project.mtime()
     try:
         while True:
             if newer_project:
@@ -86,8 +87,9 @@ def autoreload_for_new_zipfiles() -> int:
                     latest_project = get_newest_project()
                     # it's possible that zipfile was deleted while the program
                     # was running
-                    if latest_project and latest_project.mtime() > project.mtime():
+                    if latest_project and latest_project.mtime() > current_mtime:
                         newer_project = latest_project
+                        current_mtime = latest_project.mtime()
                         # use stdout.write because logger is not configured
                         # (django setup has not even been run)
                         stdout_write(MSG_FOUND_NEWER_OTREEZIP)

@@ -5,11 +5,12 @@ import threading
 import traceback
 from collections import OrderedDict
 from typing import Dict, Tuple
-
+import sys
+import time
 import otree.db.idmap
 import otree.common
 from otree import common
-from otree.common import get_redis_conn, get_models_module
+from otree.common import get_redis_conn, get_redis_lock, wait_page_thread_lock
 from otree.models import Session, Participant
 from otree.models_concrete import ParticipantToPlayerLookup
 from .bot import ParticipantBot
@@ -66,7 +67,7 @@ class BaseWorker:
         pass
 
     def redis_listen(self):
-        print('botworker is listening for messages through Redis')
+        sys.stdout.write('botworker is listening for messages through Redis\n')
         while True:
             self.try_process_one_redis_message()
 
@@ -80,7 +81,6 @@ class BaseWorker:
         # otherwise it will block
         while result is None:
             result = self.redis_conn.blpop(REDIS_KEY_PREFIX, timeout=3)
-
         key, message_bytes = result
         message = json.loads(message_bytes.decode('utf-8'))
         response_key = message['response_key']
@@ -151,9 +151,13 @@ class BotAndLiveWorker(BaseWorker):
             raise BadRequestError(msg)
 
     def enqueue_next_post_data(self, participant_code) -> bool:
+        qpd = self.queued_post_data
+        if participant_code in qpd:
+            # already queued up, maybe the page got refreshed somehow
+            pass
         bot = self.get_bot(participant_code)
         try:
-            self.queued_post_data[participant_code] = next(bot.submits_generator)
+            qpd[participant_code] = next(bot.submits_generator)
         except StopIteration:
             # don't prune it because can cause flakiness if
             # there are other GET requests coming in. it will be pruned
@@ -169,7 +173,7 @@ class BotAndLiveWorker(BaseWorker):
     def pop_enqueued_post_data(self, participant_code) -> Dict:
         # because we are returning it through Redis, need to pop it
         # here
-        submission = self.queued_post_data[participant_code]
+        submission = self.queued_post_data.pop(participant_code)
         # 2020-03-16: why do we remove page_class when we are only going to use post_data anyway?
         submission.pop('page_class')
         return submission['post_data']
@@ -181,19 +185,25 @@ class BotAndLiveWorker(BaseWorker):
         bot.html = html
 
     def send_live_payload(self, participant_code, page_name, payload):
-        participant = Participant.objects.get(code=participant_code)
-        # we have to verify the ParticipantToPlayerLookup,
-        # to know that the user is currently on that page.
-        player_lookup = ParticipantToPlayerLookup.objects.get(
-            participant=participant, page_index=participant._index_in_pages
-        )
-        app_name = player_lookup.app_name
-        models_module = otree.common.get_models_module(app_name)
-        pages_module = otree.common.get_pages_module(app_name)
-        assert f'/{page_name}/' in player_lookup.url
-        PageClass = getattr(pages_module, page_name)
-        method_name = PageClass.live_method
+        live_payload_function(participant_code, page_name, payload)
 
+
+def live_payload_function(participant_code, page_name, payload):
+    '''in separate function for easier testing'''
+    participant = Participant.objects.get(code=participant_code)
+    # we have to verify the ParticipantToPlayerLookup,
+    # to know that the user is currently on that page.
+    player_lookup = ParticipantToPlayerLookup.objects.get(
+        participant=participant, page_index=participant._index_in_pages
+    )
+    app_name = player_lookup.app_name
+    models_module = otree.common.get_models_module(app_name)
+    pages_module = otree.common.get_pages_module(app_name)
+    assert f'/{page_name}/' in player_lookup.url
+    PageClass = getattr(pages_module, page_name)
+    method_name = PageClass.live_method
+
+    with get_redis_lock(name='otree_live') or wait_page_thread_lock:
         with otree.db.idmap.use_cache():
             player = models_module.Player.objects.get(id=player_lookup.player_pk)
             group = player.group
@@ -205,29 +215,45 @@ class BotAndLiveWorker(BaseWorker):
             return
         if not isinstance(retval, dict):
             msg = f'{method_name} must return a dict'
-            raise Exception(msg)
-        players = group.get_players()
-        pcodes_dict = {p.id_in_group: p.participant.code for p in players}
+            raise LiveMethodBadReturnValue(msg)
 
-        if 0 not in retval:
+        pcodes_dict = {
+            d['id_in_group']: d['participant__code']
+            for d in models_module.Player.objects.filter(group=group).values(
+                'participant__code', 'id_in_group'
+            )
+        }
+
+        if 0 in retval:
+            if len(retval) > 1:
+                raise LiveMethodBadReturnValue(
+                    'If dict returned by live_method has key 0, it must not contain any other keys'
+                )
+        else:
             for pid in retval:
                 if pid not in pcodes_dict:
-                    msg = f'{method_name} has invalid return value. No player with id_in_group={repr(pid)}'
-                    raise Exception(msg)
-
-        group_name = channel_utils.live_group(
-            participant.session.code, player_lookup.page_index
-        )
+                    msg = f'live_method has invalid return value. No player with id_in_group={repr(pid)}'
+                    raise LiveMethodBadReturnValue(msg)
 
         pcode_retval = {}
         for pid, pcode in pcodes_dict.items():
-            payload = retval.get(pid) or retval.get(0)
+            payload = retval.get(pid, retval.get(0))
             if payload is not None:
                 pcode_retval[pcode] = payload
 
-        channel_utils.sync_group_send_wrapper(
-            group=group_name, type='send_back_to_client', event=pcode_retval
-        )
+    _live_send_back(participant.session.code, player_lookup.page_index, pcode_retval)
+
+
+class LiveMethodBadReturnValue(Exception):
+    pass
+
+
+def _live_send_back(session_code, page_index, pcode_retval):
+    '''separate function for easier patching'''
+    group_name = channel_utils.live_group(session_code, page_index)
+    channel_utils.sync_group_send_wrapper(
+        group=group_name, type='send_back_to_client', event=pcode_retval
+    )
 
 
 class BotWorkerPingError(Exception):

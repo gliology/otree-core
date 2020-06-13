@@ -36,8 +36,8 @@
         }
     </style>
 {% endblock %}
-{% comment %}this template is used by rooms, where javascript_vars does not exist{% endcomment %}
-{% block body_main %}<script>var js_vars = {{ js_vars|json }};</script>
+{% comment %}this template is used by rooms, where js_vars does not exist{% endcomment %}
+{% block body_main %}{% if js_vars|default:False %}<script>var js_vars = {{ js_vars|json }};</script>{% endif %}
 <div class="otree-wait-page container">
     <div class="card">
         <h4 class="otree-wait-page__title card-header">

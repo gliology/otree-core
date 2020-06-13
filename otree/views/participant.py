@@ -17,7 +17,7 @@ from django.http import (
 from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
 from django.utils.translation import ugettext as _
-from otree.common import make_hash, get_redis_conn, BotError
+from otree.common import make_hash, get_redis_conn, BotError, get_redis_lock
 import otree.channels.utils as channel_utils
 import otree.db.idmap
 from otree.models import Participant, Session
@@ -29,7 +29,6 @@ from otree.models_concrete import (
 from otree.room import ROOM_DICT
 from otree.views.abstract import (
     GenericWaitPageMixin,
-    get_redis_lock,
     NO_PARTICIPANTS_LEFT_MSG,
 )
 import otree.bots.browser as browser_bots

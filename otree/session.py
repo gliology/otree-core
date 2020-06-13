@@ -80,7 +80,6 @@ class SessionConfig(dict):
         return num_cases
 
     def clean(self):
-
         for k in ['name', 'app_sequence', 'num_demo_participants']:
             if k not in self:
                 msg = f'Session config is missing "{k}"'
@@ -464,4 +463,5 @@ def create_session(
     return session
 
 
+# 2020-06-11: is this needed?
 default_app_config = 'otree.session.apps.OtreeSessionConfig'

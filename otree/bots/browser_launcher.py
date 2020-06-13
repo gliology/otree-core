@@ -31,8 +31,7 @@ try:
     from ws4py.client.threadedclient import WebSocketClient
 except ModuleNotFoundError:
     sys.exit(
-        'To use command-line browser bots, you need to install "requests" and "ws4py" locally. '
-        'Do: "pip3 install requests ws4py"'
+        'To use command-line browser bots, you need to pip install "requests" and "ws4py" locally. '
     )
 
 

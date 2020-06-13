@@ -1,1 +1,2 @@
-from .runprodserver1of2 import Command  # noqa
+# deprecate this eventually
+from .prodserver1of2 import Command  # noqa

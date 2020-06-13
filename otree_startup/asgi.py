@@ -2,10 +2,13 @@ import os
 import django
 from channels.routing import get_default_application
 from . import configure_settings
+from django.conf import settings
 
-os.environ['OTREE_USE_REDIS'] = '1'
-configure_settings()
-django.setup()
+# needed if uvicorn is launched multi-process
+if not settings.configured:
+    configure_settings()
+    django.setup()
+
 application = get_default_application()
 
 from otree.common import release_any_stale_locks, get_redis_conn  # noqa

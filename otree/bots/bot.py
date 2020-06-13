@@ -251,10 +251,10 @@ class ParticipantBot(test.Client):
 
         if not expected_url == actual_url:
             msg = (
-                "Bot expects to be on page {}, "
-                "but current page is {}. "
+                f"Bot expects to be on page {expected_url} "
+                f"but current page is {actual_url}. "
                 "Check your bot code, "
-                "then create a new session.".format(expected_url, actual_url)
+                "then create a new session."
             )
             raise AssertionError(msg)
 

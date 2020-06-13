@@ -14,14 +14,7 @@ from django.core import signals
 from django.core.exceptions import PermissionDenied, SuspiciousOperation
 from django.core.handlers.exception import handle_uncaught_exception
 from django.db.models import Max, Min
-from django.http import (
-    HttpResponseRedirect,
-    Http404,
-    HttpResponse,
-    HttpResponseNotFound,
-    HttpResponseBadRequest,
-    HttpResponseForbidden,
-)
+from django.http import HttpResponseRedirect, Http404, HttpResponseForbidden
 from django.http.multipartparser import MultiPartParserError
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -51,6 +44,7 @@ from otree.common import (
     BotError,
     wait_page_thread_lock,
     ResponseForException,
+    get_redis_lock,
 )
 from otree.models import Participant, Session, BasePlayer, BaseGroup, BaseSubsession
 from otree.models_concrete import (
@@ -205,16 +199,6 @@ def participant_scoped_db_lock(participant_code):
         participant_code
     )
     raise Exception(msg)
-
-
-def get_redis_lock(*, name='global'):
-    if otree.common.USE_REDIS:
-        return redis_lock.Lock(
-            redis_client=otree.common.get_redis_conn(),
-            name='OTREE_LOCK_{}'.format(name),
-            expire=10,
-            auto_renewal=True,
-        )
 
 
 BOT_COMPLETE_HTML_MESSAGE = '''
@@ -1438,7 +1422,8 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             )
             obj = group
 
-        if otree.common.USE_REDIS:
+        # this can cause messages to get wrongly enqueued in the botworker
+        if otree.common.USE_REDIS and not self.participant.is_browser_bot:
             participant_pks = obj.player_set.values_list('participant__pk', flat=True)
             # 2016-11-15: we used to only ensure the next page is visited
             # if the next page has a timeout, or if it's a wait page

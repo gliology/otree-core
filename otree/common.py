@@ -10,6 +10,8 @@ import threading
 from collections import OrderedDict
 from importlib import import_module
 from typing import Iterable, ItemsView, Tuple
+
+import redis_lock
 from django.apps import apps
 from django.conf import settings
 from django.db import connection
@@ -47,8 +49,10 @@ class _CurrencyEncoder(json.JSONEncoder):
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
+
 def json_dumps(obj):
     return json.dumps(obj, cls=_CurrencyEncoder)
+
 
 def safe_json(obj):
     return mark_safe(json_dumps(obj))
@@ -394,3 +398,13 @@ def _group_randomly(group_matrix, fixed_id_in_group=False):
     else:
         random.shuffle(players)
         return _group_by_rank(players, players_per_group)
+
+
+def get_redis_lock(*, name='global'):
+    if USE_REDIS:
+        return redis_lock.Lock(
+            redis_client=get_redis_conn(),
+            name='OTREE_LOCK_{}'.format(name),
+            expire=10,
+            auto_renewal=True,
+        )

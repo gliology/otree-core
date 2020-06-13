@@ -120,6 +120,12 @@ class Command(runserver.Command):
             TMP_MIGRATIONS_DIR.mkdir(exist_ok=True)
             VERSION_FILE.write_text(CURRENT_VERSION)
             TMP_MIGRATIONS_DIR.joinpath('__init__.py').touch(exist_ok=True)
+            # python docs say: invalidate_cache must be called after creating new modules
+            # i suspect invalidate_cache is needed to avoid this issue:
+            # https://groups.google.com/d/msg/otree/d3fOpKCgLWo/-TSiZHy5CAAJ
+            # because it only happened on mac and was sporadic like a race condition
+            # seems to have no impact on perf
+            importlib.invalidate_caches()
 
         super().handle(*args, **options)
 
@@ -185,7 +191,7 @@ class Command(runserver.Command):
 
     def makemigrations_and_migrate(self):
 
-        # only get apps with labels, otherwise migrate will raise an error
+        # only get apps with models, otherwise migrate will raise an error
         # when it tries to migrate that app but no migrations dir was created
         app_labels = set(model._meta.app_config.label for model in apps.get_models())
 
@@ -194,12 +200,11 @@ class Command(runserver.Command):
             for app_label in app_labels
         }
         settings.MIGRATION_MODULES = migrations_modules
-
         start = time.time()
 
         try:
             # makemigrations rarely sends any interesting info to stdout.
-            # if there is an error, it will go to stdout,
+            # if there is an error, it will go to stderr,
             # or raise CommandError.
             # if someone needs to see the details of makemigrations,
             # they can do "otree makemigrations".
@@ -258,7 +263,9 @@ class Command(runserver.Command):
             traceback.print_exc()
         else:
             self.stdout.write('An error occurred.')
-        if not self.inside_runzip:
+        if self.inside_runzip:
+            self.stdout.write('Please report to chris@otree.org.')
+        else:
             termcolor.cprint(advice, 'white', 'on_red')
         if not show_error_details:
             self.stdout.write(ADVICE_PRINT_DETAILS)
