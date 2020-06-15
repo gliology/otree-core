@@ -33,6 +33,7 @@ class Command(prodserver2of2.Command):
         cmd = ['otree', 'prodserver1of2']
         if self.addrport:
             cmd.append(self.addrport)
-        manager.add_otree_process('asgiserver', cmd)
+        # can't pass a list to add_process because honcho uses shell=True
+        manager.add_otree_process('asgiserver', ' '.join(cmd))
 
         return manager

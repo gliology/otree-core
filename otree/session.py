@@ -80,9 +80,13 @@ class SessionConfig(dict):
         return num_cases
 
     def clean(self):
+        for k in ['participation_fee', 'real_world_currency_per_point']:
+            if k not in self:
+                msg = f'SESSION_CONFIG_DEFAULTS is missing {k}'
+                raise SessionConfigError(msg)
         for k in ['name', 'app_sequence', 'num_demo_participants']:
             if k not in self:
-                msg = f'Session config is missing "{k}"'
+                msg = f'Session config is missing {k}'
                 raise SessionConfigError(msg)
 
         validate_alphanumeric(
