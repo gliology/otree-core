@@ -92,7 +92,8 @@ class FormFieldNode(Node):
                     raise ValueError(msg) from None
 
         # Second we try to resolve it to a bound field.
-        # No field found, so we return None.
+        # we need this so people can do:
+        # {% for field in form %}{% formfield field %}{% endfor %}
         bound_field = Variable(self.field_variable_name).resolve(context)
 
         # We assume it's a BoundField when 'as_widget', 'as_hidden' and

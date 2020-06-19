@@ -529,7 +529,6 @@ class RoomAdmin(_OTreeAsyncJsonWebsocketConsumer):
         ParticipantRoomVisit.objects.filter(**kwargs).delete()
 
     async def roomadmin_update(self, event):
-        del event['type']
         await self.send_json(event)
 
 

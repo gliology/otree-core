@@ -44,12 +44,12 @@ def json(val):
 
 
 @register.inclusion_tag('otreechat_core/widget.html', takes_context=True, name='chat')
-def chat(context, *args, **kwargs):
-    return chat_template_tag(context, *args, **kwargs)
+def chat(context, **kwargs):
+    return chat_template_tag(context, **kwargs)
 
 
 @register.inclusion_tag('otree/tags/formfields.html', takes_context=True)
-def formfields(context, *args, **kwargs):
+def formfields(context):
     return context
 
 
