@@ -1,3 +1,15 @@
+# https://github.com/django/asgiref/issues/179
+from asgiref.sync import SyncToAsync
+
+old_init = SyncToAsync.__init__
+
+
+def _thread_sensitive_init(self, func, thread_sensitive=True):
+    return old_init(self, func, thread_sensitive=True)
+
+
+SyncToAsync.__init__ = _thread_sensitive_init
+
 import json
 import logging
 import django.core.management
@@ -23,7 +35,7 @@ from django.utils import autoreload
 # https://docs.python.org/3/reference/import.html#submodules
 from otree_startup.settings import augment_settings
 from otree import __version__
-from . import runzip
+from . import zipserver
 
 # REMEMBER TO ALSO UPDATE THE PROJECT TEMPLATE
 from otree_startup.settings import get_default_settings
@@ -84,7 +96,7 @@ def execute_from_command_line(*args, **kwargs):
     subcommand = argv[1]
 
     if subcommand in ['runzip', 'zipserver']:
-        runzip.main(argv[2:])
+        zipserver.main(argv[2:])
         # better to return than sys.exit because testing is complicated
         # with sys.exit -- if you mock it, then the function keeps executing.
         return
@@ -279,7 +291,7 @@ def check_update_needed(requirements_path: Path) -> Optional[str]:
                 # all we care about is otree.
                 pass
             except pkg.VersionConflict as exc:
-                # can't say to install requirements_base.txt because if they are using runzip,
+                # can't say to install requirements_base.txt because if they are using zipserver,
                 # that file doesn't exist.
                 return f'{exc.report()}. Enter: pip3 install "{exc.req}"'
 

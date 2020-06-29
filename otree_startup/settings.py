@@ -75,7 +75,12 @@ def get_default_settings(user_settings: dict):
                 'level': 'INFO',
                 'class': 'logging.StreamHandler',
                 'formatter': 'simple',
-            }
+            },
+            'sql': {
+                'level': 'INFO',
+                'class': 'logging.StreamHandler',
+                'formatter': 'simple',
+            },
         },
         'loggers': {
             'otree.test.core': {
@@ -95,32 +100,32 @@ def get_default_settings(user_settings: dict):
                 'propagate': False,
                 'level': 'DEBUG',
             },
+            'django.db.backends': {'level': 'DEBUG', 'handlers': ['sql']},
         },
     }
 
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
-    # I thought about just checking if REDIS_URL is defined,
-    # but using Redis when it's not necessary makes things much slower.
-    # for example, running a 5 second bot test takes 22 seconds with Redis.
-    # it would be a pain for me to keep setting and unsetting REDIS_URL.
-    if os.environ.get('OTREE_USE_REDIS'):
-        channel_layer = {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            # the timeout arg was recommended by Heroku support around 2019-10-17
-            # when users were getting ConnectionClosed('reader at end of file')
-            # Heroku uses 300 so we should stay under that?
-            "CONFIG": {"hosts": [dict(address=REDIS_URL, timeout=280)]},
+    if 'devserver' in sys.argv:
+        if os.environ.get('DATABASE_URL'):
+            # otherwise, people will get a different DB when they use other management commands like 'otree shell'
+            raise ValueError(
+                'You cannot use devserver or zipserver if the DATABASE_URL env var is defined. '
+                'These commands are hardcoded to use db.sqlite3 as the database.'
+            )
+        default_db = {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': "file::memory:?cache=shared",
         }
     else:
-        channel_layer = {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+        default_db = dj_database_url.config(default='sqlite:///db.sqlite3')
 
     default_settings.update(
         DEBUG=os.environ.get('OTREE_PRODUCTION') in [None, '', '0'],
         AWS_ACCESS_KEY_ID=os.environ.get('AWS_ACCESS_KEY_ID'),
         AWS_SECRET_ACCESS_KEY=os.environ.get('AWS_SECRET_ACCESS_KEY'),
         AUTH_LEVEL=os.environ.get('OTREE_AUTH_LEVEL'),
-        DATABASES={'default': dj_database_url.config(default='sqlite:///db.sqlite3')},
+        DATABASES={'default': default_db},
         HUEY={
             'name': 'otree-huey',
             'connection': {'url': REDIS_URL},
@@ -153,7 +158,7 @@ def get_default_settings(user_settings: dict):
         USE_L10N=True,
         SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'),
         ASGI_APPLICATION="otree.channels.routing.application",
-        CHANNEL_LAYERS={'default': channel_layer},
+        CHANNEL_LAYERS={'default': {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
         REDIS_URL=REDIS_URL,
         MTURK_NUM_PARTICIPANTS_MULTIPLE=2,
         LOCALE_PATHS=['locale'],

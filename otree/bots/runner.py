@@ -12,19 +12,19 @@ import otree.export
 import otree.session
 from otree.constants import AUTO_NAME_BOTS_EXPORT_FOLDER
 from otree.models import Session, Participant
-from otree.models_concrete import ParticipantToPlayerLookup
 from otree.session import SESSION_CONFIGS_DICT
 from .bot import ParticipantBot
+from otree.common import get_bots_module, get_models_module
 
 logger = logging.getLogger(__name__)
 
 
 class SessionBotRunner:
     def __init__(self, bots: List[ParticipantBot]):
-        self.bots = OrderedDict()
+        self.bots = {}
 
         for bot in bots:
-            self.bots[bot.participant_id] = bot
+            self.bots[bot.participant_code] = bot
 
     def play(self):
         '''round-robin'''
@@ -73,23 +73,40 @@ def make_bots(*, session_pk, case_number, use_browser_bots) -> List[ParticipantB
 
     # can't use .distinct('player_pk') because it only works on Postgres
     # this implicitly orders by round also
-    lookups = ParticipantToPlayerLookup.objects.filter(session_pk=session_pk).order_by(
-        'page_index'
+    session = Session.objects.get(pk=session_pk)
+
+    participant_codes = session.participant_set.order_by('id').values_list(
+        'code', flat=True
     )
 
-    seen_players = set()
-    lookups_per_participant = defaultdict(list)
-    for lookup in lookups:
-        player_identifier = (lookup.app_name, lookup.player_pk)
-        if not player_identifier in seen_players:
-            lookups_per_participant[lookup.participant_code].append(lookup)
-            seen_players.add(player_identifier)
+    player_bots_dict = {pcode: [] for pcode in participant_codes}
+
+    for app_name in session.config['app_sequence']:
+        bots_module = get_bots_module(app_name)
+        models_module = get_models_module(app_name)
+        players = (
+            models_module.Player.objects.filter(session_id=session_pk)
+            .order_by('round_number')
+            .values('id', 'participant_id', 'participant__code', 'subsession_id')
+        )
+        for player in players:
+            participant_code = player['participant__code']
+            player_bot = bots_module.PlayerBot(
+                case_number=case_number,
+                app_name=app_name,
+                player_pk=player['id'],
+                subsession_pk=player['subsession_id'],
+                participant_code=participant_code,
+                session_pk=session_pk,
+            )
+            player_bots_dict[participant_code].append(player_bot)
 
     executed_live_methods = set()
-    for participant_code, lookups in lookups_per_participant.items():
+
+    for participant_code, player_bots in player_bots_dict.items():
         bot = ParticipantBot(
-            lookups=lookups,
-            case_number=case_number,
+            participant_code,
+            player_bots=player_bots,
             executed_live_methods=executed_live_methods,
         )
         bots.append(bot)

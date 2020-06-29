@@ -101,7 +101,6 @@ class OtreeConfig(AppConfig):
         setup_create_singleton_objects()
         setup_create_default_superuser()
         monkey_patch_db_cursor()
-        # to initialize locks
 
         colorama.init(autoreset=True)
 
@@ -109,3 +108,8 @@ class OtreeConfig(AppConfig):
 
         otree.checks.register_system_checks()
         patch_template_silent_failures()
+
+        # initialize browser bot worker in process memory
+        import otree.bots.browser
+
+        otree.bots.browser.browser_bot_worker = otree.bots.browser.BotAndLiveWorker()

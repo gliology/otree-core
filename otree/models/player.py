@@ -43,8 +43,7 @@ class BasePlayer(models.OTreeModel):
 
     round_number = models.PositiveIntegerField(db_index=True)
 
-    # actually should be called _gbat_is_waiting
-    _gbat_arrived = models.BooleanField(default=False)
+    _gbat_is_waiting = models.BooleanField(default=False)
     _gbat_grouped = models.BooleanField(default=False)
 
     @property

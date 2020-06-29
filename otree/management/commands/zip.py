@@ -44,7 +44,7 @@ def filter_func(tar_info: tarfile.TarInfo):
         logger.info(f'Adding large file ({kb} KB): {path}')
 
     # make sure all dirs are writable, so their children can be deleted,
-    # so that otree unzip/runzip work as expected.
+    # so that otree unzip/zipserver work as expected.
     # we were getting some folders with permission 16749.
     tar_info.mode |= 0o222
     return tar_info
@@ -101,7 +101,7 @@ def zip_project(project_path: Path):
     if not runtime_existed:
         # don't use sys.version_info because it might be newer than what
         # heroku supports
-        runtime_txt.write_text(f'python-3.7.6')
+        runtime_txt.write_text(f'python-3.7.7')
     try:
         with tarfile.open(archive_name, 'w:gz') as tar:
             # if i omit arcname, it nests the project 2 levels deep.

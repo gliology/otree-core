@@ -1,27 +1,22 @@
-import os
-from sys import exit as sys_exit
-
-import honcho.manager
-from django.core.management.base import BaseCommand
-
-# made this simple class to reduce code duplication,
-# and to make testing easier (I didn't know how to check that it was called
-# with os.environ.copy(), especially if we patch os.environ)
-class OTreeHonchoManager(honcho.manager.Manager):
-    def add_otree_process(self, name, cmd):
-        self.add_process(name, cmd, env=os.environ.copy(), quiet=False)
+# run the worker to enforce page timeouts
+# even if the user closes their browser
+from huey.contrib.djhuey.management.commands.run_huey import Command as HueyCommand
 
 
-class Command(BaseCommand):
-    def handle(self, *args, verbosity=1, **options):
-        # TODO: what is this for?
-        self.verbosity = verbosity
-        manager = self.get_honcho_manager()
-        manager.loop()
-        sys_exit(manager.returncode)
+class Command(HueyCommand):
+    def handle(self, *args, **options):
+        # clear any tasks in Huey DB, so they don't pile up over time,
+        # especially if you run the server without the timeoutworker to consume
+        # the tasks.
+        # this code is also in asgi.py. it should be in both places,
+        # to ensure the database is flushed in all circumstances.
+        from huey.contrib.djhuey import HUEY
 
-    def get_honcho_manager(self):
-        manager = OTreeHonchoManager()
-        manager.add_otree_process('worker', 'otree prodserver2of2_worker')
-        manager.add_otree_process('huey', 'otree prodserver2of2_huey')
-        return manager
+        HUEY.flush()
+        # need to set USE_REDIS = True, because it uses the test client
+        # to submit pages, and if the next page has a timeout as well,
+        # its timeout task should be queued.
+        import otree.common
+
+        otree.common.USE_REDIS = True
+        super().handle(*args, **options)

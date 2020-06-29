@@ -1,14 +1,31 @@
+import urllib.request
 import django.test
 from huey.contrib.djhuey import db_task
-
 import otree.constants
 
 
-test_client = django.test.Client()
+from urllib import request, parse
+
+
+def post(url, data: dict):
+    '''
+    make the request over the network rather than in-process,
+    to avoid race conditions. everything must be handled by the main
+    server instance.
+    '''
+    data = parse.urlencode(data).encode()
+    req = request.Request(url, data=data)  # this will make the method "POST"
+    print('POST', url)
+    resp = request.urlopen(req)
+
+
+def get(url):
+    print('GET', url)
+    request.urlopen(url)
 
 
 @db_task()
-def submit_expired_url(participant_code, url):
+def submit_expired_url(participant_code, url, path):
     from otree.models.participant import Participant
 
     # if the participant exists in the DB,
@@ -25,15 +42,13 @@ def submit_expired_url(participant_code, url):
     # AFTER the next page's timeout is scheduled.)
 
     if Participant.objects.filter(
-        code=participant_code, _current_form_page_url=url
+        code=participant_code, _current_form_page_url=path
     ).exists():
-        test_client.post(
-            url, data={otree.constants.timeout_happened: True}, follow=True
-        )
+        post(url, data={otree.constants.timeout_happened: True})
 
 
 @db_task()
-def ensure_pages_visited(participant_pks):
+def ensure_pages_visited(participant_pks, base_url):
     """This is necessary when a wait page is followed by a timeout page.
     We can't guarantee the user's browser will properly continue to poll
     the wait page and get redirected, so after a grace period we load the page
@@ -53,5 +68,4 @@ def ensure_pages_visited(participant_pks):
         # because that will redirect to the current wait page.
         # (alternatively we could define _current_page_url or
         # current_wait_page_url)
-        url = participant._url_i_should_be_on()
-        test_client.get(url, follow=True)
+        get(urllib.parse.urljoin(base_url, participant._url_i_should_be_on()))

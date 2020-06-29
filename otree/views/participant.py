@@ -17,7 +17,7 @@ from django.http import (
 from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
 from django.utils.translation import ugettext as _
-from otree.common import make_hash, get_redis_conn, BotError, get_redis_lock
+from otree.common import make_hash, get_redis_conn, BotError
 import otree.channels.utils as channel_utils
 import otree.db.idmap
 from otree.models import Participant, Session
@@ -27,14 +27,8 @@ from otree.models_concrete import (
     ParticipantVarsFromREST,
 )
 from otree.room import ROOM_DICT
-from otree.views.abstract import (
-    GenericWaitPageMixin,
-    NO_PARTICIPANTS_LEFT_MSG,
-)
+from otree.views.abstract import GenericWaitPageMixin, NO_PARTICIPANTS_LEFT_MSG
 import otree.bots.browser as browser_bots
-
-
-start_link_thread_lock = threading.RLock()
 
 
 class OutOfRangeNotification(vanilla.View):
@@ -69,35 +63,28 @@ class InitializeParticipant(vanilla.UpdateView):
     url_pattern = r'^InitializeParticipant/(?P<participant_code>[a-z0-9]+)/$'
 
     def get(self, request, participant_code):
+            participant = get_object_or_404(Participant, code=participant_code)
 
-        participant = get_object_or_404(Participant, code=participant_code)
+            if participant._index_in_pages == 0:
+                participant._index_in_pages = 1
+                participant.visited = True
 
-        if participant._index_in_pages == 0:
-            participant._index_in_pages = 1
-            participant.visited = True
+                # participant.label might already have been set
+                participant.label = participant.label or self.request.GET.get(
+                    otree.constants.participant_label
+                )
 
-            # participant.label might already have been set
-            participant.label = participant.label or self.request.GET.get(
-                otree.constants.participant_label
-            )
+                now = django.utils.timezone.now()
+                participant.time_started = now
+                participant._last_page_timestamp = time.time()
+                participant.save()
+                with otree.db.idmap.use_cache():
+                    player = participant._get_current_player()
+                    player.start()
+                    otree.db.idmap.save_objects()
 
-            now = django.utils.timezone.now()
-            participant.time_started = now
-            participant._last_page_timestamp = time.time()
-            participant.save()
-
-            player_lookup = participant.player_lookup()
-            app_name = player_lookup['app_name']
-            models_module = otree.common.get_models_module(app_name)
-            PlayerClass = getattr(models_module, 'Player')
-            _player_pk = player_lookup['player_pk']
-            with otree.db.idmap.use_cache():
-                player = PlayerClass.objects.get(pk=_player_pk)
-                player.start()
-                otree.db.idmap.save_objects()
-
-        first_url = participant._url_i_should_be_on()
-        return HttpResponseRedirect(first_url)
+            first_url = participant._url_i_should_be_on()
+            return HttpResponseRedirect(first_url)
 
 
 class MTurkStart(vanilla.View):
@@ -115,61 +102,56 @@ class MTurkStart(vanilla.View):
             'grant_qualification_id'
         )
         use_sandbox = self.session.mturk_use_sandbox
-        with get_redis_lock(name='start_links') or start_link_thread_lock:
-            if qual_id and not use_sandbox:
-                # this is necessary because MTurk's qualification requirements
-                # don't prevent 100% of duplicate participation. See:
-                # https://groups.google.com/forum/#!topic/otree/B66HhbFE9ck
-                previous_participation = Participant.objects.exclude(
-                    session=self.session
-                ).filter(mturk_worker_id=worker_id, session__mturk_qual_id=qual_id)
-                if previous_participation.exists():
-                    return HttpResponse('You have already accepted a related HIT')
+        if qual_id and not use_sandbox:
+            # this is necessary because MTurk's qualification requirements
+            # don't prevent 100% of duplicate participation. See:
+            # https://groups.google.com/forum/#!topic/otree/B66HhbFE9ck
+            previous_participation = Participant.objects.exclude(
+                session=self.session
+            ).filter(mturk_worker_id=worker_id, session__mturk_qual_id=qual_id)
+            if previous_participation.exists():
+                return HttpResponse('You have already accepted a related HIT')
 
-                # if using sandbox, there is no point in granting quals.
-                # https://groups.google.com/forum/#!topic/otree/aAmqTUF-b60
+            # if using sandbox, there is no point in granting quals.
+            # https://groups.google.com/forum/#!topic/otree/aAmqTUF-b60
 
-                # don't pass request arg, because we don't want to show a message.
-                # using the fully qualified name because that seems to make mock.patch work
-                mturk_client = otree.views.mturk.get_mturk_client(
-                    use_sandbox=use_sandbox
-                )
-                # seems OK to assign this multiple times
-                mturk_client.associate_qualification_with_worker(
-                    QualificationTypeId=qual_id,
-                    WorkerId=worker_id,
-                    # Mturk complains if I omit IntegerValue
-                    IntegerValue=1,
-                )
+            # don't pass request arg, because we don't want to show a message.
+            # using the fully qualified name because that seems to make mock.patch work
+            mturk_client = otree.views.mturk.get_mturk_client(use_sandbox=use_sandbox)
+            # seems OK to assign this multiple times
+            mturk_client.associate_qualification_with_worker(
+                QualificationTypeId=qual_id,
+                WorkerId=worker_id,
+                # Mturk complains if I omit IntegerValue
+                IntegerValue=1,
+            )
 
+        try:
+            # just check if this worker already game, but
+            # don't filter for assignment, because maybe they already started
+            # and returned the previous assignment
+            # in this case, we should assign back to the same participant
+            # so that we don't get duplicates in the DB, and so people
+            # can't snoop and try the HIT first, then re-try to get a bigger bonus
+            participant = self.session.participant_set.get(mturk_worker_id=worker_id)
+        except Participant.DoesNotExist:
             try:
-                # just check if this worker already game, but
-                # don't filter for assignment, because maybe they already started
-                # and returned the previous assignment
-                # in this case, we should assign back to the same participant
-                # so that we don't get duplicates in the DB, and so people
-                # can't snoop and try the HIT first, then re-try to get a bigger bonus
-                participant = self.session.participant_set.get(
-                    mturk_worker_id=worker_id
-                )
-            except Participant.DoesNotExist:
-                try:
-                    participant = self.session.participant_set.filter(
-                        visited=False
-                    ).order_by('id')[0]
-                except IndexError:
-                    return HttpResponseNotFound(NO_PARTICIPANTS_LEFT_MSG)
+                participant = self.session.participant_set.filter(
+                    visited=False
+                ).order_by('id')[0]
+            except IndexError:
+                return HttpResponseNotFound(NO_PARTICIPANTS_LEFT_MSG)
 
-                # 2014-10-17: needs to be here even if it's also set in
-                # the next view to prevent race conditions
-                # this needs to be inside the lock
-                participant.visited = True
-                participant.mturk_worker_id = worker_id
-            # reassign assignment_id, even if they are returning, because maybe they accepted
-            # and then returned, then re-accepted with a different assignment ID
-            # if it's their second time
-            participant.mturk_assignment_id = assignment_id
-            participant.save()
+            # 2014-10-17: needs to be here even if it's also set in
+            # the next view to prevent race conditions
+            # this needs to be inside the lock
+            participant.visited = True
+            participant.mturk_worker_id = worker_id
+        # reassign assignment_id, even if they are returning, because maybe they accepted
+        # and then returned, then re-accepted with a different assignment ID
+        # if it's their second time
+        participant.mturk_assignment_id = assignment_id
+        participant.save()
         return HttpResponseRedirect(participant._start_url())
 
 
@@ -196,21 +178,20 @@ def get_participant_with_cookie_check(session, cookies):
 
 def participant_start_page_or_404(session, *, label, cookies=None):
     '''pass request.session as an arg if you want to get/set a cookie'''
-    with get_redis_lock(name='start_links') or start_link_thread_lock:
-        if cookies is None:
-            participant = get_existing_or_new_participant(session, label)
-        else:
-            participant = get_participant_with_cookie_check(session, cookies)
-        if not participant:
-            raise Http404(NO_PARTICIPANTS_LEFT_MSG)
+    if cookies is None:
+        participant = get_existing_or_new_participant(session, label)
+    else:
+        participant = get_participant_with_cookie_check(session, cookies)
+    if not participant:
+        raise Http404(NO_PARTICIPANTS_LEFT_MSG)
 
-        # needs to be here even if it's also set in
-        # the next view to prevent race conditions
-        participant.visited = True
-        if label:
-            participant.label = label
+    # needs to be here even if it's also set in
+    # the next view to prevent race conditions
+    participant.visited = True
+    if label:
+        participant.label = label
 
-        participant.save()
+    participant.save()
 
     return participant
 
@@ -348,13 +329,12 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
     url_pattern = r'^browser_bot_start/(?P<pre_create_id>\w+)/$'
 
     def dispatch(self, request, pre_create_id):
-        get_redis_conn()  # why do we do this?
-        session_info = BrowserBotsLauncherSessionCode.objects.first()
-        if session_info:
-            if pre_create_id != session_info.pre_create_id:
-                return HttpResponseNotFound('Incorrect pre_create_id')
-            session = Session.objects.get(code=session_info.code)
-            with get_redis_lock(name='start_links') or start_link_thread_lock:
+            get_redis_conn()  # why do we do this?
+            session_info = BrowserBotsLauncherSessionCode.objects.first()
+            if session_info:
+                if pre_create_id != session_info.pre_create_id:
+                    return HttpResponseNotFound('Incorrect pre_create_id')
+                session = Session.objects.get(code=session_info.code)
                 participant = (
                     session.participant_set.filter(visited=False).order_by('id').first()
                 )
@@ -365,14 +345,14 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
                 # the next view to prevent race conditions
                 participant.visited = True
                 participant.save()
-            return HttpResponseRedirect(participant._start_url())
-        else:
-            ctx = {
-                'view': self,
-                'title_text': 'Please wait',
-                'body_text': 'Waiting for browser bots session to begin',
-            }
-            return render(request, "otree/WaitPage.html", ctx)
+                return HttpResponseRedirect(participant._start_url())
+            else:
+                ctx = {
+                    'view': self,
+                    'title_text': 'Please wait',
+                    'body_text': 'Waiting for browser bots session to begin',
+                }
+                return render(request, "otree/WaitPage.html", ctx)
 
     def socket_url(self):
         return '/browser_bot_wait/'

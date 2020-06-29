@@ -1,12 +1,15 @@
+import time
 from django.db.models import Prefetch
+from django.db.models import Max
 
 import otree.common
 from otree.db import models
-from otree.common import get_models_module, in_round, in_rounds
+from otree.common import get_models_module, in_round, in_rounds, ResponseForException
 import copy
 from otree.common import has_group_by_arrival_time, add_field_tracker
 from django.apps import apps
 from django.db import models as djmodels
+
 
 class GroupMatrixError(ValueError):
     pass
@@ -202,3 +205,99 @@ class BaseSubsession(models.OTreeModel):
     @classmethod
     def _ensure_required_fields(cls):
         add_field_tracker(cls)
+
+    def _gbat_try_to_make_new_group(self):
+        '''Returns the group ID of the participants who were regrouped'''
+
+        STALE_THRESHOLD_SECONDS = 20
+
+        # count how many are re-grouped
+        waiting_players = list(
+            self.player_set.filter(
+                _gbat_is_waiting=True,
+                _gbat_grouped=False,
+                participant___last_request_timestamp__gte=time.time()
+                - STALE_THRESHOLD_SECONDS,
+            )
+        )
+
+        try:
+            players_for_group = self.group_by_arrival_time_method(waiting_players)
+        except:
+            raise ResponseForException
+
+        if not players_for_group:
+            return None
+        participant_ids = [p.participant.id for p in players_for_group]
+
+        group_id_in_subsession = self._gbat_next_group_id_in_subsession()
+
+        Constants = self._Constants
+
+        this_round_new_group = None
+        with otree.common.transaction_except_for_sqlite():
+            for round_number in range(self.round_number, Constants.num_rounds + 1):
+                subsession = self.in_round(round_number)
+
+                unordered_players = subsession.player_set.filter(
+                    participant_id__in=participant_ids
+                )
+
+                participant_ids_to_players = {
+                    player.participant.id: player for player in unordered_players
+                }
+
+                ordered_players_for_group = [
+                    participant_ids_to_players[participant_id]
+                    for participant_id in participant_ids
+                ]
+
+                if round_number == self.round_number:
+                    for player in ordered_players_for_group:
+                        player._gbat_grouped = True
+                        player.save()
+
+                group = self._GroupClass().objects.create(
+                    subsession=subsession,
+                    id_in_subsession=group_id_in_subsession,
+                    session=self.session,
+                    round_number=round_number,
+                )
+                group.set_players(ordered_players_for_group)
+
+                if round_number == self.round_number:
+                    this_round_new_group = group
+
+                # prune groups without players
+                # apparently player__isnull=True works, didn't know you could
+                # use this in a reverse direction.
+                subsession.group_set.filter(player__isnull=True).delete()
+        return this_round_new_group
+
+    def _gbat_next_group_id_in_subsession(self):
+        # 2017-05-05: seems like this can result in id_in_subsession that
+        # doesn't start from 1.
+        # especially if you do group_by_arrival_time in every round
+        # is that a problem?
+        res = (
+            self._GroupClass()
+            .objects.filter(session=self.session)
+            .aggregate(Max('id_in_subsession'))
+        )
+        return res['id_in_subsession__max'] + 1
+
+    def group_by_arrival_time_method(self, waiting_players):
+        Constants = self._Constants
+
+        if Constants.players_per_group is None:
+            msg = (
+                'Page "{}": if using group_by_arrival_time, you must either set '
+                'Constants.players_per_group to a value other than None, '
+                'or define group_by_arrival_time_method.'.format(
+                    self.__class__.__name__
+                )
+            )
+            raise AssertionError(msg)
+
+        if len(waiting_players) >= Constants.players_per_group:
+            return waiting_players[: Constants.players_per_group]

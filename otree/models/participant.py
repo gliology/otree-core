@@ -4,7 +4,7 @@ from django.urls import reverse
 import otree.common
 from otree.common import random_chars_8, FieldTrackerWithVarsSupport
 from otree.db import models
-from otree.models_concrete import ParticipantToPlayerLookup
+from otree.lookup import url_i_should_be_on, get_page_lookup
 
 
 class Participant(models.OTreeModel):
@@ -36,8 +36,6 @@ class Participant(models.OTreeModel):
     mturk_assignment_id = models.CharField(max_length=50, null=True)
     mturk_worker_id = models.CharField(max_length=50, null=True)
 
-    _index_in_subsessions = models.PositiveIntegerField(default=0, null=True)
-
     _index_in_pages = models.PositiveIntegerField(default=0, db_index=True)
 
     def _id_in_session(self):
@@ -53,12 +51,11 @@ class Participant(models.OTreeModel):
         null=False,
         # unique implies DB index
         unique=True,
-        doc=(
-            "Randomly generated unique identifier for the participant. If you "
-            "would like to merge this dataset with those from another "
-            "subsession in the same session, you should join on this field, "
-            "which will be the same across subsessions."
-        ),
+    )
+
+    # useful when we don't want to load the whole session just to get the code
+    _session_code = djmodels.CharField(
+        max_length=16,
     )
 
     visited = models.BooleanField(
@@ -96,32 +93,13 @@ class Participant(models.OTreeModel):
 
     _max_page_index = models.PositiveIntegerField()
 
-    _browser_bot_finished = models.BooleanField(default=False)
-
     _is_bot = models.BooleanField(default=False)
     # can't start with an underscore because used in template
     # can't end with underscore because it's a django field (fields.E001)
     is_browser_bot = models.BooleanField(default=False)
 
-    _player_lookups = None
-
-    def player_lookup(self):
-        '''
-        Code is more complicated because of a performance optimization
-        '''
-        index = self._index_in_pages
-        if self._player_lookups is None:
-            self._player_lookups = {}
-        if index not in self._player_lookups:
-            # kind of a binary search type logic. limit the number of queries
-            # to log2(n). similar to the way arraylists grow.
-            num_extra_lookups = len(self._player_lookups) + 1
-            qs = ParticipantToPlayerLookup.objects.filter(
-                participant=self, page_index__range=(index, index + num_extra_lookups)
-            ).values()
-            for player_lookup in qs:
-                self._player_lookups[player_lookup['page_index']] = player_lookup
-        return self._player_lookups[index]
+    _timeout_expiration_time = models.FloatField()
+    _timeout_page_index = models.PositiveIntegerField()
 
     def _current_page(self):
         return '{}/{} pages'.format(self._index_in_pages, self._max_page_index)
@@ -156,7 +134,9 @@ class Participant(models.OTreeModel):
         if not self.visited:
             return self._start_url()
         if self._index_in_pages <= self._max_page_index:
-            return self.player_lookup()['url']
+            return url_i_should_be_on(
+                self.code, self._session_code, self._index_in_pages
+            )
         return reverse('OutOfRangeNotification', args=[self.code])
 
     def _start_url(self):
@@ -167,3 +147,11 @@ class Participant(models.OTreeModel):
 
     def payoff_plus_participation_fee(self):
         return self.session._get_payoff_plus_participation_fee(self.payoff)
+
+    def _get_current_player(self):
+        lookup = get_page_lookup(self._session_code, self._index_in_pages)
+        models_module = otree.common.get_models_module(lookup.app_name)
+        PlayerClass = getattr(models_module, 'Player')
+        return PlayerClass.objects.get(
+            participant=self, round_number=lookup.round_number
+        )

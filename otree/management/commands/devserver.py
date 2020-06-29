@@ -1,25 +1,25 @@
 import importlib
 import logging
-import os
 import os.path
-import shutil
-import sys
 import time
 import traceback
 from pathlib import Path
 from unittest.mock import patch
-
+import signal
 import termcolor
 from channels.management.commands import runserver
 from daphne.endpoints import build_endpoint_description_strings
 from django.apps import apps
 from django.conf import settings
 from django.core.management import call_command
-
-import otree.bots.browser
 import otree.common
 import otree_startup
 from otree import __version__ as CURRENT_VERSION
+import os
+import sys
+
+
+from otree.common import dump_db, dump_db_and_exit, load_db
 
 TMP_MIGRATIONS_DIR = Path('__temp_migrations')
 VERSION_FILE = TMP_MIGRATIONS_DIR.joinpath('otree-version.txt')
@@ -82,14 +82,14 @@ class Command(runserver.Command):
         parser.set_defaults(verbosity=0)
 
         parser.add_argument(
-            '--inside-runzip', action='store_true', dest='inside_runzip', default=False
+            '--inside-zipserver',
+            action='store_true',
+            dest='inside_zipserver',
+            default=False,
         )
 
     def handle(self, *args, **options):
         self.verbosity = options.get("verbosity", 1)
-        from otree.common import release_any_stale_locks
-
-        release_any_stale_locks()
 
         # for performance,
         # only run checks when the server starts, not when it reloads
@@ -127,18 +127,43 @@ class Command(runserver.Command):
             # seems to have no impact on perf
             importlib.invalidate_caches()
 
-        super().handle(*args, **options)
+        is_reloader_process = options['use_reloader'] and not os.environ.get('RUN_MAIN')
+        if not is_reloader_process:
+            # this handles restarts due Ctrl+C
 
-    def inner_run(self, *args, inside_runzip, **options):
+            # can't handle this signal in the autoreloader process,
+            # since the DB is stored in the main django process's memory.
+
+            # i guess the child process receives the SIGINT
+            # from the parent autoreloader process.
+            signal.signal(signal.SIGINT, dump_db_and_exit)
+
+        try:
+            super().handle(*args, **options)
+        except SystemExit as exc:
+            # this is designed to handle the sys.exit(3) that is fired
+            # by the child process file-watcher thread, when a file is changed.
+            # it needs to be here rather than inner_run because that is only
+            # run by the child process main_func thread.
+
+            # this also gets run if using zipserver and a sys.exit occurs.
+
+            # if an exception occurs inside the main_func thread that executes inner_run,
+            # it will just print the TB and hang, as usual. Then the user presses Ctrl+C,
+            # which triggers the SIGINT handler above.
+            # if the main_func thread calls sys.exit that is not a concern here
+            # because that will just exit that thread and not bubble up here.
+            if not is_reloader_process:
+                dump_db()
+            raise
+
+    def inner_run(self, *args, inside_zipserver, **options):
         '''
         inner_run does not get run twice with runserver, unlike .handle()
         '''
 
-        self.inside_runzip = inside_runzip
+        self.inside_zipserver = inside_zipserver
         self.makemigrations_and_migrate()
-
-        # initialize browser bot worker in process memory
-        otree.bots.browser.browser_bot_worker = otree.bots.browser.BotAndLiveWorker()
 
         # silence the lines like:
         # 2018-01-10 18:51:18,092 - INFO - worker - Listening on channels
@@ -182,7 +207,6 @@ class Command(runserver.Command):
                 root_path=getattr(settings, "FORCE_SCRIPT_NAME", "") or "",
                 websocket_handshake_timeout=self.websocket_handshake_timeout,
             ).run()
-            daphne_logger.debug("Daphne exited")
         except KeyboardInterrupt:
             shutdown_message = options.get("shutdown_message", "")
             if shutdown_message:
@@ -229,6 +253,11 @@ class Command(runserver.Command):
         # messes up the cache on some systems.
         importlib.invalidate_caches()
 
+        # should I instead connect to connection_created signal?
+        # but this seems better because we know exactly where it happens,
+        # and can guarantee we won't subscribe after the signal was already sent.
+        load_db()
+
         try:
             # see above comment about makemigrations and capturing stdout.
             # it applies to migrate command also.
@@ -258,12 +287,12 @@ class Command(runserver.Command):
         '''this won't actually exit because we can't kill the autoreload process'''
         self.stdout.write('\n')
         is_verbose = self.verbosity >= PRINT_DETAILS_VERBOSITY_LEVEL
-        show_error_details = is_verbose or self.inside_runzip
+        show_error_details = is_verbose or self.inside_zipserver
         if show_error_details:
             traceback.print_exc()
         else:
             self.stdout.write('An error occurred.')
-        if self.inside_runzip:
+        if self.inside_zipserver:
             self.stdout.write('Please report to chris@otree.org.')
         else:
             termcolor.cprint(advice, 'white', 'on_red')
@@ -287,4 +316,4 @@ class Command(runserver.Command):
         if self.verbosity >= 1:
             super().log_action(protocol, action, details)
 
-    inside_runzip = False
+    inside_zipserver = False

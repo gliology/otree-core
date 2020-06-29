@@ -267,16 +267,13 @@ def pages_function(helper: AppCheckHelper, **kwargs):
                             ),
                             numeric_id=24,
                         )
-                # alternative technique is to not define the method on WaitPage
-                # and then use hasattr, but I want to keep all complexity
-                # out of views.abstract
-                elif ViewCls.get_players_for_group != WaitPage.get_players_for_group:
-                    helper.add_error(
-                        'Page "{}" defines get_players_for_group, '
-                        'but in order to use this method, you must set '
-                        'group_by_arrival_time=True'.format(ViewCls.__name__),
-                        numeric_id=25,
-                    )
+                    if hasattr(ViewCls, 'get_players_for_group'):
+                        helper.add_error(
+                            'Page "{}" defines get_players_for_group, which is deprecated. '
+                            'You should instead define group_by_arrival_time on the Subsession. '
+                            ''.format(ViewCls.__name__),
+                            numeric_id=25,
+                        )
             elif issubclass(ViewCls, Page):
                 pass  # ok
             else:

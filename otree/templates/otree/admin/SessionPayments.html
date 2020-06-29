@@ -34,7 +34,6 @@
         <th>Code</th>
         <th>Label</th>
         <th>Progress</th>
-        <th>Wait page total</th>
         <th>Payoff (bonus)</th>
         <th>Total</th>
       </tr>
@@ -44,7 +43,6 @@
           <td style="font-family: 'Courier New'">{{ p.code }}</td>
           <td>{{ p.label|default_if_none:"" }}</td>
           <td>{{ p.current_page_ }}</td>
-          <td>{{ p.waiting_seconds }} seconds</td>
           <td>{{ p.payoff_in_real_world_currency }}</td>
           <td>{{ p.payoff_plus_participation_fee }}</td>
         </tr>

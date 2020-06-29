@@ -1,22 +1,21 @@
 import contextlib
 import hashlib
 import importlib.util
+import sys
+import sqlite3
 import itertools
 import logging
 import random
 import re
 import string
-import threading
 from collections import OrderedDict
 from importlib import import_module
-from typing import Iterable, ItemsView, Tuple
-
-import redis_lock
+from pathlib import Path
+from typing import Iterable, Tuple
+import redis
 from django.apps import apps
-from django.conf import settings
 from django.db import connection
 from django.db import transaction
-from django.utils.safestring import mark_safe
 from huey.contrib.djhuey import HUEY
 import urllib
 import os
@@ -27,17 +26,11 @@ from django.conf import settings
 from django.utils.safestring import mark_safe
 
 # until 2016, otree apps imported currency from otree.common.
-from otree.currency import Currency, RealWorldCurrency, currency_range
-
+from otree.currency import Currency, RealWorldCurrency
 
 # set to False if using runserver
 
 USE_REDIS = bool(os.environ.get('OTREE_USE_REDIS', ''))
-
-# these locks need to be here rather than views.abstract or views.participant
-# because they need to be imported when the main thread runs.
-start_link_thread_lock = threading.RLock()
-wait_page_thread_lock = threading.RLock()
 
 
 class _CurrencyEncoder(json.JSONEncoder):
@@ -183,8 +176,8 @@ def validate_alphanumeric(identifier, identifier_description):
     raise ValueError(msg)
 
 
-EMPTY_ADMIN_USERNAME_MSG = 'settings.ADMIN_USERNAME is empty'
-EMPTY_ADMIN_PASSWORD_MSG = 'settings.ADMIN_PASSWORD is empty'
+EMPTY_ADMIN_USERNAME_MSG = 'ADMIN_USERNAME is undefined'
+EMPTY_ADMIN_PASSWORD_MSG = 'ADMIN_PASSWORD is undefined'
 
 
 def ensure_superuser_exists(*args, **kwargs) -> str:
@@ -210,27 +203,7 @@ def ensure_superuser_exists(*args, **kwargs) -> str:
     return ''
 
 
-def release_any_stale_locks():
-    '''
-    Need to release locks in case the server was stopped abruptly,
-    and the 'finally' block in each lock did not execute
-    '''
-    from otree.models_concrete import ParticipantLockModel
-
-    for LockModel in [ParticipantLockModel]:
-        try:
-            LockModel.objects.filter(locked=True).update(locked=False)
-        except:
-            # if server is started before DB is synced,
-            # this will raise
-            # django.db.utils.OperationalError: no such table:
-            # otree_globallockmodel
-            # we can ignore that because we just want to make sure there are no
-            # active locks
-            pass
-
-
-def get_redis_conn():
+def get_redis_conn() -> redis.StrictRedis:
     '''reuse Huey Redis connection'''
     return HUEY.storage.conn
 
@@ -400,11 +373,58 @@ def _group_randomly(group_matrix, fixed_id_in_group=False):
         return _group_by_rank(players, players_per_group)
 
 
-def get_redis_lock(*, name='global'):
-    if USE_REDIS:
-        return redis_lock.Lock(
-            redis_client=get_redis_conn(),
-            name='OTREE_LOCK_{}'.format(name),
-            expire=10,
-            auto_renewal=True,
-        )
+_dumped = False
+
+
+def dump_db_and_exit(*args, code=0):
+    # https://stackoverflow.com/a/17729312/10460916
+
+    global _dumped
+    if _dumped:
+        return
+
+    dump_db()
+
+    sys.exit(code)
+
+
+def dump_db(*args):
+    # return
+    global _dumped
+    if _dumped:
+        return
+    from django.db import connection
+
+    dest = sqlite3.connect('db.sqlite3')
+    # when i called dump_db() from a view, the connection was None
+    # until I made a query
+    from otree.models import Session
+
+    try:
+        Session.objects.first()
+    except Exception as exc:
+        # if dump_db is called before migrate is finished, we get:
+        # OperationalError: no such table: otree_session
+        return
+    connection.connection.backup(dest)
+    _dumped = True
+    sys.stdout.write('Database saved\n')
+
+
+class NoOp:
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
+def load_db():
+    db_path = Path('db.sqlite3')
+    if db_path.exists():
+        from django.db import connection
+
+        src = sqlite3.connect('db.sqlite3')
+        src.backup(connection.connection)
+    else:
+        print('Creating new database', db_path.resolve())

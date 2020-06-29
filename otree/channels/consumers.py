@@ -14,6 +14,7 @@ from django.conf import settings
 from django.core.signing import Signer, BadSignature
 from django.shortcuts import reverse
 
+from otree.live import live_payload_function
 import otree.bots.browser
 import otree.channels.utils as channel_utils
 import otree.session
@@ -25,7 +26,6 @@ from otree.models_concrete import (
     CompletedGroupWaitPage,
     CompletedSubsessionWaitPage,
     ChatMessage,
-    WaitPagePassage,
 )
 from otree.models_concrete import ParticipantRoomVisit, BrowserBotsLauncherSessionCode
 from otree.room import ROOM_DICT
@@ -67,6 +67,10 @@ class _OTreeAsyncJsonWebsocketConsumer(AsyncJsonWebsocketConsumer):
         self.groups = [group_name] if group_name else []
 
     unrestricted_when = ''
+
+    # async def dispatch(self, message):
+    #     with dispatch_lock:
+    #         return super().dispatch(message)
 
     # there is no login_required for channels
     # so we need to make our own
@@ -126,12 +130,6 @@ class BaseWaitPage(_OTreeAsyncJsonWebsocketConsumer):
     async def wait_page_ready(self, event=None):
         await self.send_json({'status': 'ready'})
 
-    async def pre_disconnect(self, session_pk, participant_id, **kwargs):
-
-        await create_waitpage_passage(
-            participant_id=participant_id, session_pk=session_pk, is_enter=False
-        )
-
 
 class SubsessionWaitPage(BaseWaitPage):
 
@@ -148,9 +146,6 @@ class SubsessionWaitPage(BaseWaitPage):
             page_index=page_index, session_id=session_pk
         ):
             await self.wait_page_ready()
-        await create_waitpage_passage(
-            participant_id=participant_id, session_pk=session_pk, is_enter=True
-        )
 
 
 class GroupWaitPage(BaseWaitPage):
@@ -176,9 +171,6 @@ class GroupWaitPage(BaseWaitPage):
             session_id=session_pk,
         ):
             await self.wait_page_ready()
-        await create_waitpage_passage(
-            participant_id=participant_id, session_pk=session_pk, is_enter=True
-        )
 
 
 class LiveConsumer(_OTreeAsyncJsonWebsocketConsumer):
@@ -197,7 +189,7 @@ class LiveConsumer(_OTreeAsyncJsonWebsocketConsumer):
             code=participant_code, is_browser_bot=True
         ).exists():
             return
-        await database_sync_to_async(otree.bots.browser.send_live_payload)(
+        await database_sync_to_async(live_payload_function)(
             participant_code=participant_code, page_name=page_name, payload=content
         )
 
@@ -249,7 +241,7 @@ class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
     def mark_ready_status(self, is_ready):
         models_module = get_models_module(self.app_name)
         models_module.Player.objects.filter(id=self.player_id).update(
-            _gbat_arrived=is_ready
+            _gbat_is_waiting=is_ready
         )
 
     async def post_connect(
@@ -265,9 +257,6 @@ class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
             session_pk=session_pk,
         ):
             await self.gbat_ready()
-        await create_waitpage_passage(
-            participant_id=participant_id, session_pk=session_pk, is_enter=True
-        )
 
     async def gbat_ready(self, event=None):
         await self.send_json({'status': 'ready'})
@@ -276,9 +265,6 @@ class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
         self, app_name, player_id, page_index, session_pk, participant_id
     ):
         await database_sync_to_async(self.mark_ready_status)(False)
-        await create_waitpage_passage(
-            participant_id=participant_id, session_pk=session_pk, is_enter=False
-        )
 
 
 class DetectAutoAdvance(_OTreeAsyncJsonWebsocketConsumer):
@@ -360,7 +346,7 @@ class BaseCreateSession(_OTreeAsyncJsonWebsocketConsumer):
             # maybe it was just a fallback in case the TB was truncated?
         else:
             session_home_view = (
-                'MTurkCreateHIT' if session.is_mturk() else 'SessionStartLinks'
+                'MTurkCreateHIT' if session.is_mturk else 'SessionStartLinks'
             )
 
             await self.send_response_to_browser(
@@ -529,7 +515,8 @@ class RoomAdmin(_OTreeAsyncJsonWebsocketConsumer):
         ParticipantRoomVisit.objects.filter(**kwargs).delete()
 
     async def roomadmin_update(self, event):
-        await self.send_json(event)
+        msg = {k: v for (k, v) in event.items() if k != 'type'}
+        await self.send_json(msg)
 
 
 class RoomParticipant(_OTreeAsyncJsonWebsocketConsumer):
@@ -797,22 +784,3 @@ class NoOp(WebsocketConsumer):
 def parse_querystring(query_string) -> dict:
     '''it seems parse_qs omits keys with empty values'''
     return {k: v[0] for k, v in urllib.parse.parse_qs(query_string.decode()).items()}
-
-
-async def create_waitpage_passage(*, participant_id, session_pk, is_enter):
-    await database_sync_to_async(_create_waitpage_passage)(
-        participant_id=participant_id, session_pk=session_pk, is_enter=is_enter
-    )
-
-
-def _create_waitpage_passage(*, participant_id, session_pk, is_enter):
-    '''if the session was deleted, this would raise'''
-    try:
-        WaitPagePassage.objects.create(
-            participant_id=participant_id,
-            session_id=session_pk,
-            is_enter=is_enter,
-            epoch_time=time.time(),
-        )
-    except:
-        pass

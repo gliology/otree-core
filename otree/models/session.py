@@ -3,6 +3,7 @@ import time
 
 from django.template import TemplateDoesNotExist
 from django.template.loader import select_template
+from django.conf import settings
 
 import otree.common
 import otree.constants
@@ -39,10 +40,6 @@ class Session(models.OTreeModel):
         max_length=300, null=True, blank=True, help_text='For internal record-keeping'
     )
 
-    experimenter_name = models.CharField(
-        max_length=300, null=True, blank=True, help_text='For internal record-keeping'
-    )
-
     code = models.CharField(
         default=random_chars_8,
         max_length=16,
@@ -64,13 +61,11 @@ class Session(models.OTreeModel):
         blank=True,
         help_text='Hit id for this session on MTurk',
     )
+    is_mturk = models.BooleanField(default=False)
 
-    # since workers can drop out number of participants on server should be
-    # greater than number of participants on mturk
-    # value -1 indicates that this session it not intended to run on mturk
-    mturk_num_participants = models.IntegerField(
-        default=-1, help_text="Number of participants on MTurk"
-    )
+    def mturk_num_workers(self):
+        assert self.is_mturk
+        return self.num_participants / settings.MTURK_NUM_PARTICIPANTS_MULTIPLE
 
     mturk_use_sandbox = models.BooleanField(
         default=True, help_text="Should this session be created in mturk sandbox?"
@@ -136,9 +131,6 @@ class Session(models.OTreeModel):
             with otree.db.idmap.use_cache():
                 user_utils.mock_exogenous_data(self)
                 otree.db.idmap.save_objects()
-
-    def is_mturk(self):
-        return (not self.is_demo) and (self.mturk_num_participants > 0)
 
     def get_subsessions(self):
         lst = []

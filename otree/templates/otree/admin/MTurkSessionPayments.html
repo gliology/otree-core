@@ -52,7 +52,6 @@
               <th>Worker ID</th>
               <th>Progress</th>
               <th>Completion code</th>
-              <th>Wait page total</th>
               <th>
                 Bonus payoff
               </th>
@@ -75,7 +74,6 @@
                 <td class="codes">{{ p.mturk_worker_id|default_if_none:"" }}</td>
                 <td>{{ p.current_page_ }}</td>
                 <td>{{ p.mturk_answers_formatted }}</td>
-                <td>{{ p.waiting_seconds }} sec</td>
                 <td>
                   {{ p.payoff_in_real_world_currency }}
                 </td>

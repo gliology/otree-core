@@ -24,7 +24,6 @@ import otree
 
 from otree.views.abstract import AdminSessionPageMixin
 
-from otree.models_concrete import add_time_spent_waiting
 from otree.models import Session, Participant
 from decimal import Decimal
 from django.shortcuts import redirect
@@ -138,7 +137,7 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
         context = self.get_context_data(
             mturk_settings=mturk_settings,
             participation_fee=session.config['participation_fee'],
-            mturk_num_participants=session.mturk_num_participants,
+            mturk_num_workers=session.mturk_num_workers(),
             mturk_ready=mturk_ready,
             boto3_installed=self.boto3_installed,
             aws_keys_exist=self.aws_keys_exist,
@@ -181,7 +180,7 @@ class MTurkCreateHIT(AdminSessionPageMixin, vanilla.FormView):
             'Title': mturk_settings.title,
             'Description': mturk_settings.description,
             'Keywords': keywords,
-            'MaxAssignments': session.mturk_num_participants,
+            'MaxAssignments': session.mturk_num_workers(),
             'Reward': str(float(session.config['participation_fee'])),
             'AssignmentDurationInSeconds': 60
             * mturk_settings.minutes_allotted_per_assignment,
@@ -234,7 +233,6 @@ class MTurkSessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
             mturk_worker_id__in=workers_by_status['Rejected']
         )
 
-        add_time_spent_waiting(participants_not_reviewed)
         add_answers(participants_not_reviewed, all_assignments)
 
         return dict(
@@ -272,6 +270,7 @@ def add_answers(participants: List[Participant], all_assignments: List[dict]):
     for assignment in all_assignments:
         answers[assignment['WorkerId']] = assignment['Answer']
     for p in participants:
+        p._is_frozen = False
         p.mturk_answers_formatted = get_completion_code(answers[p.mturk_worker_id])
 
 

@@ -6,41 +6,10 @@ from django.db import models
 import json
 
 
-class PageCompletion(models.Model):
-    class Meta:
-        app_label = "otree"
-
-    app_name = models.CharField(max_length=300)
-    page_index = models.PositiveIntegerField()
-    page_name = models.CharField(max_length=300)
-    # it needs a default, otherwise i get "added a non-nullable field without default"
-    # eventually i can remove the default, if I am sure people did not skip over all
-    # the intermediate versions.
-    epoch_time = models.PositiveIntegerField(null=True)
-    seconds_on_page = models.PositiveIntegerField()
-    subsession_pk = models.PositiveIntegerField()
-    participant = models.ForeignKey('otree.Participant', on_delete=models.CASCADE)
-    session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
-    auto_submitted = models.BooleanField()
+class PageTimeBatch(models.Model):
+    text = models.TextField()
 
 
-class WaitPagePassage(models.Model):
-    participant = models.ForeignKey('otree.Participant', on_delete=models.CASCADE)
-    session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
-    # don't set default=time.time because that's harder to patch
-    epoch_time = models.PositiveIntegerField(null=True)
-    # if False, means they exit the wait page
-    is_enter = models.BooleanField()
-
-
-class PageTimeout(models.Model):
-    class Meta:
-        app_label = "otree"
-        index_together = ['participant', 'page_index']
-
-    participant = models.ForeignKey('otree.Participant', on_delete=models.CASCADE)
-    page_index = models.PositiveIntegerField()
-    expiration_time = models.FloatField()
 
 
 class CompletedGroupWaitPage(models.Model):
@@ -60,33 +29,6 @@ class CompletedSubsessionWaitPage(models.Model):
 
     page_index = models.PositiveIntegerField()
     session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
-
-
-class ParticipantToPlayerLookup(models.Model):
-    class Meta:
-        app_label = "otree"
-        index_together = ['participant', 'page_index']
-        unique_together = ['participant', 'page_index']
-
-    # TODO: add session code and round number, for browser bots?
-    participant_code = models.CharField(max_length=20)
-    participant = models.ForeignKey('otree.Participant', on_delete=models.CASCADE)
-    page_index = models.PositiveIntegerField()
-    app_name = models.CharField(max_length=300)
-    player_pk = models.PositiveIntegerField()
-    # can't store group_pk because group can change!
-    subsession_pk = models.PositiveIntegerField()
-    session_pk = models.PositiveIntegerField()
-    url = models.CharField(max_length=300)
-
-
-class ParticipantLockModel(models.Model):
-    class Meta:
-        app_label = "otree"
-
-    participant_code = models.CharField(max_length=16, unique=True)
-
-    locked = models.BooleanField(default=False)
 
 
 class ParticipantVarsFromREST(models.Model):
@@ -168,36 +110,3 @@ class ChatMessage(models.Model):
     timestamp = models.FloatField(default=time.time)
 
 
-def add_time_spent_waiting(participants):
-    session_passages_qs = WaitPagePassage.objects.filter(
-        participant__in=participants
-    ).order_by('id')
-    _add_time_spent_waiting_inner(
-        participants=participants, session_passages_qs=session_passages_qs
-    )
-
-
-def _add_time_spent_waiting_inner(
-    *, participants, session_passages_qs: Iterable[WaitPagePassage]
-):
-    '''adds the attribute to each participant object so it can be shown in the template'''
-
-    session_passages = defaultdict(list)
-    for passage in session_passages_qs:
-        session_passages[passage.participant_id].append(passage)
-
-    for participant in participants:
-        total = 0
-        enter_time = None
-        passages = session_passages.get(participant.id, [])
-        for p in passages:
-            if p.is_enter and not enter_time:
-                enter_time = p.epoch_time
-            if not p.is_enter and enter_time:
-                total += p.epoch_time - enter_time
-                enter_time = None
-        # means they are still waiting
-        if enter_time:
-            total += time.time() - enter_time
-        participant._is_frozen = False
-        participant.waiting_seconds = int(total)

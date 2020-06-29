@@ -10,11 +10,11 @@ Automat==0.7.0  # Twisted
 certifi>=2019.3.9  # sentry-sdk
 cffi==1.12.3  # channels
 channels==2.4.0
-channels_redis==2.4.2
 #click==7.1.2 # uvicorn
 colorama==0.4.1  # honcho
 constantly==15.1.0  # Twisted
 cryptography==2.8  # channels
+# https://github.com/django/daphne/issues/319 prevents upgrade
 daphne==2.5.0
 dj-database-url==0.5.0
 Django==2.2.12
@@ -27,19 +27,12 @@ huey==2.1.1
 hyperlink==19.0.0  # Twisted
 idna==2.8  # Twisted
 incremental==17.5.0  # Twisted
-msgpack==0.6.1  # channels-redis
-# msgpack-python was renamed to msgpack.
-# supposedly installing version 0.5.6 allows
-# a smooth upgrade to msgpack
-# (though i still had problems)
-msgpack-python==0.5.6  # channels-redis
 otree-boto2-shim==0.3.2
 otree-core==0.0.0b1
 pytz==2019.2  # Django
 pycparser==2.19  # daphne
 PyHamcrest==1.9.0 # twisted
 pyOpenSSL==19.1.0 # twisted
-python-redis-lock==3.3.1
 redis==3.3.8
 sentry-sdk==0.7.9
 service_identity>=18.1.0

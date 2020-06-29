@@ -8,7 +8,6 @@ from urllib.parse import unquote, urlsplit
 from html.parser import HTMLParser
 
 import otree.constants
-from otree.models_concrete import ParticipantToPlayerLookup
 from django import test
 from django.urls import resolve
 from django.conf import settings
@@ -115,31 +114,12 @@ def expect(*args):
 
 
 class ParticipantBot(test.Client):
-    def __init__(
-        self,
-        participant: Participant = None,
-        *,
-        lookups: List[ParticipantToPlayerLookup] = None,
-        load_player_bots=True,
-        case_number=None,
-        executed_live_methods=None,
-    ):
+    def __init__(self, participant_or_code, *, player_bots, executed_live_methods=None):
 
-        # usually lookups should be passed in. for ad-hoc testing,
-        # ok to pass a participant
-        if not lookups:
-            lookups_with_duplicates = ParticipantToPlayerLookup.objects.filter(
-                participant_id=participant.id
-            ).order_by('player_pk')
-            seen_player_pks = set()
-            lookups = []
-            for lookup in lookups_with_duplicates:
-                if not lookup.player_pk in seen_player_pks:
-                    lookups.append(lookup)
-                    seen_player_pks.add(lookup.player_pk)
-
-        self.participant_id = lookups[0].participant_id
-        self.participant_code = lookups[0].participant_code
+        if isinstance(participant_or_code, Participant):
+            self.participant_code = participant_or_code.code
+        else:
+            self.participant_code = participant_or_code
 
         self.url = None
         self._response = None
@@ -151,20 +131,10 @@ class ParticipantBot(test.Client):
         self.executed_live_methods = executed_live_methods
         super().__init__()
 
-        self.player_bots: List[PlayerBot] = []
-
-        # load_player_bots can be set to False when it's convenient for
-        # internal testing
-        if load_player_bots:
-            for lookup in lookups:
-                app_name = lookup.app_name
-
-                bots_module = get_bots_module(app_name)
-                player_bot = bots_module.PlayerBot(
-                    lookup=lookup, case_number=case_number, participant_bot=self
-                )
-                self.player_bots.append(player_bot)
-            self.submits_generator = self.get_submits()
+        for b in player_bots:
+            b.participant_bot = self
+        self.player_bots: List[PlayerBot] = player_bots
+        self.submits_generator = self.get_submits()
 
     def open_start_url(self):
         start_url = common.participant_start_url(self.participant_code)
@@ -316,22 +286,22 @@ class PlayerBot:
     def __init__(
         self,
         case_number: int,
-        participant_bot: ParticipantBot,
-        lookup: ParticipantToPlayerLookup,
+        app_name,
+        player_pk: int,
+        subsession_pk: int,
+        session_pk,
+        participant_code,
     ):
 
-        app_name = lookup.app_name
         models_module = get_models_module(app_name)
 
         self.PlayerClass = models_module.Player
         self.GroupClass = models_module.Group
         self.SubsessionClass = models_module.Subsession
-        self._player_pk = lookup.player_pk
-        self._subsession_pk = lookup.subsession_pk
-        self._session_pk = lookup.session_pk
-        self._participant_pk = lookup.participant_id
-
-        self.participant_bot = participant_bot
+        self._player_pk = player_pk
+        self._subsession_pk = subsession_pk
+        self._session_pk = session_pk
+        self._participant_code = participant_code
 
         if case_number == None:
             # default to case 0
@@ -365,7 +335,7 @@ class PlayerBot:
 
     @property
     def participant(self):
-        return Participant.objects.get(pk=self._participant_pk)
+        return Participant.objects.get(code=self._participant_code)
 
     @property
     def session(self):

@@ -115,8 +115,12 @@
 
     </table>
 
-    <h3>Time spent on each page</h3>
-    <p><a href="{% url 'ExportTimeSpent' %}">
+    <h3>Page times</h3>
+    <p><small>
+      Records are output in batches so the latest data may not be
+      available immediately, or if the server restarts.
+    </small></p>
+    <p><a href="{% url 'ExportPageTimes' %}">
       <img src='{% static "glyphicons/download-alt.png" %}'>
       <b>Download</b></a></p>
 

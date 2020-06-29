@@ -14,12 +14,13 @@ from django.utils.encoding import force_text
 import otree
 from otree.currency import Currency, RealWorldCurrency
 from otree.common import get_models_module
+from otree.common2 import TIME_SPENT_COLUMNS
 from otree.models.group import BaseGroup
 from otree.models.participant import Participant
 from otree.models.player import BasePlayer
 from otree.models.session import Session
 from otree.models.subsession import BaseSubsession
-from otree.models_concrete import PageCompletion
+from otree.models_concrete import PageTimeBatch
 from otree.session import SessionConfig
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,6 @@ def _get_table_fields(Model, for_export=False):
         return [
             'code',
             'label',
-            'experimenter_name',
             'mturk_HITId',
             'mturk_HITGroupId',
             'comment',
@@ -480,27 +480,8 @@ def _export_xlsx(fp, rows):
     workbook.close()
 
 
-def export_time_spent(fp):
-    """Write the data of the timespent on each_page as csv into the file-like
-    object
-    """
-
-    column_names = [
-        'session_id',
-        'participant__id_in_session',
-        'participant__code',
-        'page_index',
-        'app_name',
-        'page_name',
-        'epoch_time',
-        'seconds_on_page',
-        'subsession_pk',
-        'auto_submitted',
-    ]
-
-    rows = PageCompletion.objects.order_by(
-        'session', 'participant', 'page_index'
-    ).values_list(*column_names)
-    writer = csv.writer(fp)
-    writer.writerows([column_names])
-    writer.writerows(rows)
+def export_page_times(fp):
+    batches = PageTimeBatch.objects.order_by('id').values_list('text', flat=True)
+    fp.write(','.join(TIME_SPENT_COLUMNS) + '\n')
+    for batch in batches:
+        fp.write(batch)

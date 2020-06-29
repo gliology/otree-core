@@ -87,16 +87,16 @@ class ExportSessionWide(vanilla.View):
         return response
 
 
-class ExportTimeSpent(vanilla.View):
+class ExportPageTimes(vanilla.View):
 
-    url_pattern = r"^ExportTimeSpent/$"
+    url_pattern = r"^ExportPageTimes/$"
 
     def get(self, request):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}"'.format(
-            'TimeSpent (accessed {}).csv'.format(datetime.date.today().isoformat())
+            'PageTimes (accessed {}).csv'.format(datetime.date.today().isoformat())
         )
-        otree.export.export_time_spent(response)
+        otree.export.export_page_times(response)
         return response
 
 

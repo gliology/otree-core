@@ -18,7 +18,6 @@ from otree.common import (
 )
 from otree.currency import RealWorldCurrency
 from otree.models import Participant, Session
-from otree.models_concrete import ParticipantLockModel, ParticipantToPlayerLookup
 
 
 def gcd(a, b):
@@ -284,38 +283,30 @@ def create_session(
                 ).format(session_config['name'], num_participants, session_lcm)
                 raise ValueError(msg)
 
-        if is_mturk:
-            mturk_num_participants = (
-                num_participants / settings.MTURK_NUM_PARTICIPANTS_MULTIPLE
-            )
-        else:
-            mturk_num_participants = -1
 
         session = Session.objects.create(
             config=session_config,
             label=label,
             is_demo=is_demo,
             num_participants=num_participants,
-            mturk_num_participants=mturk_num_participants,
+            is_mturk=is_mturk,
         )  # type: Session
+
+        session_code = session.code
 
         Participant.objects.bulk_create(
             [
-                Participant(id_in_session=id_in_session, session=session)
+                Participant(
+                    id_in_session=id_in_session,
+                    session=session,
+                    _session_code=session_code,
+                )
                 for id_in_session in list(range(1, num_participants + 1))
             ]
         )
 
         participant_values = session.participant_set.order_by('id').values('code', 'id')
 
-        ParticipantLockModel.objects.bulk_create(
-            [
-                ParticipantLockModel(participant_code=participant['code'])
-                for participant in participant_values
-            ]
-        )
-
-        participant_to_player_lookups = []
         page_index = 0
 
         for app_name in session_config['app_sequence']:
@@ -425,20 +416,6 @@ def create_session(
                             page_index=page_index,
                         )
 
-                        participant_to_player_lookups.append(
-                            ParticipantToPlayerLookup(
-                                participant_id=p['participant__id'],
-                                participant_code=participant_code,
-                                page_index=page_index,
-                                app_name=app_name,
-                                player_pk=p['id'],
-                                subsession_pk=p['subsession__id'],
-                                session_pk=session.pk,
-                                url=url,
-                            )
-                        )
-
-        ParticipantToPlayerLookup.objects.bulk_create(participant_to_player_lookups)
         session.participant_set.update(_max_page_index=page_index)
 
         with otree.db.idmap.use_cache():
