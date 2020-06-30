@@ -65,7 +65,7 @@ class Session(models.OTreeModel):
 
     def mturk_num_workers(self):
         assert self.is_mturk
-        return self.num_participants / settings.MTURK_NUM_PARTICIPANTS_MULTIPLE
+        return int(self.num_participants / settings.MTURK_NUM_PARTICIPANTS_MULTIPLE)
 
     mturk_use_sandbox = models.BooleanField(
         default=True, help_text="Should this session be created in mturk sandbox?"
