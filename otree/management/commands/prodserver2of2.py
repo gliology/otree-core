@@ -1,6 +1,7 @@
 # run the worker to enforce page timeouts
 # even if the user closes their browser
 from huey.contrib.djhuey.management.commands.run_huey import Command as HueyCommand
+import redis.exceptions
 
 
 class Command(HueyCommand):
@@ -12,11 +13,11 @@ class Command(HueyCommand):
         # to ensure the database is flushed in all circumstances.
         from huey.contrib.djhuey import HUEY
 
-        HUEY.flush()
-        # need to set USE_REDIS = True, because it uses the test client
-        # to submit pages, and if the next page has a timeout as well,
-        # its timeout task should be queued.
-        import otree.common
+        try:
+            HUEY.flush()
+        except redis.exceptions.ConnectionError as exc:
+            import sys
 
-        otree.common.USE_REDIS = True
+            sys.exit(f'Could not connect to Redis: {exc}')
+
         super().handle(*args, **options)

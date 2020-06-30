@@ -126,11 +126,13 @@ def execute_from_command_line(*args, **kwargs):
     # it needs to broadcast to redis channel layer, not in-memory.
     # this caused an obscure bug on 2019-09-21.
     # prodserver1of2, 2of2, etc
+    # we now require REDIS_URL to be defined even if using default localhost:6379
+    # that is to avoid piling up stuff in redis if it's not being used.
     if (
         'prodserver' in subcommand
         or 'webandworkers' in subcommand
         or 'timeoutworker' in subcommand
-    ):
+    ) and os.environ.get('REDIS_URL'):
         os.environ['OTREE_USE_REDIS'] = '1'
 
     if subcommand in [

@@ -21,11 +21,6 @@ logger = logging.getLogger('otree.test.browser_bots')
 
 
 class BadRequestError(Exception):
-    '''
-    if USE_REDIS==True, this exception will be converted to a dict
-    and passed through Redis.
-    if USE_REDIS==False, this will raise normally.
-    '''
 
     pass
 

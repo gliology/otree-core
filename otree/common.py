@@ -203,11 +203,6 @@ def ensure_superuser_exists(*args, **kwargs) -> str:
     return ''
 
 
-def get_redis_conn() -> redis.StrictRedis:
-    '''reuse Huey Redis connection'''
-    return HUEY.storage.conn
-
-
 def has_group_by_arrival_time(app_name):
     page_sequence = get_pages_module(app_name).page_sequence
     if len(page_sequence) == 0:

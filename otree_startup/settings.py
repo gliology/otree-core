@@ -100,7 +100,7 @@ def get_default_settings(user_settings: dict):
                 'propagate': False,
                 'level': 'DEBUG',
             },
-            'django.db.backends': {'level': 'DEBUG', 'handlers': ['sql']},
+            #'django.db.backends': {'level': 'DEBUG', 'handlers': ['sql']},
         },
     }
 

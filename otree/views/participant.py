@@ -17,7 +17,7 @@ from django.http import (
 from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
 from django.utils.translation import ugettext as _
-from otree.common import make_hash, get_redis_conn, BotError
+from otree.common import make_hash, BotError
 import otree.channels.utils as channel_utils
 import otree.db.idmap
 from otree.models import Participant, Session

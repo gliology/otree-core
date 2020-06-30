@@ -11,8 +11,6 @@ if not settings.configured:
 
 application = get_default_application()
 
-from otree.common import get_redis_conn  # noqa
-
 # clear any tasks in Huey DB, so they don't pile up over time,
 # especially if you run the server without the timeoutworker to consume the
 # tasks.
@@ -21,5 +19,9 @@ from otree.common import get_redis_conn  # noqa
 # how and when to check if Huey is running, in a performant way.
 # this code is also in timeoutworker.
 from huey.contrib.djhuey import HUEY  # noqa
-
-HUEY.flush()
+import redis.exceptions
+try:
+    HUEY.flush()
+except redis.exceptions.ConnectionError:
+    # maybe Redis is not running
+    pass
