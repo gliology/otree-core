@@ -41,9 +41,8 @@ PARTICIPANT_NOT_IN_BOTWORKER_MSG = (
 )
 
 
-class BotAndLiveWorker:
-    def __init__(self, redis_conn=None):
-        self.redis_conn = redis_conn
+class BotWorker:
+    def __init__(self):
         self.participants_by_session = OrderedDict()
         self.browser_bots: Dict[str, ParticipantBot] = {}
         self.queued_post_data: Dict[str, Dict] = {}
@@ -88,7 +87,7 @@ class BotAndLiveWorker:
         qpd = self.queued_post_data
         if participant_code in qpd:
             # already queued up, maybe the page got refreshed somehow
-            pass
+            return True
         bot = self.get_bot(participant_code)
         try:
             qpd[participant_code] = next(bot.submits_generator)
@@ -120,7 +119,7 @@ class BotAndLiveWorker:
 
 
 # global variable that holds the browser bot worker instance in memory
-browser_bot_worker: BotAndLiveWorker = None
+browser_bot_worker: BotWorker = None
 
 
 def set_attributes(**kwargs):

@@ -25,7 +25,6 @@ from django.views.decorators.cache import never_cache, cache_control
 import django.forms.models
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.log import log_response
-
 import otree.bots.browser as browser_bots
 import otree.channels.utils as channel_utils
 import otree.common
@@ -255,6 +254,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
                 response = response_for_exception(self.request, exc)
 
             otree.db.idmap.save_objects()
+
         return response
 
     def get_context_data(self, **context):
@@ -335,31 +335,24 @@ class FormPageOrInGameWaitPage(vanilla.View):
 
         return tables
 
-    def _load_all_models(self):
-        '''
-        Load all model instances into idmap cache.
-        If the page gets displayed, all models are loaded because they are used in the template.
-        '''
-        player = self.PlayerClass.objects.select_related(
-            'group', 'subsession', 'session'
-        ).get(pk=self._player_pk)
-
     def _is_displayed(self):
         try:
             return self.is_displayed()
         except:
             raise ResponseForException
 
-    @property
-    def participant(self) -> Participant:
-        return Participant.objects.get(pk=self._participant_pk)
+    # @property
+    # def participant(self) -> Participant:
+    #     return Participant.objects.get(pk=self._participant_pk)
 
-    @property
-    def player(self) -> BasePlayer:
-        # NOTE:
-        # these properties look in the idmap cache, so they don't touch
-        # the database if they are already loaded
-        return self.PlayerClass.objects.get(pk=self._player_pk)
+    # @property
+    # def player(self) -> BasePlayer:
+    #     '''take advantage of queryset laziness'''
+    #     qs = self._qs
+    #     if not qs._result_cache:
+    #         len(qs)
+    #         assert qs._result_cache
+    #     return self._qs[0]
 
     @property
     def group(self) -> BaseGroup:
@@ -368,6 +361,8 @@ class FormPageOrInGameWaitPage(vanilla.View):
 
     @property
     def subsession(self) -> BaseSubsession:
+        '''so that it doesn't rely on player'''
+        # this goes through idmap cache, so no perf hit
         return self.SubsessionClass.objects.get(pk=self._subsession_pk)
 
     @property
@@ -377,6 +372,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
     def set_attributes(self, participant):
 
         lookup = get_page_lookup(participant._session_code, participant._index_in_pages)
+        self._lookup = lookup
 
         app_name = lookup.app_name
 
@@ -385,16 +381,19 @@ class FormPageOrInGameWaitPage(vanilla.View):
         self.PlayerClass = getattr(models_module, 'Player')
         self.GroupClass = getattr(models_module, 'Group')
         self.SubsessionClass = getattr(models_module, 'Subsession')
-        # needed because idmap cache uses player PK as the key
-        # use filter()[0] instead of .get because that avoids idmap cache
-        self._player_pk = models_module.Player.objects.values_list(
-            'id', flat=True
-        ).filter(participant=participant, round_number=lookup.round_number)[0]
+        # self._qs = models_module.Player.objects.filter(
+        #     participant=participant, round_number=lookup.round_number
+        # ).select_related('group', 'subsession', 'session')
+        self.player = self.PlayerClass.objects.get(
+            participant=participant, round_number=lookup.round_number
+        )
         self._subsession_pk = lookup.subsession_id
         self.round_number = lookup.round_number
         self._session_pk = lookup.session_pk
         # simpler if we set it directly so that we can do tests without idmap cache
         self._participant_pk = participant.pk
+        # setting it directly makes testing easier (tests dont need to use cache)
+        self.participant = participant
 
         # it's already validated that participant is on right page
         self._index_in_pages = participant._index_in_pages
@@ -435,10 +434,6 @@ class FormPageOrInGameWaitPage(vanilla.View):
         page_index_to_skip_to = self._get_next_page_index_if_skipping_apps()
         is_skipping_apps = bool(page_index_to_skip_to)
 
-        # the pk/class that we last ran .start() for.
-        ran_start_pk = self._player_pk
-        ran_start_cls = self.PlayerClass
-
         for page_index in range(
             # go to max_page_index+2 because range() skips the last index
             # and it's possible to go to max_page_index + 1 (OutOfRange)
@@ -455,15 +450,13 @@ class FormPageOrInGameWaitPage(vanilla.View):
             url = self.participant._url_i_should_be_on()
 
             Page = get_view_from_url(url)
-            page = Page()
+            page: FormPageOrInGameWaitPage = Page()
 
             page.set_attributes(self.participant)
             if not is_skipping_apps:
-                if page.PlayerClass != ran_start_cls or page._player_pk != ran_start_pk:
+                if page._lookup.is_first_in_round:
                     # we have moved to a new round.
                     page.player.start()
-                    ran_start_pk = page._player_pk
-                    ran_start_cls = page.PlayerClass
                 if page._is_displayed():
                     break
 
@@ -624,7 +617,6 @@ class Page(FormPageOrInGameWaitPage):
             self._increment_index_in_pages()
             return self._redirect_to_page_the_user_should_be_on()
 
-        self._load_all_models()
         # this needs to be set AFTER scheduling submit_expired_url,
         # to prevent race conditions.
         # see that function for an explanation.
@@ -1015,7 +1007,6 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
     def inner_dispatch(self, *args, **kwargs):
         # necessary because queries are made directly from DB
         otree.db.idmap.save_objects()
-        idmap.flush()
         if self.wait_for_all_groups == True:
             resp = self.inner_dispatch_subsession()
         elif self.group_by_arrival_time:

@@ -112,4 +112,4 @@ class OtreeConfig(AppConfig):
         # initialize browser bot worker in process memory
         import otree.bots.browser
 
-        otree.bots.browser.browser_bot_worker = otree.bots.browser.BotAndLiveWorker()
+        otree.bots.browser.browser_bot_worker = otree.bots.browser.BotWorker()

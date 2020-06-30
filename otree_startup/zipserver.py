@@ -87,7 +87,6 @@ def autoreload_for_new_zipfiles() -> int:
                     # if process is still running, poll() returns None
                     exit_code = project.poll()
                     if exit_code != None:
-                        print('project finished on its own, exiting')
                         return exit_code
                     sleep(1)
                     latest_project = get_newest_project()
@@ -161,8 +160,6 @@ class Project:
             # - URLError may happen if the server didn't even start up yet
             #  (if you stop it right away)
             pass
-        except socket.timeout:
-            print('socket timeout, required for breakpoint')
         self._proc.wait()
 
     def wait(self) -> int:

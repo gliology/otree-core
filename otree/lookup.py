@@ -14,6 +14,7 @@ PageLookup = namedtuple(
         'subsession_id',
         'name_in_url',
         'session_pk',
+        'is_first_in_round',
     ],
 )
 
@@ -34,6 +35,7 @@ def _get_session_lookups(session_code) -> Dict[int, PageLookup]:
         }
 
         for rd in range(1, models.Constants.num_rounds + 1):
+            is_first_in_round = True
             for PageClass in page_sequence:
                 pages[idx] = PageLookup(
                     app_name=app_name,
@@ -43,7 +45,9 @@ def _get_session_lookups(session_code) -> Dict[int, PageLookup]:
                     # TODO: remove session ID, just use code everywhere
                     session_pk=session.pk,
                     name_in_url=models.Constants.name_in_url,
+                    is_first_in_round=is_first_in_round
                 )
+                is_first_in_round = False
                 idx += 1
     return pages
 

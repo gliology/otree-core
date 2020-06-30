@@ -58,7 +58,7 @@ def get_export_response(request, file_prefix):
         file_extension = 'csv'
     response = HttpResponse(content_type=content_type)
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(
-        '{} (accessed {}).{}'.format(
+        '{}-{}.{}'.format(
             file_prefix, datetime.date.today().isoformat(), file_extension
         )
     )
@@ -94,7 +94,7 @@ class ExportPageTimes(vanilla.View):
     def get(self, request):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}"'.format(
-            'PageTimes (accessed {}).csv'.format(datetime.date.today().isoformat())
+            'PageTimes-{}.csv'.format(datetime.date.today().isoformat())
         )
         otree.export.export_page_times(response)
         return response
@@ -108,7 +108,7 @@ class ExportChat(vanilla.View):
 
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}"'.format(
-            'Chat messages (accessed {}).csv'.format(datetime.date.today().isoformat())
+            'ChatMessages-{}.csv'.format(datetime.date.today().isoformat())
         )
 
         column_names = [

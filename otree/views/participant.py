@@ -329,7 +329,6 @@ class BrowserBotStartLink(GenericWaitPageMixin, vanilla.View):
     url_pattern = r'^browser_bot_start/(?P<pre_create_id>\w+)/$'
 
     def dispatch(self, request, pre_create_id):
-            get_redis_conn()  # why do we do this?
             session_info = BrowserBotsLauncherSessionCode.objects.first()
             if session_info:
                 if pre_create_id != session_info.pre_create_id:

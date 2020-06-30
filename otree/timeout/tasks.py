@@ -15,12 +15,10 @@ def post(url, data: dict):
     '''
     data = parse.urlencode(data).encode()
     req = request.Request(url, data=data)  # this will make the method "POST"
-    print('POST', url)
     resp = request.urlopen(req)
 
 
 def get(url):
-    print('GET', url)
     request.urlopen(url)
 
 
