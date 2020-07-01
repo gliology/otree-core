@@ -9,6 +9,7 @@ from functools import lru_cache
 import idmap
 import otree.common2
 import vanilla
+from django.db.models import F
 from django.conf import settings
 from django.core import signals
 from django.core.exceptions import PermissionDenied, SuspiciousOperation
@@ -476,14 +477,9 @@ class FormPageOrInGameWaitPage(vanilla.View):
                 # queries index_in_pages directly from the DB
                 self.participant.save()
 
-                unvisited = page._get_unvisited_ids()
-                if not unvisited:
-                    if page.wait_for_all_groups:
-                        group = None
-                    else:
-                        group = self.group
-                    page._mark_completed_and_notify(group=group)
-                    # we don't run after_all_players_arrive()
+                is_last, someone_waiting = page._tally_unvisited()
+                if is_last and someone_waiting:
+                    page._run_aapa_and_notify(page._group_or_subsession)
 
     def is_displayed(self):
         return True
@@ -1015,6 +1011,29 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             resp = self.inner_dispatch_group()
         return resp
 
+    def _run_aapa_and_notify(self, group_or_subsession):
+        '''new design is that if anybody is waiting on the wait page, we run AAPA.
+        If nobody is shown the wait page, we don't need to notify or even create a
+        CompletedGroupWaitPage record.
+        '''
+        if self.wait_for_all_groups:
+            group = None
+        else:
+            group = group_or_subsession
+
+        if isinstance(self.after_all_players_arrive, str):
+            aapa_method = getattr(group_or_subsession, self.after_all_players_arrive)
+        else:
+            wp: WaitPage = type(self)()
+            wp.set_attributes_waitpage_clone(original_view=self)
+            wp._group_for_wp_clone = group
+            aapa_method = wp.after_all_players_arrive
+        try:
+            aapa_method()
+        except:
+            raise ResponseForException
+        self._mark_completed_and_notify(group=group)
+
     def inner_dispatch_group(self):
         ## EARLY EXITS
         if CompletedGroupWaitPage.objects.filter(
@@ -1023,39 +1042,14 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             session=self.session,
         ).exists():
             return self._response_when_ready()
-        # if any player can skip the wait page,
-        # then we shouldn't run after_all_players_arrive
-        # because if some players are able to proceed to the next page
-        # before after_all_players_arrive is run,
-        # then after_all_players_arrive is probably not essential.
-        # often, there are some wait pages that all players skip,
-        # because they should only be shown in certain rounds.
-        # maybe the fields that after_all_players_arrive depends on
-        # are null
-        # something to think about: ideally, should we check if
-        # all players skipped, or any player skipped?
-        # as a shortcut, we just check if is_displayed is true
-        # for the last player.
-        if self._is_displayed():
-            if self._get_unvisited_ids():
-                self.participant.is_on_wait_page = True
-                return self._get_wait_page()
-            if isinstance(self.after_all_players_arrive, str):
-                aapa_method = getattr(self.group, self.after_all_players_arrive)
-            else:
-                wp: WaitPage = type(self)()
-                wp.set_attributes_waitpage_clone(original_view=self)
-                wp._group_for_wp_clone = self.group
 
-                aapa_method = wp.after_all_players_arrive
-            try:
-                aapa_method()
-            except:
-                raise ResponseForException
-
-        # even if this player skips the page and after_all_players_arrive
-        # is not run, we need to indicate that the waiting players can advance
-        self._mark_completed_and_notify(group=self.group)
+        is_displayed = self._is_displayed()
+        is_last, someone_waiting = self._tally_unvisited()
+        if is_displayed and not is_last:
+            self.participant.is_on_wait_page = True
+            return self._get_wait_page()
+        elif is_last and (someone_waiting or is_displayed):
+            self._run_aapa_and_notify(self.group)
         return self._response_when_ready()
 
     def inner_dispatch_subsession(self):
@@ -1065,24 +1059,13 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         ).exists():
             return self._response_when_ready()
 
-        if self._is_displayed():
-            if self._get_unvisited_ids():
-                self.participant.is_on_wait_page = True
-                return self._get_wait_page()
-
-            if isinstance(self.after_all_players_arrive, str):
-                aapa_method = getattr(self.subsession, self.after_all_players_arrive)
-            else:
-                wp: WaitPage = type(self)()
-                wp.set_attributes_waitpage_clone(original_view=self)
-                aapa_method = wp.after_all_players_arrive
-            try:
-                aapa_method()
-            except:
-                raise ResponseForException
-        # even if this player skips the page and after_all_players_arrive
-        # is not run, we need to indicate that the waiting players can advance
-        self._mark_completed_and_notify(group=None)
+        is_displayed = self._is_displayed()
+        is_last, someone_waiting = self._tally_unvisited()
+        if is_displayed and not is_last:
+            self.participant.is_on_wait_page = True
+            return self._get_wait_page()
+        elif is_last and (someone_waiting or is_displayed):
+            self._run_aapa_and_notify(self.group)
         return self._response_when_ready()
 
     def inner_dispatch_gbat(self):
@@ -1115,19 +1098,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         gbat_new_group = self.subsession._gbat_try_to_make_new_group()
 
         if gbat_new_group:
-            if isinstance(self.after_all_players_arrive, str):
-                aapa_method = getattr(gbat_new_group, self.after_all_players_arrive)
-            else:
-                wp: WaitPage = type(self)()
-                wp.set_attributes_waitpage_clone(original_view=self)
-                wp._group_for_wp_clone = gbat_new_group
-                aapa_method = wp.after_all_players_arrive
-            try:
-                aapa_method()
-            except:
-                raise ResponseForException
-
-            self._mark_completed_and_notify(gbat_new_group)
+            self._run_aapa_and_notify(gbat_new_group)
             # gbat_new_group may not include the current player!
             # maybe this will not work if i change the implementation
             # so that the player is cached,
@@ -1253,25 +1224,19 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 group_id_in_subsession=self.group.id_in_subsession,
             )
 
-    def _get_unvisited_ids(self):
-        """
-        Don't need a lock
-        """
+    def _tally_unvisited(self):
 
-        participant_ids = set(
-            self._group_or_subsession.player_set.values_list(
-                'participant_id', flat=True
-            )
-        )
-
-        participant_data = Participant.objects.filter(id__in=participant_ids).values(
-            'id', 'id_in_session', '_index_in_pages'
+        participant_data = self._group_or_subsession.player_set.values(
+            id_in_session=F('participant__id_in_session'),
+            index_in_pages=F('participant___index_in_pages'),
+            is_on_wait_page=F('participant__is_on_wait_page'),
+            _id=F('participant__id'),
         )
 
         visited = []
         unvisited = []
         for p in participant_data:
-            if p['_index_in_pages'] < self._index_in_pages:
+            if p['index_in_pages'] < self._index_in_pages:
                 unvisited.append(p)
             else:
                 visited.append(p)
@@ -1284,12 +1249,17 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 'P{}'.format(p['id_in_session']) for p in unvisited
             )
 
-            visited_ids = [p['id'] for p in visited]
+            visited_ids = [p['_id'] for p in visited]
             Participant.objects.filter(id__in=visited_ids).update(
                 _waiting_for_ids=unvisited_description
             )
 
-        return {p['id'] for p in unvisited}
+        is_last = not bool(unvisited)
+        someone_waiting = any(
+            p['index_in_pages'] == self._index_in_pages and p['is_on_wait_page']
+            for p in participant_data
+        )
+        return (is_last, someone_waiting)
 
     def is_displayed(self):
         return True
