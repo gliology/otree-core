@@ -479,6 +479,9 @@ class FormPageOrInGameWaitPage(vanilla.View):
 
                 is_last, someone_waiting = page._tally_unvisited()
                 if is_last and someone_waiting:
+                    # the notify code uses self.request.build_absolute_uri
+                    # to send the URL to the timeoutworker
+                    page.request = self.request
                     page._run_aapa_and_notify(page._group_or_subsession)
 
     def is_displayed(self):
