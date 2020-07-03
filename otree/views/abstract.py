@@ -1068,7 +1068,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             self.participant.is_on_wait_page = True
             return self._get_wait_page()
         elif is_last and (someone_waiting or is_displayed):
-            self._run_aapa_and_notify(self.group)
+            self._run_aapa_and_notify(self.subsession)
         return self._response_when_ready()
 
     def inner_dispatch_gbat(self):
