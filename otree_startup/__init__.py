@@ -295,7 +295,9 @@ def check_update_needed(requirements_path: Path) -> Optional[str]:
             except pkg.VersionConflict as exc:
                 # can't say to install requirements_base.txt because if they are using zipserver,
                 # that file doesn't exist.
-                return f'{exc.report()}. Enter: pip3 install "{exc.req}"'
+                # used to tell people to install exc.req, but then they got:
+                # ... Enter: pip3 install "botocore==1.12.235; extra == "mturk""
+                return f'{exc.report()}. Enter: pip3 install "{req}"'
 
 
 def highlight(string):

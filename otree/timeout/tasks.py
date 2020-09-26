@@ -1,4 +1,5 @@
 import urllib.request
+from urllib.error import URLError
 import django.test
 from huey.contrib.djhuey import db_task
 import otree.constants
@@ -19,7 +20,11 @@ def post(url, data: dict):
 
 
 def get(url):
-    request.urlopen(url)
+    try:
+        request.urlopen(url)
+    # some users were reporting URLError but not clear what URL it was
+    except URLError as exc:
+        raise Exception(f'Error occurred when opening {url}: {repr(exc)}') from None
 
 
 @db_task()

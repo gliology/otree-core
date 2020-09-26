@@ -87,7 +87,7 @@ def _get_table_fields(Model, for_export=False):
             ]
         else:
             return [
-                '_id_in_session',
+                '_numeric_label',
                 'code',
                 'label',
                 '_current_page',
@@ -452,7 +452,11 @@ def custom_export_app(app_name, fp, file_extension):
         'participant', 'group', 'subsession', 'session'
     ).order_by('id')
     rows = models_module.custom_export(qs)
-    _export_csv_or_xlsx(fp, rows, file_extension)
+    # convert to strings so we don't get errors especially in xlsx write
+    str_rows = []
+    for row in rows:
+        str_rows.append([str(ele) for ele in row])
+    _export_csv_or_xlsx(fp, str_rows, file_extension)
 
 
 def _export_csv_or_xlsx(fp, rows, file_extension):

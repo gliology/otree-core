@@ -4,8 +4,7 @@ because on runserver, Chrome caches it, so all oTree users developing on Chrome
 would need to Ctrl+F5.
  */
 
-function populateTableBody($tbody, rows)
-{
+function populateTableBody($tbody, rows) {
     var html = '';
     for (var i in rows) {
         html += createTableRow(rows[i]);
@@ -13,9 +12,8 @@ function populateTableBody($tbody, rows)
     $tbody.append(html);
 }
 
-function createTableRow(row)
-{
-   var html = '<tr>';
+function createTableRow(row) {
+    var html = '<tr>';
     for (var key in row) {
         var value = row[key];
         if (value === null) {
@@ -43,38 +41,32 @@ function flashGreen($ele) {
     );
 }
 
+let diffpatcher = jsondiffpatch.create({
+    objectHash: (obj) => obj.numeric_label
+});
+
 function updateTable($table, new_json) {
-    var old_json = $table.data("raw");
-    var $tbody = $table.find('tbody');
+    let old_json = $table.data("raw");
+    let $tbody = $table.find('tbody');
     // build table for the first time
-    if ( old_json === undefined ) {
+    if (old_json === undefined) {
         populateTableBody($tbody, new_json);
     }
-    // compute delta and update
-    // corresponding values in table
     else {
-        var diffpatcher = jsondiffpatch.create({
-            objectHash: function(obj) {
-                // it's not actually participant.label, it's
-                // participant._id_in_session e.g. P1, P2... not sure why
-                // it was called that
-                return obj.participant_label;
-            }
-        });
-        var delta = diffpatcher.diff(old_json, new_json);
-        for (i in delta) {
-            // 2017-08-13: when i have time, i should update this
-            // to the refactor I did in SessionMonitor.html
-            for (header_name in delta[i]) {
-
-                var cell_to_update = $table.find(
-                    "tbody tr:eq(" + i + ") td[data-field='" + header_name + "']" );
-                var new_value = delta[i][header_name][1];
-                cell_to_update.text(new_value);
-
-                // so that we get tooltips if it truncates
-                cell_to_update.prop('title', new_value);
-                flashGreen(cell_to_update);
+        let delta = diffpatcher.diff(old_json, new_json);
+        if (delta) {
+            for (let i of Object.keys(delta)) {
+                // 2017-08-13: when i have time, i should update this
+                // to the refactor I did in SessionMonitor.html
+                let $row = $tbody.find(`tr:eq(${i})`);
+                for (let header_name of Object.keys(delta[i])) {
+                    let cell_to_update = $row.find(`td[data-field='${header_name}']`);
+                    let new_value = delta[i][header_name][1];
+                    cell_to_update.text(new_value);
+                    // so that we get tooltips if it truncates
+                    cell_to_update.prop('title', new_value);
+                    flashGreen(cell_to_update);
+                }
             }
         }
     }
@@ -105,11 +97,11 @@ function makeTableDraggable($table) {
             mouseX = e.pageX;
             mouseY = e.pageY;
         }).mouseup(function (e) {
-            if (!$table.hasClass('grabbing')) {
-                return;
-            }
-            e.preventDefault();
-            $table.removeClass('grabbing');
+        if (!$table.hasClass('grabbing')) {
+            return;
+        }
+        e.preventDefault();
+        $table.removeClass('grabbing');
     });
 }
 
@@ -118,15 +110,15 @@ function adjustCellWidths($table) {
     $table = $($table);
 
     // Adjust the width of thead cells when window resizes
-    $(window).resize(function() {
+    $(window).resize(function () {
         // Get the tbody columns width array
         var $bodyCells = $table.find('tbody tr:first').children();
-        var colWidths = $bodyCells.map(function() {
+        var colWidths = $bodyCells.map(function () {
             return $(this).width();
         }).get();
 
         // Set the width of thead columns
-        $table.find('thead tr:last').children().each(function(i, v) {
+        $table.find('thead tr:last').children().each(function (i, v) {
             $(v).width(colWidths[i]);
         });
     }).resize(); // Trigger resize handler    

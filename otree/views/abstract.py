@@ -328,7 +328,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
                 ('ID in group', player.id_in_group),
                 ('Group', player.group_id),
                 ('Round number', player.round_number),
-                ('Participant', participant._id_in_session()),
+                ('Participant', participant._numeric_label()),
                 ('Participant label', participant.label or ''),
                 ('Session code', participant._session_code),
             ],

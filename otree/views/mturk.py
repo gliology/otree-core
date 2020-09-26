@@ -357,7 +357,7 @@ class PayMTurk(vanilla.View):
             except Exception as e:
                 msg = (
                     'Could not pay {} because of an error communicating '
-                    'with MTurk: {}'.format(p._id_in_session(), str(e))
+                    'with MTurk: {}'.format(p._numeric_label(), str(e))
                 )
                 messages.error(request, msg)
                 logger.error(msg)

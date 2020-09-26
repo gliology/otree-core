@@ -295,7 +295,7 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
         for i, row in enumerate(rows, start=1):
             d_row = OrderedDict()
             # table always starts with participant 1
-            d_row['participant_label'] = 'P{}'.format(i)
+            d_row['numeric_label'] = 'P{}'.format(i)
             for t, v in zip(field_names_json, row):
                 d_row[t] = v
             self.context_json.append(d_row)
@@ -320,7 +320,7 @@ class SessionMonitor(AdminSessionPageMixin, vanilla.TemplateView):
 
         field_names = otree.export.get_field_names_for_live_update(Participant)
         display_names = {
-            '_id_in_session': 'ID in session',
+            '_numeric_label': 'ID in session',
             'code': 'Code',
             'label': 'Label',
             '_current_page': 'Page',
@@ -331,7 +331,7 @@ class SessionMonitor(AdminSessionPageMixin, vanilla.TemplateView):
             '_last_page_timestamp': 'Time on page',
         }
 
-        callable_fields = {'status', '_id_in_session', '_current_page'}
+        callable_fields = {'status', '_numeric_label', '_current_page'}
 
         column_names = [display_names[col] for col in field_names]
 

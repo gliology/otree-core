@@ -38,7 +38,7 @@ class Participant(models.OTreeModel):
 
     _index_in_pages = models.PositiveIntegerField(default=0, db_index=True)
 
-    def _id_in_session(self):
+    def _numeric_label(self):
         """the human-readable version."""
         return 'P{}'.format(self.id_in_session)
 
