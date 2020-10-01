@@ -1,11 +1,12 @@
 import urllib.request
 from urllib.error import URLError
 import django.test
-from huey.contrib.djhuey import db_task
+from huey.contrib.djhuey import db_task, task
 import otree.constants
 
 
 from urllib import request, parse
+from urllib.parse import urljoin
 
 
 def post(url, data: dict):
@@ -27,8 +28,16 @@ def get(url):
         raise Exception(f'Error occurred when opening {url}: {repr(exc)}') from None
 
 
+in_memory_base_url = ''
+
+
 @db_task()
-def submit_expired_url(participant_code, url, path):
+def submit_expired_url(participant_code, base_url, path):
+    if 'testserver' in base_url:
+        base_url = in_memory_base_url
+        if not base_url:
+            return
+
     from otree.models.participant import Participant
 
     # if the participant exists in the DB,
@@ -47,7 +56,7 @@ def submit_expired_url(participant_code, url, path):
     if Participant.objects.filter(
         code=participant_code, _current_form_page_url=path
     ).exists():
-        post(url, data={otree.constants.timeout_happened: True})
+        post(urljoin(base_url, path), data={otree.constants.timeout_happened: True})
 
 
 @db_task()
@@ -57,6 +66,11 @@ def ensure_pages_visited(participant_pks, base_url):
     the wait page and get redirected, so after a grace period we load the page
     automatically, to kick off the expiration timer of the timeout page.
     """
+
+    if 'testserver' in base_url:
+        base_url = in_memory_base_url
+        if not base_url:
+            return
 
     from otree.models.participant import Participant
 
@@ -71,4 +85,13 @@ def ensure_pages_visited(participant_pks, base_url):
         # because that will redirect to the current wait page.
         # (alternatively we could define _current_page_url or
         # current_wait_page_url)
-        get(urllib.parse.urljoin(base_url, participant._url_i_should_be_on()))
+        get(urljoin(base_url, participant._url_i_should_be_on()))
+
+
+@task()
+def set_base_url(url):
+    '''this is necessary because advance_last_place_participants uses the test client, which has a bogus url of
+    http://testserver that doesn't work when we make requests over the network.
+    '''
+    global in_memory_base_url
+    in_memory_base_url = url

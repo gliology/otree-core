@@ -891,7 +891,7 @@ class Page(FormPageOrInGameWaitPage):
                 otree.timeout.tasks.submit_expired_url.schedule(
                     (
                         self.participant.code,
-                        self.request.build_absolute_uri(),
+                        self.request.build_absolute_uri('/'),
                         self.request.path,
                     ),
                     # add some seconds to account for latency of request + response

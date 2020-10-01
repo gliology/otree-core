@@ -28,7 +28,7 @@ from otree.models import Participant, Session
 from otree.session import SESSION_CONFIGS_DICT, SessionConfig
 from otree.views.abstract import AdminSessionPageMixin
 from django.db.models import Case, Value, When
-
+from otree.timeout import tasks
 
 def pretty_name(name):
     """Converts 'first_name' to 'first name'"""
@@ -518,6 +518,7 @@ class AdvanceSession(vanilla.View):
 
     def post(self, request, session_code):
         session = get_object_or_404(otree.models.Session, code=session_code)
+        tasks.set_base_url(request.build_absolute_uri('/'))
         session.advance_last_place_participants()
         return HttpResponse('ok')
 
