@@ -1,6 +1,7 @@
 # like common, but can import models
 from otree.models_concrete import PageTimeBatch
 import time
+import otree.channels.utils as channel_utils
 
 TIME_SPENT_COLUMNS = [
     'session_code',

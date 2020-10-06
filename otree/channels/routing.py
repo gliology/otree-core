@@ -18,6 +18,7 @@ websocket_routes = [
     url(r'^delete_sessions/$', consumers.DeleteSessions),
     url(r'^wait_for_session_in_room/$', consumers.RoomParticipant),
     url(r'^room_without_session/(?P<room>\w+)/$', consumers.RoomAdmin),
+    url(r'^session_monitor/(?P<code>\w+)/$', consumers.SessionMonitor),
     url(r'^browser_bots_client/(?P<session_code>\w+)/$', consumers.BrowserBotsLauncher),
     url(r'^browser_bot_wait/$', consumers.BrowserBot),
     url(

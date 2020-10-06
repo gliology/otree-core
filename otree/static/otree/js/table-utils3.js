@@ -5,24 +5,39 @@ would need to Ctrl+F5.
  */
 
 function populateTableBody($tbody, rows) {
-    var html = '';
-    for (var i in rows) {
-        html += createTableRow(rows[i]);
+    tbody = $tbody[0];
+    for (let row of rows) {
+        tbody.appendChild(createTableRow(row));
     }
-    $tbody.append(html);
+}
+
+function makeCellDatasetValue(value) {
+    if (value === null) return '';
+    return value.toString();
+}
+
+function makeCellDisplayValue(field, value) {
+    if (value === null) {
+        return '';
+    }
+    if (field === '_last_page_timestamp') {
+        let date = new Date(parseFloat(value) * 1000);
+        let dateString = date.toISOString();
+        return `<time class="timeago" datetime="${dateString}"></time>`;
+    }
+    return value;
 }
 
 function createTableRow(row) {
-    var html = '<tr>';
-    for (var key in row) {
-        var value = row[key];
-        if (value === null) {
-            value = '';
-        }
-        html += '<td data-field="' + key + '" title="' + value + '">' + value + '</td>';
+    let tr = document.createElement('tr');
+    for (let [field, value] of Object.entries(row)) {
+        let td = document.createElement('td');
+        td.dataset.field = field;
+        td.dataset.value = makeCellDatasetValue(value);
+        td.innerHTML = makeCellDisplayValue(field, value);
+        tr.appendChild(td)
     }
-    html += '</tr>';
-    return html;
+    return tr;
 }
 
 function updateDraggable($table) {
@@ -51,20 +66,17 @@ function updateTable($table, new_json) {
     // build table for the first time
     if (old_json === undefined) {
         populateTableBody($tbody, new_json);
-    }
-    else {
-        let delta = diffpatcher.diff(old_json, new_json);
-        if (delta) {
-            for (let i of Object.keys(delta)) {
+    } else {
+        let deltas = diffpatcher.diff(old_json, new_json);
+        if (deltas) {
+            for (let i of Object.keys(deltas)) {
                 // 2017-08-13: when i have time, i should update this
                 // to the refactor I did in SessionMonitor.html
                 let $row = $tbody.find(`tr:eq(${i})`);
-                for (let header_name of Object.keys(delta[i])) {
+                for (let header_name of Object.keys(deltas[i])) {
                     let cell_to_update = $row.find(`td[data-field='${header_name}']`);
-                    let new_value = delta[i][header_name][1];
+                    let new_value = deltas[i][header_name][1];
                     cell_to_update.text(new_value);
-                    // so that we get tooltips if it truncates
-                    cell_to_update.prop('title', new_value);
                     flashGreen(cell_to_update);
                 }
             }
@@ -103,23 +115,4 @@ function makeTableDraggable($table) {
         e.preventDefault();
         $table.removeClass('grabbing');
     });
-}
-
-function adjustCellWidths($table) {
-    // Change the selector if needed
-    $table = $($table);
-
-    // Adjust the width of thead cells when window resizes
-    $(window).resize(function () {
-        // Get the tbody columns width array
-        var $bodyCells = $table.find('tbody tr:first').children();
-        var colWidths = $bodyCells.map(function () {
-            return $(this).width();
-        }).get();
-
-        // Set the width of thead columns
-        $table.find('thead tr:last').children().each(function (i, v) {
-            $(v).width(colWidths[i]);
-        });
-    }).resize(); // Trigger resize handler    
 }

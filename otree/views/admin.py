@@ -29,6 +29,7 @@ from otree.session import SESSION_CONFIGS_DICT, SessionConfig
 from otree.views.abstract import AdminSessionPageMixin
 from django.db.models import Case, Value, When
 from otree.timeout import tasks
+import otree.channels.utils as channel_utils
 
 
 def pretty_name(name):
@@ -317,55 +318,26 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
 
 
 class SessionMonitor(AdminSessionPageMixin, vanilla.TemplateView):
-    def vars_for_template(self):
-
+    def get_context_data(self, **kwargs):
         field_names = otree.export.get_field_names_for_live_update(Participant)
+
         display_names = {
-            '_numeric_label': 'ID in session',
+            '_numeric_label': '',
             'code': 'Code',
             'label': 'Label',
             '_current_page': 'Page',
             '_current_app_name': 'App',
             '_round_number': 'Round',
             '_current_page_name': 'Page name',
-            'status': 'Status',
+            '_monitor_note': 'Waiting for',
             '_last_page_timestamp': 'Time on page',
         }
-
-        callable_fields = {'status', '_numeric_label', '_current_page'}
-
         column_names = [display_names[col] for col in field_names]
 
-        advance_users_button_text = (
-            "Advance the slowest user(s) by one page, "
-            "by forcing a timeout on their current page. "
-        )
-
-        participants = self.session.participant_set.filter(visited=True)
-        rows = []
-
-        for participant in participants:
-            row = {}
-            for field_name in field_names:
-                value = getattr(participant, field_name)
-                if field_name in callable_fields:
-                    value = value()
-                row[field_name] = value
-            rows.append(row)
-
-        self.context_json = rows
-
-        return dict(
+        return super().get_context_data(
             column_names=column_names,
-            advance_users_button_text=advance_users_button_text,
+            socket_url=channel_utils.session_monitor_path(self.session.code),
         )
-
-    def get(self, request, *args, **kwargs):
-        context = self.get_context_data()
-        if self.request.META.get('CONTENT_TYPE') == 'application/json':
-            return JsonResponse(self.context_json, safe=False)
-        else:
-            return self.render_to_response(context)
 
 
 class SessionDescription(AdminSessionPageMixin, vanilla.TemplateView):

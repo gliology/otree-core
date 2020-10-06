@@ -11,7 +11,7 @@ import string
 from collections import OrderedDict
 from importlib import import_module
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, List
 import redis
 from django.apps import apps
 from django.db import connection
@@ -21,7 +21,6 @@ import urllib
 import os
 import model_utils.tracker
 import json
-
 from django.conf import settings
 from django.utils.safestring import mark_safe
 
@@ -423,3 +422,5 @@ def load_db():
         src.backup(connection.connection)
     else:
         print('Creating new database', db_path.resolve())
+
+

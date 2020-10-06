@@ -19,6 +19,7 @@ from otree.common import (
 )
 from otree.currency import RealWorldCurrency
 from otree.models import Participant, Session
+from otree.constants import BaseConstants, get_roles, get_role
 
 
 def gcd(a, b):
@@ -313,7 +314,7 @@ def create_session(
 
             views_module = common.get_pages_module(app_name)
             models_module = get_models_module(app_name)
-            Constants = models_module.Constants
+            Constants: BaseConstants = models_module.Constants
             num_subsessions += Constants.num_rounds
 
             round_numbers = list(range(1, Constants.num_rounds + 1))
@@ -372,6 +373,7 @@ def create_session(
             players_to_create = []
 
             for subsession in subsessions:
+                roles = get_roles(Constants)
                 subsession_id = subsession['id']
                 round_number = subsession['round_number']
                 participant_index = 0
@@ -386,6 +388,7 @@ def create_session(
                                 participant_id=participant['id'],
                                 group_id=group_id,
                                 id_in_group=id_in_group,
+                                _role=get_role(roles, id_in_group),
                             )
                         )
                         participant_index += 1

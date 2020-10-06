@@ -6,9 +6,11 @@ from otree.common import (
     InvalidRoundError,
     add_field_tracker,
 )
+from otree import common
 from otree.models.fieldchecks import ensure_field
 import django.core.exceptions
 from django.db import models as djmodels
+from otree.constants import BaseConstants, get_role, get_roles
 
 
 class BaseGroup(models.OTreeModel):
@@ -30,6 +32,10 @@ class BaseGroup(models.OTreeModel):
 
     round_number = models.PositiveIntegerField(db_index=True)
 
+    @property
+    def _Constants(self) -> BaseConstants:
+        return get_models_module(self._meta.app_config.name).Constants
+
     def __unicode__(self):
         return str(self.pk)
 
@@ -44,16 +50,25 @@ class BaseGroup(models.OTreeModel):
             raise ValueError(msg) from None
 
     def get_player_by_role(self, role):
-        for p in self.get_players():
-            if p.role() == role:
-                return p
-        msg = 'No player with role {}'.format(role)
+        if get_roles(self._Constants):
+            try:
+                return self.player_set.get(_role=role)
+            except django.core.exceptions.ObjectDoesNotExist:
+                pass
+        else:
+            for p in self.get_players():
+                if p.role() == role:
+                    return p
+        msg = f'No player with role "{role}"'
         raise ValueError(msg)
 
     def set_players(self, players_list):
+        Constants = self._Constants
+        roles = get_roles(Constants)
         for i, player in enumerate(players_list, start=1):
             player.group = self
             player.id_in_group = i
+            player._role = get_role(roles, i)
             player.save()
 
     def in_round(self, round_number):

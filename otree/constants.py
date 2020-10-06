@@ -49,6 +49,18 @@ class BaseConstantsMeta(type):
 class BaseConstants(metaclass=BaseConstantsMeta):
     pass
 
+def get_roles(Constants) -> list:
+    roles = []
+    for k, v in Constants.__dict__.items():
+        if k.startswith('role_'):
+            roles.append(v)
+    return roles
+
+def get_role(roles, id_in_group):
+    '''this is split apart from get_roles_ as a perf optimization'''
+    if roles and len(roles) >= id_in_group:
+        return roles[id_in_group - 1]
+
 
 get_param_truth_value = '1'
 admin_secret_code = 'admin_secret_code'

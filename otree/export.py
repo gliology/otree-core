@@ -94,7 +94,7 @@ def _get_table_fields(Model, for_export=False):
                 '_current_app_name',
                 '_round_number',
                 '_current_page_name',
-                'status',
+                '_monitor_note',
                 '_last_page_timestamp',
             ]
 
@@ -106,10 +106,7 @@ def _get_table_fields(Model, for_export=False):
             and f not in ['id', 'group_id', 'subsession_id']
         ]
 
-        if for_export:
-            return ['id_in_group'] + subclass_fields + ['payoff']
-        else:
-            return ['id_in_group', 'role'] + subclass_fields + ['payoff']
+        return ['id_in_group', 'role'] + subclass_fields + ['payoff']
 
     if issubclass(Model, BaseGroup):
         subclass_fields = [
@@ -312,8 +309,9 @@ def get_rows_for_wide_csv_round(app_name, round_number, sessions):
             subsession_rows = []
 
             for player in players:
-                # because player.payoff is a property
+                # because these are properties
                 player['payoff'] = player['_payoff']
+                player['role'] = player['_role']
                 row = []
                 all_objects = {
                     'player': player,
@@ -373,8 +371,9 @@ def get_rows_for_csv(app_name):
     ]
 
     for player in players:
-        # because player.payoff is a property
+        # because these are properties
         player['payoff'] = player['_payoff']
+        player['role'] = player['_role']
         row = []
         all_objects = {'player': player}
         for model_name in value_dicts:
@@ -387,6 +386,22 @@ def get_rows_for_csv(app_name):
                 row.append(sanitize_for_csv(value))
         rows.append(row)
 
+    return rows
+
+
+def get_rows_for_monitor(participants) -> list:
+    field_names = get_field_names_for_live_update(Participant)
+    callable_fields = {'_numeric_label', '_current_page'}
+    rows = []
+    for participant in participants:
+        row = {}
+        for field_name in field_names:
+            value = getattr(participant, field_name)
+            if field_name in callable_fields:
+                value = value()
+            row[field_name] = value
+        row['id_in_session'] = participant.id_in_session
+        rows.append(row)
     return rows
 
 

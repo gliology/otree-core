@@ -77,7 +77,6 @@ class _OTreeAsyncJsonWebsocketConsumer(AsyncJsonWebsocketConsumer):
     # so we need to make our own
     # https://github.com/django/channels/issues/1241
     async def connect(self):
-
         AUTH_LEVEL = settings.AUTH_LEVEL
 
         auth_required = (
@@ -472,6 +471,27 @@ class CreateSession(BaseCreateSession):
         )
 
     async def session_created(self, event):
+        await self.send_json(event)
+
+
+class SessionMonitor(_OTreeAsyncJsonWebsocketConsumer):
+    unrestricted_when = UNRESTRICTED_IN_DEMO_MODE
+
+    def group_name(self, code):
+        return channel_utils.session_monitor_group_name(code)
+
+    def get_initial_data(self, code):
+        participants = Participant.objects.filter(_session_code=code, visited=True)
+        return otree.export.get_rows_for_monitor(participants)
+
+    async def post_connect(self, code):
+        initial_data = await database_sync_to_async(self.get_initial_data)(code=code)
+        await self.send_json(dict(rows=initial_data))
+
+    async def monitor_table_delta(self, event):
+        await self.send_json(event)
+
+    async def update_notes(self, event):
         await self.send_json(event)
 
 

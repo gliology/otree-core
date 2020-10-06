@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import time
-from typing import Optional
+from typing import Optional, List
 
 from functools import lru_cache
 import idmap
@@ -48,6 +48,7 @@ from otree.common import (
     BotError,
     ResponseForException,
 )
+from otree import common
 from otree.common2 import TIME_SPENT_COLUMNS
 from otree.lookup import get_min_idx_for_app, get_page_lookup
 from otree.models import Participant, Session, BasePlayer, BaseGroup, BaseSubsession
@@ -58,7 +59,7 @@ from otree.models_concrete import (
     CompletedGBATWaitPage,
     UndefinedFormModel,
 )
-
+from otree import export
 
 logger = logging.getLogger(__name__)
 
@@ -473,6 +474,14 @@ class FormPageOrInGameWaitPage(vanilla.View):
     def is_displayed(self):
         return True
 
+    def _update_monitor_table(self):
+        participant = self.participant
+        channel_utils.sync_group_send_wrapper(
+            type='monitor_table_delta',
+            group=channel_utils.session_monitor_group_name(participant._session_code),
+            event=dict(rows=export.get_rows_for_monitor([participant])),
+        )
+
     def _get_next_page_index_if_skipping_apps(self):
         # don't run it if the page is not displayed, because:
         # (1) it's consistent with other functions like before_next_page, vars_for_template
@@ -503,12 +512,14 @@ class FormPageOrInGameWaitPage(vanilla.View):
         now = int(time.time())
         participant = self.participant
 
+        session_code = participant._session_code
+
         otree.common2.make_page_completion_row(
             view=self,
             app_name=self.player._meta.app_config.name,
             participant__id_in_session=participant.id_in_session,
             participant__code=participant.code,
-            session_code=participant._session_code,
+            session_code=session_code,
             is_wait_page=0,
         )
 
@@ -607,6 +618,8 @@ class Page(FormPageOrInGameWaitPage):
         # see that function for an explanation.
         self.participant._current_form_page_url = self.request.path
         self.object = self.get_object()
+
+        self._update_monitor_table()
 
         # 2020-07-10: maybe we should call vars_for_template before instantiating the form
         # so that you can set initial value for a field in vars_for_template?
@@ -935,6 +948,8 @@ class GenericWaitPageMixin:
         return ['otree/WaitPage.html']
 
     def _get_wait_page(self):
+        self.participant.is_on_wait_page = True
+        self._update_monitor_table()
         response = TemplateResponse(
             self.request, self.get_template_names(), self.get_context_data()
         )
@@ -1033,11 +1048,9 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             session_id=self._session_pk,
         ).exists():
             return self._response_when_ready()
-
         is_displayed = self._is_displayed()
         is_last, someone_waiting = self._tally_unvisited()
         if is_displayed and not is_last:
-            self.participant.is_on_wait_page = True
             return self._get_wait_page()
         elif is_last and (someone_waiting or is_displayed):
             self._run_aapa_and_notify(self.group)
@@ -1053,7 +1066,6 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         is_displayed = self._is_displayed()
         is_last, someone_waiting = self._tally_unvisited()
         if is_displayed and not is_last:
-            self.participant.is_on_wait_page = True
             return self._get_wait_page()
         elif is_last and (someone_waiting or is_displayed):
             self._run_aapa_and_notify(self.subsession)
@@ -1103,7 +1115,6 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             if participant._gbat_grouped:
                 return self._response_when_ready()
 
-        self.participant.is_on_wait_page = True
         return self._get_wait_page()
 
     @property
@@ -1162,6 +1173,10 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         )
 
         self._mark_page_completions(player_values)
+
+        Participant.objects.filter(
+            id__in=[p['participant__pk'] for p in player_values]
+        ).update(_last_page_timestamp=time.time())
 
         # this can cause messages to get wrongly enqueued in the botworker
         if otree.common.USE_REDIS and not self.participant.is_browser_bot:
@@ -1226,38 +1241,40 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
 
     def _tally_unvisited(self):
 
-        participant_data = self._group_or_subsession.player_set.values(
-            id_in_session=F('participant__id_in_session'),
-            index_in_pages=F('participant___index_in_pages'),
-            is_on_wait_page=F('participant__is_on_wait_page'),
-            _id=F('participant__id'),
+        participant_ids = list(
+            self._group_or_subsession.player_set.values_list(
+                'participant__id', flat=True
+            )
         )
+        participants = Participant.objects.filter(id__in=participant_ids)
+        session_code = self.participant._session_code
 
         visited = []
         unvisited = []
-        for p in participant_data:
-            if p['index_in_pages'] < self._index_in_pages:
-                unvisited.append(p)
-            else:
-                visited.append(p)
+        for p in participants:
+            [unvisited, visited][p._index_in_pages >= self._index_in_pages].append(p)
 
         # this is not essential to functionality.
         # just for the display in the Monitor tab.
-        if 1 <= len(unvisited) <= 3:
+        if len(unvisited) <= 3:
+            if len(unvisited) == 0:
+                note = ''
+            else:
+                note = ', '.join(p._numeric_label() for p in unvisited)
 
-            unvisited_description = ', '.join(
-                'P{}'.format(p['id_in_session']) for p in unvisited
-            )
+                for p in visited:
+                    p._monitor_note = note
+                    p.save()
 
-            visited_ids = [p['_id'] for p in visited]
-            Participant.objects.filter(id__in=visited_ids).update(
-                _waiting_for_ids=unvisited_description
+            channel_utils.sync_group_send_wrapper(
+                type='update_notes',
+                group=channel_utils.session_monitor_group_name(session_code),
+                event=dict(ids=[p.id_in_session for p in visited], note=note),
             )
 
         is_last = not bool(unvisited)
         someone_waiting = any(
-            p['index_in_pages'] == self._index_in_pages and p['is_on_wait_page']
-            for p in participant_data
+            [p._index_in_pages and p.is_on_wait_page for p in participants]
         )
         return (is_last, someone_waiting)
 
@@ -1272,7 +1289,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         - The player skips this page
         '''
         self.participant.is_on_wait_page = False
-        self.participant._waiting_for_ids = None
+        self.participant._monitor_note = None
         self._increment_index_in_pages()
         return self._redirect_to_page_the_user_should_be_on()
 
