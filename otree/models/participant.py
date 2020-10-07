@@ -2,22 +2,20 @@ from django.db import models as djmodels
 from django.urls import reverse
 
 import otree.common
-from otree.common import random_chars_8, FieldTrackerWithVarsSupport
+from otree.common import random_chars_8
 from otree.db import models
 from otree.lookup import url_i_should_be_on, get_page_lookup
 
 
-class Participant(models.OTreeModel):
+class Participant(models.OTreeModel, models.VarsMixin):
     class Meta:
         ordering = ['pk']
         app_label = "otree"
         index_together = ['session', 'mturk_worker_id', 'mturk_assignment_id']
 
-    _ft = FieldTrackerWithVarsSupport()
-    vars: dict = models._PickleField(default=dict)
-
     session = djmodels.ForeignKey('otree.Session', on_delete=models.CASCADE)
 
+    vars: dict = models._PickleField(default=dict)
     label = models.CharField(
         max_length=50,
         null=True,

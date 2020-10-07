@@ -6,7 +6,7 @@ import otree.common
 from otree.db import models
 from otree.common import get_models_module, in_round, in_rounds, ResponseForException
 import copy
-from otree.common import has_group_by_arrival_time, add_field_tracker
+from otree.common import has_group_by_arrival_time
 from django.apps import apps
 from django.db import models as djmodels
 
@@ -201,10 +201,6 @@ class BaseSubsession(models.OTreeModel):
 
     def vars_for_admin_report(self):
         return {}
-
-    @classmethod
-    def _ensure_required_fields(cls):
-        add_field_tracker(cls)
 
     def _gbat_try_to_make_new_group(self, page_index):
         '''Returns the group ID of the participants who were regrouped'''

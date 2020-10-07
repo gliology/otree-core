@@ -203,7 +203,8 @@ class SessionEditProperties(AdminSessionPageMixin, vanilla.FormView):
         if rwc_per_point is not None:
             session.config['real_world_currency_per_point'] = rwc_per_point
 
-        self.session.save()
+        # ensure config gets saved because usually it doesn't
+        self.session.save(update_fields=['config', 'label', 'comment'])
         messages.success(self.request, 'Properties have been updated')
         return redirect('SessionEditProperties', session.code)
 

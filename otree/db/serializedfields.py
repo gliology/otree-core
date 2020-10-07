@@ -76,3 +76,16 @@ class _PickleField(models.TextField):
 
     def from_db_value(self, value, expression, connection):
         return self.to_python(value)
+
+
+class VarsMixin:
+
+    def _vars_hash(self):
+        return hash(str(self.vars))
+
+    def __init__(self, *args, **kwargs):
+        self._original_vars_hash = self._vars_hash()
+        super().__init__(*args, **kwargs)
+
+    def _vars_changed(self):
+        return self._vars_hash() != self._original_vars_hash

@@ -4,7 +4,6 @@ from otree.common import (
     in_round,
     in_rounds,
     InvalidRoundError,
-    add_field_tracker,
 )
 from otree import common
 from otree.models.fieldchecks import ensure_field
@@ -131,5 +130,3 @@ class BaseGroup(models.OTreeModel):
             subsession_model, on_delete=models.CASCADE
         )
         ensure_field(cls, 'subsession', subsession_field)
-
-        add_field_tracker(cls)

@@ -11,7 +11,7 @@ from otree.constants import field_required_msg
 from otree.currency import Currency, RealWorldCurrency
 from .idmap import IdMapModel
 from django.forms import widgets as dj_widgets
-from .serializedfields import _PickleField  # noqa
+from .serializedfields import _PickleField, VarsMixin  # noqa
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +100,7 @@ class OTreeModel(IdMapModel, metaclass=OTreeModelBase):
         # originally I had:
         # self._dir_attributes = set(dir(self))
         # but this tripled memory usage when creating a session
+        self._update_fields = set()
         self._is_frozen = True
 
     def __setattr__(self, field_name: str, value):
@@ -149,16 +150,20 @@ class OTreeModel(IdMapModel, metaclass=OTreeModelBase):
                     self.__class__.__name__, field_name
                 )
                 raise AttributeError(msg)
-
+            if field_name in self._setattr_fields and field_name not in ['id']:
+                self._update_fields.add(field_name)
             self._super_setattr(field_name, value)
         else:
             # super() is a bit slower but only gets run during __init__
             super().__setattr__(field_name, value)
 
     def save(self, *args, **kwargs):
-        # Use with FieldTracker
-        if self.pk and hasattr(self, '_ft') and 'update_fields' not in kwargs:
-            kwargs['update_fields'] = [k for k in self._ft.changed()]
+        if not self._state.adding:
+
+            update_fields = self._update_fields
+            if hasattr(self, 'vars') and self._vars_changed():
+                update_fields.add('vars')
+            kwargs.setdefault('update_fields', list(self._update_fields))
         super().save(*args, **kwargs)
 
 

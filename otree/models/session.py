@@ -13,7 +13,6 @@ from otree.common import (
     random_chars_10,
     get_admin_secret_code,
     get_app_label_from_name,
-    FieldTrackerWithVarsSupport,
 )
 from otree.db import models
 from otree.models_concrete import RoomToSession
@@ -25,13 +24,12 @@ logger = logging.getLogger('otree')
 ADMIN_SECRET_CODE = get_admin_secret_code()
 
 
-class Session(models.OTreeModel):
+class Session(models.OTreeModel, models.VarsMixin):
     class Meta:
         app_label = "otree"
         # if i don't set this, it could be in an unpredictable order
         ordering = ['pk']
 
-    _ft = FieldTrackerWithVarsSupport()
     vars: dict = models._PickleField(default=dict)
     config: dict = models._PickleField(default=dict, null=True)
 

@@ -1,4 +1,4 @@
-from otree.common import add_field_tracker, in_round, in_rounds
+from otree.common import in_round, in_rounds
 
 from otree.db import models
 from otree.models.fieldchecks import ensure_field
@@ -116,8 +116,6 @@ class BasePlayer(models.OTreeModel):
             group_model, null=True, on_delete=models.CASCADE
         )
         ensure_field(cls, 'group', group_field)
-
-        add_field_tracker(cls)
 
     def start(self):
         pass

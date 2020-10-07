@@ -19,7 +19,6 @@ from django.db import transaction
 from huey.contrib.djhuey import HUEY
 import urllib
 import os
-import model_utils.tracker
 import json
 from django.conf import settings
 from django.utils.safestring import mark_safe
@@ -312,33 +311,6 @@ class ResponseForException(Exception):
     pass
 
 
-def add_field_tracker(cls):
-    # need to do it here because FieldTracker doesnt work on abstract classes
-    _ft = model_utils.tracker.FieldTracker()
-    _ft.contribute_to_class(cls, '_ft')
-    # need to call this, because class_prepared has already been fired
-    # (it is currently executing)
-    _ft.finalize_class(sender=cls)
-
-
-class FieldInstanceTrackerWithVarsNumpySupport(
-    model_utils.tracker.FieldInstanceTracker
-):
-    def has_changed(self, field):
-        try:
-            return super().has_changed(field)
-        except ValueError as exc:
-            # we just assume it's always changed, so then we always save that field.
-            # it could be "The truth value of an array..." or "...of a DataFrame"
-            if 'The truth value of' in str(exc):
-                return True
-            raise
-
-
-class FieldTrackerWithVarsSupport(model_utils.tracker.FieldTracker):
-    tracker_class = FieldInstanceTrackerWithVarsNumpySupport
-
-
 def _group_by_rank(ranked_list, players_per_group):
     ppg = players_per_group
     players = ranked_list
@@ -422,5 +394,3 @@ def load_db():
         src.backup(connection.connection)
     else:
         print('Creating new database', db_path.resolve())
-
-

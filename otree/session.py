@@ -399,13 +399,13 @@ def create_session(
         session.participant_set.update(_max_page_index=num_pages)
 
         with otree.db.idmap.use_cache():
-            # possible optimization: check if
-            # Subsession.creating_session == BaseSubsession.creating_session
-            # if so, skip it.
-            # but this will only help people who didn't override creating_session
-            # in that case, the session usually creates quickly, anyway.
+            # make creating_session use the current session,
+            # so that session.save() below doesn't overwrite everything
+            # set earlier
+            Session.cache_instance(session)
             for subsession in session.get_subsessions():
                 subsession.creating_session()
+
             otree.db.idmap.save_objects()
 
         # 2017-09-27: moving this inside the transaction
