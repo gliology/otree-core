@@ -11,21 +11,30 @@ function populateTableBody($tbody, rows) {
     }
 }
 
+function truncateStringEllipsis(str, num) {
+  if (str.length > num) {
+    return str.slice(0, num) + "…";
+  } else {
+    return str;
+  }
+}
+
+
 function makeCellDatasetValue(value) {
     if (value === null) return '';
     return value.toString();
 }
 
-function makeCellDisplayValue(field, value) {
+function makeCellDisplayValue(value, fieldName) {
     if (value === null) {
         return '';
     }
-    if (field === '_last_page_timestamp') {
+    if (fieldName === '_last_page_timestamp') {
         let date = new Date(parseFloat(value) * 1000);
         let dateString = date.toISOString();
         return `<time class="timeago" datetime="${dateString}"></time>`;
     }
-    return value;
+    return value.toString();
 }
 
 function createTableRow(row) {
@@ -34,7 +43,7 @@ function createTableRow(row) {
         let td = document.createElement('td');
         td.dataset.field = field;
         td.dataset.value = makeCellDatasetValue(value);
-        td.innerHTML = makeCellDisplayValue(field, value);
+        td.innerHTML = makeCellDisplayValue(value, field);
         tr.appendChild(td)
     }
     return tr;
@@ -52,15 +61,17 @@ function flashGreen($ele) {
     $ele.animate({
             backgroundColor: "white"
         },
-        5000
+        10000
     );
 }
+
 
 let diffpatcher = jsondiffpatch.create({
     objectHash: (obj) => obj.numeric_label
 });
 
 function updateTable($table, new_json) {
+    let changeDescriptions = [];
     let old_json = $table.data("raw");
     let $tbody = $table.find('tbody');
     // build table for the first time
@@ -69,21 +80,32 @@ function updateTable($table, new_json) {
     } else {
         let deltas = diffpatcher.diff(old_json, new_json);
         if (deltas) {
-            for (let i of Object.keys(deltas)) {
+            for (let [key, delta] of Object.entries(deltas)) {
+                if (key === '_t') continue;
                 // 2017-08-13: when i have time, i should update this
                 // to the refactor I did in SessionMonitor.html
-                let $row = $tbody.find(`tr:eq(${i})`);
-                for (let header_name of Object.keys(deltas[i])) {
+                let rowNum = parseInt(key);
+                let $row = $tbody.find(`tr:eq(${rowNum})`);
+                let rowChanges = [];
+                for (let header_name of Object.keys(delta)) {
                     let cell_to_update = $row.find(`td[data-field='${header_name}']`);
-                    let new_value = deltas[i][header_name][1];
+                    let rawValue = delta[header_name][1];
+                    let new_value = makeCellDisplayValue(rawValue);
                     cell_to_update.text(new_value);
                     flashGreen(cell_to_update);
+
+                    let fieldName = header_name.split('.').pop();
+                    let newValueTrunc = truncateStringEllipsis(new_value, 7);
+                    rowChanges.push(`${fieldName}=${newValueTrunc}`);
                 }
+                // @ makes it easier to scan visually
+                changeDescriptions.push(`@P${rowNum+1}: ${rowChanges.join(', ')}`)
             }
         }
     }
     $table.data("raw", new_json);
     updateDraggable($table);
+    return changeDescriptions;
 }
 
 

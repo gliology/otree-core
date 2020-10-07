@@ -5,6 +5,7 @@ import numbers
 from collections import OrderedDict
 from decimal import Decimal
 from importlib import import_module
+from django.utils.html import escape
 
 import xlsxwriter
 from django.db.models import BinaryField, ForeignKey
@@ -149,10 +150,10 @@ def sanitize_for_csv(value) -> str:
 def sanitize_for_live_update(value):
     # force_text is necessary e.g. for CountryField, which is otherwise
     # not Json serializable
-    value = str(sanitize_for_csv(value))
+    value = escape(sanitize_for_csv(value))
     MAX_LENGTH = 30
     if len(value) > MAX_LENGTH:
-        return value[:MAX_LENGTH] + '...'
+        return value[:MAX_LENGTH] + '…'
     return value
 
 

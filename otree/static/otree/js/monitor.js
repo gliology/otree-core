@@ -1,14 +1,39 @@
-function initWebSocket(socketUrl, $tbody, visitedParticipants) {
+const RECENT_MSEC = 10 * 1000;
+
+function initWebSocket(socketUrl, $tbody, visitedParticipants, $msgRefreshed) {
     monitorSocket = makeReconnectingWebSocket(socketUrl);
     monitorSocket.onmessage = function (e) {
         var data = JSON.parse(e.data);
+
         if (data.type === 'update_notes') {
             updateNotes($tbody[0], data.ids, data.note);
-        }
-        else {
-            refreshTable(data.rows, $tbody, visitedParticipants);
+        } else {
+            let updatedIds = refreshTable(data.rows, $tbody, visitedParticipants);
+            let msg = recentlyActiveParticipantsMsg(updatedIds);
+            // we shouldn't write an empty msg, because that would cause
+            // the div to shrink
+            if (msg) {
+                $msgRefreshed.text(msg);
+                $msgRefreshed.stop(0, 0);
+                $msgRefreshed.css('opacity', 1);
+                $msgRefreshed.fadeTo(RECENT_MSEC, 0);
+            }
         }
     }
+}
+
+function recentlyActiveParticipantsMsg(newIds) {
+    if (newIds.length === 0) return '';
+    let d = recentlyActiveParticipants;
+    let now = Date.now();
+    for (let id of newIds) {
+        d[id] = now;
+    }
+    for (let [k, v] of Object.entries(d)) {
+        if (v < now - RECENT_MSEC) delete d[k];
+    }
+    let listing = Object.keys(d).slice(0, 10).sort().map(id => 'P' + id.toString()).join(', ');
+    return `Updates: ${listing}`;
 }
 
 // ajax request for advance session button
@@ -47,7 +72,7 @@ function setup_ajax_advance(ajaxUrl) {
 }
 
 function getNthBodyRowSelector(n) {
-    return `tr:nth-of-type(${n+1})`;
+    return `tr:nth-of-type(${n + 1})`;
     //return `tr:eq(${n})`;
 }
 
@@ -61,25 +86,25 @@ function updateNotes(tbody, ids, note) {
 }
 
 function updateNthRow(tbody, n, row) {
+    let didUpdate = false;
     let nthBodyRow = tbody.querySelector(getNthBodyRowSelector(n));
     for (let fieldName of Object.keys(row)) {
         let cellToUpdate = nthBodyRow.querySelector(`td[data-field='${fieldName}']`);
-        if (cellToUpdate == null) {
-            console.log(n);
-        }
         let prev = cellToUpdate.dataset.value;
         let cur = row[fieldName];
         let dataSetVal = makeCellDatasetValue(cur);
         if (prev !== dataSetVal) {
             cellToUpdate.dataset.value = dataSetVal;
-            cellToUpdate.innerHTML = makeCellDisplayValue(fieldName, cur);
+            cellToUpdate.innerHTML = makeCellDisplayValue(cur, fieldName);
             flashGreen($(cellToUpdate));
+            didUpdate = true;
         }
     }
+    return didUpdate;
 }
 
 function refreshTable(new_json, $tbody, visitedParticipants) {
-
+    let updatedParticipants = [];
     let tbody = $tbody[0];
     let hasNewParticipant = false;
     for (let fullRow of new_json) {
@@ -98,12 +123,15 @@ function refreshTable(new_json, $tbody, visitedParticipants) {
             flashGreen($(tr));
             visitedParticipants.splice(index, 0, id_in_session);
             hasNewParticipant = true;
+            updatedParticipants.push(id_in_session);
         } else {
-            updateNthRow(tbody, index, row);
+            let didUpdate = updateNthRow(tbody, index, row);
+            if (didUpdate) updatedParticipants.push(id_in_session);
         }
     }
     if (hasNewParticipant) {
         $('#num_participants_visited').text(visitedParticipants.length);
     }
     $(".timeago").timeago();
+    return updatedParticipants;
 }

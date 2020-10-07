@@ -330,7 +330,7 @@ class SessionMonitor(AdminSessionPageMixin, vanilla.TemplateView):
             '_round_number': 'Round',
             '_current_page_name': 'Page name',
             '_monitor_note': 'Waiting for',
-            '_last_page_timestamp': 'Time on page',
+            '_last_page_timestamp': 'Time',
         }
         column_names = [display_names[col] for col in field_names]
 

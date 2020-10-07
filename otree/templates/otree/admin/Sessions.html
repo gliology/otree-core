@@ -162,7 +162,6 @@
           $('input[name=session]').change(function () {
               var actionButtons = $('.action-on-selected-sessions');
               var numCheckedSessions = $('input[name=session]:checked').length;
-              console.log(numCheckedSessions);
               if (numCheckedSessions === 0) {
                   actionButtons.attr('disabled', true);
               } else {
