@@ -1267,7 +1267,10 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
 
         is_last = not bool(unvisited)
         someone_waiting = any(
-            [p._index_in_pages and p.is_on_wait_page for p in participants]
+            [
+                p._index_in_pages == self._index_in_pages and p.is_on_wait_page
+                for p in participants
+            ]
         )
         return (is_last, someone_waiting)
 

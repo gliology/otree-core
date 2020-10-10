@@ -15,8 +15,8 @@ class Room:
         )
         if use_secure_urls and not participant_label_file:
             msg = (
-                'Room "{}": you must either set "participant_label_file", '
-                'or set "use_secure_urls": False'.format(name)
+                'Room "{}": you must either set participant_label_file, '
+                'or set use_secure_urls=False'.format(name)
             )
             raise ValueError(msg)
         self.participant_label_file = participant_label_file
