@@ -51,4 +51,4 @@ class Command(BaseCommand):
 
     def handle(self, *args, addrport=None, verbosity=1, **kwargs):
         addr, port = get_addr_port(addrport)
-        run_hypercorn(addr, port, log_each_request=True)
+        run_hypercorn(addr, port)

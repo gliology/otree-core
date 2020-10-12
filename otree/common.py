@@ -30,7 +30,6 @@ import asyncio
 shutdown_event = asyncio.Event()
 
 
-
 # set to False if using runserver
 
 USE_REDIS = bool(os.environ.get('OTREE_USE_REDIS', ''))
@@ -398,5 +397,4 @@ def load_db():
         src = sqlite3.connect('db.sqlite3')
         src.backup(connection.connection)
     else:
-        print('Creating new database', db_path.resolve())
-
+        print('Creating new database')
