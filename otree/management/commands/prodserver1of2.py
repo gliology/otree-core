@@ -11,11 +11,11 @@ from otree_startup.asgi import application
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PORT = "8000"
-
 
 def run_hypercorn(addr, port, *, is_devserver=False):
-    config = Config.from_mapping(dict(binds=f'{addr}:{port}'))
+
+    config = Config()
+    config.bind = f'{addr}:{port}'
     if is_devserver:
         # We want to hide "Running on 127.0.0.1 over https (CTRL + C to quit)")
         # and show our localhost message instead.
