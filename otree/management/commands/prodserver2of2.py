@@ -16,7 +16,9 @@ class Command(HueyCommand):
         from huey.contrib.djhuey import HUEY
 
         if not os.environ.get('REDIS_URL'):
-            sys.exit('REDIS_URL env var must be defined')
+            sys.exit(
+                'Error: ensure that Redis is installed and that REDIS_URL env var is defined.'
+            )
 
         try:
             HUEY.flush()

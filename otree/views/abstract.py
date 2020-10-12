@@ -379,7 +379,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
         # simpler if we set it directly so that we can do tests without idmap cache
         self._participant_pk = participant.pk
         # setting it directly makes testing easier (tests dont need to use cache)
-        self.participant = participant
+        self.participant: Participant = participant
 
         # it's already validated that participant is on right page
         self._index_in_pages = participant._index_in_pages
@@ -607,6 +607,8 @@ class Page(FormPageOrInGameWaitPage):
         self.participant._current_form_page_url = self.request.path
         self.object = self.get_object()
 
+        # 2020-07-10: maybe we should call vars_for_template before instantiating the form
+        # so that you can set initial value for a field in vars_for_template?
         form = self.get_form(instance=self.object)
         context = self.get_context_data(form=form)
         response = self.render_to_response(context)
@@ -1069,21 +1071,26 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             # we don't support some players skipping and others not.
             return self._response_when_ready()
 
-        self.player._gbat_is_waiting = True
+        participant = self.participant
+
+        participant._gbat_is_waiting = True
+        participant._gbat_page_index = self._index_in_pages
+        participant._gbat_grouped = False
         # _last_request_timestamp is already set in set_attributes,
         # but set it here just so we can guarantee
-        self.participant._last_request_timestamp = time.time()
+        participant._last_request_timestamp = time.time()
         # need to save it inside the lock (check-then-act)
         # also because it needs to be up to date for get_players_for_group
         # which gets this info from the DB
-        self.player.save()
-        self.participant.save()
+        participant.save()
         # make a clean copy for GBAT and AAPA
         # self.player and self.participant etc are undefined
         # and no objects are cached inside it
         # and it doesn't affect the current instance
 
-        gbat_new_group = self.subsession._gbat_try_to_make_new_group()
+        gbat_new_group = self.subsession._gbat_try_to_make_new_group(
+            self._index_in_pages
+        )
 
         if gbat_new_group:
             self._run_aapa_and_notify(gbat_new_group)
@@ -1091,7 +1098,8 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             # maybe this will not work if i change the implementation
             # so that the player is cached,
             # but that's OK because it will be obvious it doesn't work.
-            if self.player._gbat_grouped:
+
+            if participant._gbat_grouped:
                 return self._response_when_ready()
 
         self.participant.is_on_wait_page = True

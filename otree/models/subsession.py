@@ -206,7 +206,7 @@ class BaseSubsession(models.OTreeModel):
     def _ensure_required_fields(cls):
         add_field_tracker(cls)
 
-    def _gbat_try_to_make_new_group(self):
+    def _gbat_try_to_make_new_group(self, page_index):
         '''Returns the group ID of the participants who were regrouped'''
 
         STALE_THRESHOLD_SECONDS = 20
@@ -214,8 +214,9 @@ class BaseSubsession(models.OTreeModel):
         # count how many are re-grouped
         waiting_players = list(
             self.player_set.filter(
-                _gbat_is_waiting=True,
-                _gbat_grouped=False,
+                participant___gbat_is_waiting=True,
+                participant___index_in_pages=page_index,
+                participant___gbat_grouped=False,
                 participant___last_request_timestamp__gte=time.time()
                 - STALE_THRESHOLD_SECONDS,
             )
@@ -228,7 +229,8 @@ class BaseSubsession(models.OTreeModel):
 
         if not players_for_group:
             return None
-        participant_ids = [p.participant.id for p in players_for_group]
+
+        participants = [p.participant for p in players_for_group]
 
         group_id_in_subsession = self._gbat_next_group_id_in_subsession()
 
@@ -240,22 +242,17 @@ class BaseSubsession(models.OTreeModel):
                 subsession = self.in_round(round_number)
 
                 unordered_players = subsession.player_set.filter(
-                    participant_id__in=participant_ids
+                    participant__in=participants
                 )
 
                 participant_ids_to_players = {
-                    player.participant.id: player for player in unordered_players
+                    player.participant: player for player in unordered_players
                 }
 
                 ordered_players_for_group = [
-                    participant_ids_to_players[participant_id]
-                    for participant_id in participant_ids
+                    participant_ids_to_players[participant]
+                    for participant in participants
                 ]
-
-                if round_number == self.round_number:
-                    for player in ordered_players_for_group:
-                        player._gbat_grouped = True
-                        player.save()
 
                 group = self._GroupClass().objects.create(
                     subsession=subsession,
@@ -272,6 +269,11 @@ class BaseSubsession(models.OTreeModel):
                 # apparently player__isnull=True works, didn't know you could
                 # use this in a reverse direction.
                 subsession.group_set.filter(player__isnull=True).delete()
+
+        for participant in participants:
+            participant._gbat_grouped = True
+            participant._gbat_is_waiting = False
+
         return this_round_new_group
 
     def _gbat_next_group_id_in_subsession(self):

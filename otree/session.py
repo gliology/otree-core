@@ -421,5 +421,17 @@ def create_session(
     return session
 
 
+class CreateSessionError(Exception):
+    pass
+
+
+def create_session_traceback_wrapper(**kwargs):
+    '''so we can give smaller tracebacks on 'creating session' page'''
+    try:
+        return create_session(**kwargs)
+    except Exception as exc:
+        raise CreateSessionError from exc
+
+
 # 2020-06-11: is this needed?
 default_app_config = 'otree.session.apps.OtreeSessionConfig'

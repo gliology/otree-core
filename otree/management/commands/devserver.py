@@ -91,6 +91,15 @@ class Command(runserver.Command):
     def handle(self, *args, **options):
         self.verbosity = options.get("verbosity", 1)
 
+        if not settings.DEBUG:
+            # this tends to cause confusion. people don't know why they get server 500 error,
+            # and it's worse with zipserver, where it is not possible to run collectstatic.
+            sys.exit(
+                'Error: devserver & zipserver cannot be used in production mode. '
+                'Ensure that your settings.py does not contain a DEBUG setting, '
+                'and that the OTREE_PRODUCTION env var is not set.'
+            )
+
         # for performance,
         # only run checks when the server starts, not when it reloads
         # (RUN_MAIN is set by Django autoreloader).

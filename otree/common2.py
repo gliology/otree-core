@@ -45,10 +45,9 @@ def make_page_completion_row(
     row = ','.join(str(fields[col]) for col in TIME_SPENT_COLUMNS) + '\n'
 
     global page_completion_last_write
-    global page_completion_buffer
 
     page_completion_buffer.append(row)
     if len(page_completion_buffer) > 50 or now - page_completion_last_write > 60 * 2:
         PageTimeBatch.objects.create(text=''.join(page_completion_buffer))
         page_completion_last_write = now
-        page_completion_buffer = []
+        page_completion_buffer.clear()

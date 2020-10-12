@@ -224,8 +224,12 @@ def validate_user_settings(settings: dict):
     }
     for SETTING in required_settings:
         if not SETTING in settings:
-            msg = f'settings.py: setting {SETTING} is missing.'
-            raise ValueError(msg)
+            sys.exit(f'settings.py: setting {SETTING} is missing.')
+    if 'DATABASES' in settings:
+        sys.exit(
+            'settings.py: Delete the setting DATABASES. '
+            'If you need to configure the database, set the DATABASE_URL env var instead.'
+        )
 
 
 UNMAINTAINED_APPS = ['otree_tools', 'otree_mturk_utils']

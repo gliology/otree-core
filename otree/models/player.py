@@ -43,9 +43,6 @@ class BasePlayer(models.OTreeModel):
 
     round_number = models.PositiveIntegerField(db_index=True)
 
-    _gbat_is_waiting = models.BooleanField(default=False)
-    _gbat_grouped = models.BooleanField(default=False)
-
     @property
     def payoff(self):
         return self._payoff

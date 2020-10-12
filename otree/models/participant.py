@@ -89,6 +89,10 @@ class Participant(models.OTreeModel):
     _timeout_expiration_time = models.FloatField()
     _timeout_page_index = models.PositiveIntegerField()
 
+    _gbat_is_waiting = models.BooleanField(default=False)
+    _gbat_page_index = models.PositiveIntegerField()
+    _gbat_grouped = models.BooleanField()
+
     def _current_page(self):
         return '{}/{} pages'.format(self._index_in_pages, self._max_page_index)
 

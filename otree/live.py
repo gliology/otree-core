@@ -12,6 +12,9 @@ def live_payload_function(participant_code, page_name, payload):
     app_name = lookup.app_name
     models_module = otree.common.get_models_module(app_name)
     PageClass = lookup.page_class
+    # this could be incorrect if the player advances right after liveSend is executed.
+    # maybe just return if it doesn't match. (but leave it in for now and see how much that occurs,
+    # don't want silent failures.)
     assert page_name == PageClass.__name__
     method_name = PageClass.live_method
 

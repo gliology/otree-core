@@ -232,8 +232,7 @@ class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
         ).exists()
 
     def mark_ready_status(self, is_ready):
-        models_module = get_models_module(self.app_name)
-        models_module.Player.objects.filter(id=self.player_id).update(
+        Participant.objects.filter(id=self.participant_id).update(
             _gbat_is_waiting=is_ready
         )
 
@@ -242,6 +241,7 @@ class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
     ):
         self.app_name = app_name
         self.player_id = player_id
+        self.participant_id = participant_id
         await database_sync_to_async(self.mark_ready_status)(True)
         if await database_sync_to_async(self.is_ready)(
             app_name=app_name,
@@ -308,25 +308,31 @@ class BaseCreateSession(_OTreeAsyncJsonWebsocketConsumer):
     async def create_session_then_send_start_link(
         self, use_browser_bots, **session_kwargs
     ):
-
         try:
-            session = await database_sync_to_async(otree.session.create_session)(
-                **session_kwargs
-            )
+            session = await database_sync_to_async(
+                otree.session.create_session_traceback_wrapper
+            )(**session_kwargs)
+
             if use_browser_bots:
                 await database_sync_to_async(otree.bots.browser.initialize_session)(
                     session_pk=session.pk, case_number=None
                 )
             # the "elif" is because if it uses browser bots, then exogenous data is mocked
             # as part of run_bots.
+            # 2020-07-07: this queries the DB, shouldn't i use database_sync_to_async?
+            # i don't get any error
             elif session.is_demo:
-                session.mock_exogenous_data()
+                await database_sync_to_async(session.mock_exogenous_data)()
         except Exception as e:
-            error_message = 'Failed to create session: "{}"'.format(e)
-            traceback_str = traceback.format_exc()
-            await self.send_response_to_browser(
-                dict(error=error_message, traceback=traceback_str)
+            if isinstance(e, otree.session.CreateSessionError):
+                e = e.__cause__
+            traceback_str = ''.join(
+                traceback.format_exception(type(e), e, e.__traceback__)
             )
+            await self.send_response_to_browser(
+                dict(error=f'Failed to create session: {e}', traceback=traceback_str)
+            )
+
             # i used to do "raise" here.
             # if I raise, then in non-demo sessions, the traceback is not displayed
             # as it should be.
@@ -337,6 +343,7 @@ class BaseCreateSession(_OTreeAsyncJsonWebsocketConsumer):
             # was it just so the traceback would go to the console or Sentry?
             # if we show it in the browser, there's no need to show it anywhere else, right?
             # maybe it was just a fallback in case the TB was truncated?
+            # or because the traceback should not be shown outside of DEBUG mode
         else:
             session_home_view = (
                 'MTurkCreateHIT' if session.is_mturk else 'SessionStartLinks'

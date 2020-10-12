@@ -130,6 +130,8 @@ class Session(models.OTreeModel):
             with otree.db.idmap.use_cache():
                 user_utils.mock_exogenous_data(self)
                 otree.db.idmap.save_objects()
+                # need to save self because it's not in the idmap cache
+                self.save()
 
     def get_subsessions(self):
         lst = []

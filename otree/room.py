@@ -47,15 +47,9 @@ class Room:
         return bool(self.participant_label_file)
 
     def get_participant_labels(self):
-        lines = (
-            Path(self.participant_label_file).read_text(encoding='utf8').splitlines()
-        )
-        labels = []
-        for line in lines:
-            label = line.strip()
-            if label:
-                validate_alphanumeric(label, identifier_description='participant label')
-                labels.append(label)
+        labels = Path(self.participant_label_file).read_text(encoding='utf8').split()
+        for label in labels:
+            validate_alphanumeric(label, identifier_description='participant label')
         # eliminate duplicates
         return list(dict.fromkeys(labels))
 
