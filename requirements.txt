@@ -8,7 +8,7 @@ Automat==0.7.0  # Twisted
 # MacPython "Install certificates" command may install
 # a newer version of the certifi package, so keep it flexible.
 certifi>=2019.3.9  # sentry-sdk
-cffi==1.12.3  # channels
+cffi==1.14.1  # channels
 channels==2.4.0
 #click==7.1.2 # uvicorn
 colorama==0.4.1  # honcho

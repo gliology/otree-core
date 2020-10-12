@@ -224,7 +224,7 @@ def get_all_assignments(mturk_client, hit_id) -> List[Assignment]:
 
 
 def get_workers_by_status(
-    all_assignments: List[Assignment]
+    all_assignments: List[Assignment],
 ) -> Dict[str, List[Assignment]]:
     workers_by_status = defaultdict(list)
     for assignment in all_assignments:
@@ -276,6 +276,8 @@ class MTurkSessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
         )
 
         add_answers(participants_not_reviewed, all_assignments)
+        add_answers(participants_approved, all_assignments)
+        add_answers(participants_rejected, all_assignments)
 
         return dict(
             published=True,

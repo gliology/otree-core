@@ -388,9 +388,8 @@ class LongStringField(_OtreeModelFieldMixin, models.TextField):
 
 
 MSG_DEPRECATED_FIELD = """
-{FieldName} does not exist in oTree. 
+{} does not exist in oTree. 
 You should either replace it with one of oTree's field types, or import it from Django directly.
-Note that Django model fields do not accept oTree-specific arguments like label= and widget=.
 """.replace(
     '\n', ' '
 )

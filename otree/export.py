@@ -14,7 +14,7 @@ from django.utils.encoding import force_text
 import otree
 from otree.currency import Currency, RealWorldCurrency
 from otree.common import get_models_module
-from otree.common2 import TIME_SPENT_COLUMNS
+from otree.common2 import TIME_SPENT_COLUMNS, write_page_completion_buffer
 from otree.models.group import BaseGroup
 from otree.models.participant import Participant
 from otree.models.player import BasePlayer
@@ -481,6 +481,7 @@ def _export_xlsx(fp, rows):
 
 
 def export_page_times(fp):
+    write_page_completion_buffer()
     batches = PageTimeBatch.objects.order_by('id').values_list('text', flat=True)
     fp.write(','.join(TIME_SPENT_COLUMNS) + '\n')
     for batch in batches:
