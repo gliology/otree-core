@@ -27,25 +27,28 @@ def main(remaining_argv):
     files_to_watch = [p for p in root.glob('**/*.py') if 'migrations' not in str(p)]
 
     mtimes = get_mtimes(files_to_watch)
-    while True:
-        exit_code = proc.poll()
-        if exit_code is not None:
-            return exit_code
-        new_mtimes = get_mtimes(files_to_watch)
-        changed_file = None
-        for f in files_to_watch:
-            if f in new_mtimes and f in mtimes and new_mtimes[f] != mtimes[f]:
-                changed_file = f
-                break
-        if changed_file:
-            stdout_write(changed_file, 'changed, restarting')
-            mtimes = new_mtimes
-            try:
+    try:
+        while True:
+            exit_code = proc.poll()
+            if exit_code is not None:
+                return exit_code
+            new_mtimes = get_mtimes(files_to_watch)
+            changed_file = None
+            for f in files_to_watch:
+                if f in new_mtimes and f in mtimes and new_mtimes[f] != mtimes[f]:
+                    changed_file = f
+                    break
+            if changed_file:
+                stdout_write(changed_file, 'changed, restarting')
+                mtimes = new_mtimes
                 terminate_through_http(port)
-            # handling it here instead of inside the function since it may
-            # not affect zipserver (need to investigate)
-            except ConnectionResetError:
-                pass
-            proc.wait()
-            proc = Popen(['otree', 'devserver_inner', port, '--is-reload'])
-        sleep(1)
+                proc.wait()
+                proc = Popen(['otree', 'devserver_inner', port, '--is-reload'])
+            sleep(1)
+    except KeyboardInterrupt:
+        # handle KeyboardInterrupt so we don't get a traceback to console
+        # also, we wait a couple seconds for the subprocess to exit.
+        # The KeyboardInterrupt automatically terminates the subprocess,
+        # but it seems the subprocess can take longer to exit than this process,
+        # resulting in errant console output
+        proc.wait(2)

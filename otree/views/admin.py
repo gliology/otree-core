@@ -539,8 +539,8 @@ class ToggleArchivedSessions(vanilla.View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class KillZipServer(vanilla.View):
-    url_pattern = r'^KillZipServer/'
+class TerminateServer(vanilla.View):
+    url_pattern = r'^TerminateServer/'
 
     def post(self, request):
         import sys

@@ -81,26 +81,29 @@ def autoreload_for_new_zipfiles() -> int:
 
             tempdirs.append(project.tmpdir)
             project.start()
-            try:
-                while True:
-                    # if process is still running, poll() returns None
-                    exit_code = project.poll()
-                    if exit_code != None:
-                        return exit_code
-                    sleep(1)
-                    latest_project = get_newest_project()
-                    # it's possible that zipfile was deleted while the program
-                    # was running
-                    if latest_project and latest_project != project:
-                        newer_project = latest_project
-                        # use stdout.write because logger is not configured
-                        # (django setup has not even been run)
-                        stdout_write(MSG_FOUND_NEWER_OTREEZIP)
-                        break
-            finally:
-                if exit_code is None:
+            # I used to have a try block that executed 'terminate_through_http' inside 'finally'
+            # added on 2019-03-09. not sure why that was necessary
+            # maybe it was just for thoroughness but now it interferes with terminating through HTTP.
+            while True:
+                # if process is still running, poll() returns None
+                exit_code = project.poll()
+                if exit_code != None:
+                    return exit_code
+                sleep(1)
+                latest_project = get_newest_project()
+                # it's possible that zipfile was deleted while the program
+                # was running
+                if latest_project and latest_project != project:
+                    newer_project = latest_project
+                    # use stdout.write because logger is not configured
+                    # (django setup has not even been run)
+                    stdout_write(MSG_FOUND_NEWER_OTREEZIP)
                     project.terminate_through_http()
+                    project.wait()
+                    break
     finally:
+        # e.g. KeyboardInterrupt
+        project.wait()
         for td in tempdirs:
             td.cleanup()
 
@@ -140,7 +143,6 @@ class Project:
 
     def terminate_through_http(self):
         terminate_through_http(PORT)
-        self._proc.wait()
 
     def wait(self) -> int:
         return self._proc.wait()

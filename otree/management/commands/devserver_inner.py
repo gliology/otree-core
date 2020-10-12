@@ -4,6 +4,8 @@ import time
 import traceback
 from pathlib import Path
 from unittest.mock import patch
+import signal
+from otree.common import dump_db, dump_db_and_exit, load_db
 
 import termcolor
 from django.apps import apps
@@ -119,8 +121,7 @@ class Command(BaseCommand):
 
         self.makemigrations_and_migrate()
 
-        # I removed the IPV6 stuff here because its not commonly used yet
-        addr, port = get_addr_port(addrport)
+        addr, port = get_addr_port(addrport, is_devserver=True)
         if not is_reload:
             # 0.0.0.0 is not a regular IP address, so we can't tell the user
             # to open their browser to that address
@@ -138,7 +139,7 @@ class Command(BaseCommand):
             )
 
         try:
-            run_hypercorn(addr, port)
+            run_hypercorn(addr, port, is_devserver=True)
         except KeyboardInterrupt:
             return
         except SystemExit as exc:
@@ -191,6 +192,7 @@ class Command(BaseCommand):
         # and can guarantee we won't subscribe after the signal was already sent.
 
         load_db()
+        signal.signal(signal.SIGINT, dump_db_and_exit)
 
         try:
             # see above comment about makemigrations and capturing stdout.
