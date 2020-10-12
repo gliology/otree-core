@@ -8,7 +8,11 @@ import otree
 import hypercorn.run
 from hypercorn.config import Config
 
-logger = logging.getLogger(__name__)
+import asyncio
+from hypercorn.asyncio import serve
+from otree_startup.asgi import application
+from otree.common import shutdown_event
+
 
 naiveip_re = re.compile(
     r"""^(?:
@@ -20,21 +24,27 @@ naiveip_re = re.compile(
     re.X,
 )
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_PORT = "8000"
 DEFAULT_ADDR = '0.0.0.0'
 
 
 def run_hypercorn(addr, port, *, log_each_request=False):
-    conf = dict(
-        binds=f'{addr}:{port}', application_path='otree_startup.asgi:application',
-    )
-
+    config = dict(binds=f'{addr}:{port}')
     if log_each_request:
-        conf.update(
+        config.update(
             accesslog='-', access_log_format='%(h)s %(S)s "%(r)s" %(s)s',
         )
+    loop = asyncio.get_event_loop()
 
-    hypercorn.run.run(Config.from_mapping(conf))
+    loop.run_until_complete(
+        serve(
+            application,
+            Config.from_mapping(config),
+            shutdown_trigger=shutdown_event.wait,
+        )
+    )
 
 
 def get_addr_port(cli_addrport):

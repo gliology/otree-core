@@ -35,7 +35,7 @@ from django.utils import autoreload
 # https://docs.python.org/3/reference/import.html#submodules
 from otree_startup.settings import augment_settings
 from otree import __version__
-from . import zipserver
+from . import zipserver, devserver
 
 # REMEMBER TO ALSO UPDATE THE PROJECT TEMPLATE
 from otree_startup.settings import get_default_settings
@@ -95,8 +95,13 @@ def execute_from_command_line(*args, **kwargs):
 
     subcommand = argv[1]
 
-    if subcommand in ['runzip', 'zipserver']:
+    if subcommand == 'zipserver':
         zipserver.main(argv[2:])
+        # better to return than sys.exit because testing is complicated
+        # with sys.exit -- if you mock it, then the function keeps executing.
+        return
+    if subcommand == 'devserver':
+        devserver.main(argv[2:])
         # better to return than sys.exit because testing is complicated
         # with sys.exit -- if you mock it, then the function keeps executing.
         return
@@ -158,45 +163,11 @@ def execute_from_command_line(*args, **kwargs):
                 logger.warning(msg)
                 return
             raise
-        warning = check_update_needed(
-            Path('.').resolve().joinpath('requirements.txt')
-        )
+        warning = check_update_needed(Path('.').resolve().joinpath('requirements.txt'))
         if warning:
             logger.warning(warning)
 
-    is_devserver = subcommand == 'devserver' or subcommand == 'devserveru'
-
-    if is_devserver:
-        # apparently required by restart_with_reloader
-        # otherwise, i get:
-        # python.exe: can't open file 'C:\oTree\venv\Scripts\otree':
-        # [Errno 2] No such file or directory
-
-        # this doesn't work if you start runserver from another dir
-        # like python my_project/manage.py runserver. but that doesn't seem
-        # high-priority now.
-        sys.argv = ['manage.py'] + argv[1:]
-
-        # previous solution here was using subprocess.Popen,
-        # but changing it to modifying sys.argv changed average
-        # startup time on my machine from 2.7s to 2.3s.
-
-    # Start the auto-reloading dev server even if the code is broken.
-    # The hardcoded condition is a code smell but we can't rely on a
-    # flag on the command class because we haven't located it yet.
-
-    if is_devserver and '--noreload' not in argv:
-        try:
-            autoreload.check_errors(do_django_setup)()
-        except Exception:
-            # The exception will be raised later in the child process
-            # started by the autoreloader. Pretend it didn't happen by
-            # loading an empty list of applications.
-            apps.all_models = defaultdict(OrderedDict)
-            apps.app_configs = OrderedDict()
-            apps.apps_ready = apps.models_ready = apps.ready = True
-    else:
-        do_django_setup()
+    do_django_setup()
 
     if subcommand == 'help' and len(argv) >= 3:
         command_to_explain = argv[2]

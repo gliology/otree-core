@@ -1,24 +1,18 @@
 import importlib
-import logging
-import os
-import os.path
-import signal
+import sys
 import time
 import traceback
 from pathlib import Path
 from unittest.mock import patch
-import sys
 
 import termcolor
 from django.apps import apps
 from django.conf import settings
 from django.core.management import call_command, BaseCommand
-from django.utils import autoreload
 
-import otree.common
 import otree_startup
 from otree import __version__ as CURRENT_VERSION
-from otree.common import dump_db, dump_db_and_exit, load_db
+from otree.common import dump_db, load_db
 from .prodserver1of2 import get_addr_port, run_hypercorn
 
 TMP_MIGRATIONS_DIR = Path('__temp_migrations')
@@ -42,25 +36,11 @@ ADVICE_PRINT_DETAILS = (
     '(For technical details about this error, run "otree devserver --verbosity=1")'
 ).format(PRINT_DETAILS_VERBOSITY_LEVEL)
 
-db_engine = settings.DATABASES['default']['ENGINE'].lower()
 
-if otree.common.is_sqlite():
-    ADVICE_DELETE_DB = (
-        'ADVICE: Stop the server, '
-        'then delete the file db.sqlite3 in your project folder.'
-    )
-else:
-    if 'postgres' in db_engine:
-        db_engine = 'PostgreSQL'
-    elif 'mysql' in db_engine:
-        db_engine = 'MySQL'
-
-    ADVICE_DELETE_DB = (
-        'ADVICE: Delete (drop) your {} database, then create a new empty one '
-        'with the same name. "otree devserver" cannot be used on a database '
-        'that was generated with "otree resetdb". You should either use one '
-        'command or the other.'
-    ).format(db_engine)
+ADVICE_DELETE_DB = (
+    'ADVICE: Stop the server, '
+    'then delete the file db.sqlite3 in your project folder.'
+)
 
 # They should start fresh so that:
 # (1) performance refresh
@@ -84,22 +64,18 @@ class Command(BaseCommand):
         parser.add_argument(
             'addrport', nargs='?', help='Optional port number, or ipaddr:port'
         )
+
         parser.add_argument(
-            '--noreload',
-            action='store_false',
-            dest='use_reloader',
-            help='Tells Django to NOT use the auto-reloader.',
+            '--is-reload', action='store_true', dest='is_reload', default=False,
         )
 
         parser.add_argument(
-            '--inside-zipserver',
-            action='store_true',
-            dest='inside_zipserver',
-            default=False,
+            '--is-zipserver', action='store_true', dest='is_zipserver', default=False,
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args, addrport, is_reload, is_zipserver, **options):
         self.verbosity = options.get("verbosity", 1)
+        self.is_zipserver = is_zipserver
 
         if not settings.DEBUG:
             # this tends to cause confusion. people don't know why they get server 500 error,
@@ -110,17 +86,12 @@ class Command(BaseCommand):
                 'and that the OTREE_PRODUCTION env var is not set.'
             )
 
-        # for performance,
-        # only run checks when the server starts, not when it reloads
-        # (RUN_MAIN is set by Django autoreloader).
-        if not os.environ.get('RUN_MAIN'):
-
+        if not is_reload:
             try:
                 # don't suppress output. it's good to know that check is
                 # not failing silently or not being run.
                 # also, intercepting stdout doesn't even seem to work here.
                 self.check(display_num_errors=True)
-
             except Exception as exc:
                 otree_startup.print_colored_traceback_and_exit(exc)
 
@@ -146,72 +117,33 @@ class Command(BaseCommand):
             # seems to have no impact on perf
             importlib.invalidate_caches()
 
-        is_reloader_process = options['use_reloader'] and not (
-            os.environ.get('RUN_MAIN')
-        )
-        if not is_reloader_process:
-            # this handles restarts due Ctrl+C
-
-            # can't handle this signal in the autoreloader process,
-            # since the DB is stored in the main django process's memory.
-
-            # i guess the child process receives the SIGINT
-            # from the parent autoreloader process.
-            signal.signal(signal.SIGINT, dump_db_and_exit)
-
-        try:
-            use_reloader = options['use_reloader']
-
-            if use_reloader:
-                autoreload.run_with_reloader(self.inner_run, **options)
-            else:
-                self.inner_run(None, **options)
-        except SystemExit as exc:
-            # this is designed to handle the sys.exit(3) that is fired
-            # by the child process file-watcher thread, when a file is changed.
-            # it needs to be here rather than inner_run because that is only
-            # run by the child process main_func thread.
-
-            # this also gets run if using zipserver and a sys.exit occurs.
-
-            # if an exception occurs inside the main_func thread that executes inner_run,
-            # it will just print the TB and hang, as usual. Then the user presses Ctrl+C,
-            # which triggers the SIGINT handler above.
-            # if the main_func thread calls sys.exit that is not a concern here
-            # because that will just exit that thread and not bubble up here.
-            if not is_reloader_process:
-                dump_db()
-            raise
-
-    def inner_run(self, *args, inside_zipserver, addrport, **options):
-        '''
-        inner_run does not get run twice with runserver, unlike .handle()
-        '''
-
-        self.inside_zipserver = inside_zipserver
         self.makemigrations_and_migrate()
 
         # I removed the IPV6 stuff here because its not commonly used yet
         addr, port = get_addr_port(addrport)
-        # 0.0.0.0 is not a regular IP address, so we can't tell the user
-        # to open their browser to that address
-        if addr == '127.0.0.1':
-            addr_readable = 'localhost'
-        elif addr == '0.0.0.0':
-            addr_readable = '<ip_address>'
-        else:
-            addr_readable = addr
-        self.stdout.write(
-            (
-                f"Open your browser to http://{addr_readable}:{port}/\n"
-                "To quit the server, press Control+C.\n"
+        if not is_reload:
+            # 0.0.0.0 is not a regular IP address, so we can't tell the user
+            # to open their browser to that address
+            if addr == '127.0.0.1':
+                addr_readable = 'localhost'
+            elif addr == '0.0.0.0':
+                addr_readable = '<ip_address>'
+            else:
+                addr_readable = addr
+            self.stdout.write(
+                (
+                    f"Open your browser to http://{addr_readable}:{port}/\n"
+                    "To quit the server, press Control+C.\n"
+                )
             )
-        )
 
         try:
             run_hypercorn(addr, port)
         except KeyboardInterrupt:
             return
+        except SystemExit as exc:
+            dump_db()
+            raise
 
     def makemigrations_and_migrate(self):
 
@@ -257,6 +189,7 @@ class Command(BaseCommand):
         # should I instead connect to connection_created signal?
         # but this seems better because we know exactly where it happens,
         # and can guarantee we won't subscribe after the signal was already sent.
+
         load_db()
 
         try:
@@ -289,17 +222,15 @@ class Command(BaseCommand):
         '''this won't actually exit because we can't kill the autoreload process'''
         self.stdout.write('\n')
         is_verbose = self.verbosity >= PRINT_DETAILS_VERBOSITY_LEVEL
-        show_error_details = is_verbose or self.inside_zipserver
+        show_error_details = is_verbose or self.is_zipserver
         if show_error_details:
             traceback.print_exc()
         else:
             self.stdout.write('An error occurred.')
-        if self.inside_zipserver:
+        if self.is_zipserver:
             self.stdout.write('Please report to chris@otree.org.')
         else:
             termcolor.cprint(advice, 'white', 'on_red')
         if not show_error_details:
             self.stdout.write(ADVICE_PRINT_DETAILS)
         sys.exit(0)
-
-    inside_zipserver = False

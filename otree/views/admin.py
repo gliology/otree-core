@@ -1,3 +1,4 @@
+import logging
 import json
 from collections import OrderedDict
 import otree
@@ -545,7 +546,11 @@ class KillZipServer(vanilla.View):
         import sys
         from otree.common import dump_db
 
-        if '--inside-zipserver' in sys.argv:
-
+        if 'devserver_inner' in sys.argv:
             dump_db()
-            sys.exit(0)
+            from otree.common import shutdown_event
+
+            shutdown_event.set()
+        else:
+            logging.warning('Rejected unauthorized attempt to shut down server')
+        return HttpResponse('ok')

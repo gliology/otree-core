@@ -106,7 +106,7 @@ def get_default_settings(user_settings: dict):
 
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
-    if 'devserver' in sys.argv or 'devserveru' in sys.argv:
+    if 'devserver_inner' in sys.argv:
         if os.environ.get('DATABASE_URL'):
             # otherwise, people will get a different DB when they use other management commands like 'otree shell'
             raise ValueError(

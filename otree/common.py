@@ -25,6 +25,11 @@ from django.utils.safestring import mark_safe
 
 # until 2016, otree apps imported currency from otree.common.
 from otree.currency import Currency, RealWorldCurrency
+import asyncio
+
+shutdown_event = asyncio.Event()
+
+
 
 # set to False if using runserver
 
@@ -394,3 +399,4 @@ def load_db():
         src.backup(connection.connection)
     else:
         print('Creating new database', db_path.resolve())
+
