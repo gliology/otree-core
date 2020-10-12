@@ -5,6 +5,7 @@ import os
 import time
 from typing import Optional
 
+from functools import lru_cache
 import otree.common2
 import vanilla
 from django.conf import settings
@@ -27,6 +28,8 @@ from django.utils.translation import ugettext as _, ugettext_lazy
 from django.views.decorators.cache import never_cache, cache_control
 import django.forms.models
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.log import log_response
+import otree.bots.browser as browser_bots
 import otree.channels.utils as channel_utils
 import otree.common
 import otree.constants
@@ -53,10 +56,8 @@ from otree.models_concrete import (
 )
 from otree import export
 
-# this is an expensive import
-import otree.bots.browser as browser_bots
-
 logger = logging.getLogger(__name__)
+
 
 UNHANDLED_EXCEPTIONS = (
     Http404,
@@ -72,14 +73,52 @@ UNHANDLED_EXCEPTIONS = (
 # dispatch_lock = redis_lock.Lock(conn, "name-of-the-lock")
 
 
+# make the technical 500 page auto-reload when the server restarts
+# when the websocket reconnects, that means the server must have restarted.
+# hardcode path to reconnecting-websocket because
+# can't use Django template tags because template is already rendered
+TECHNICAL_500_AUTORELOAD_JS = b'''
+<style>
+    #disconnected-alert {
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: lightgray;
+        font-style: italic;
+        visibility: hidden;
+    }
+</style>
+<div id='disconnected-alert' class="top-left-fixed-alert" style="visibility: hidden">Lost server connection...</div>
+<script src="/static/otree/js/reconnecting-websocket-iife.min.js" type="text/javascript"></script>
+<script src="/static/otree/js/jquery-3.2.1.min.js"></script>
+<script src="/static/otree/js/common.js" type="text/javascript"></script>
+<script>
+    var disconnectionSocket;
+    
+    function setupDisconnectedAlert() {
+        disconnectionSocket = makeReconnectingWebSocket('/no_op/');
+        var socket = disconnectionSocket;
+
+        var alertStyle = document.querySelector('#disconnected-alert').style;
+        socket.onopen = function (e) {
+            alertStyle.visibility = 'hidden';
+        };
+
+        socket.onclose = function (e) {
+            alertStyle.visibility = 'visible';
+        };
+    }
+    setupDisconnectedAlert();
+</script>
+'''
+
+
 def response_for_exception(request, exc):
     '''simplified from Django 1.11 source.
     The difference is that we use the exception that was passed in,
     rather than referencing sys.exc_info(), which gives us the ResponseForException
     the original exception was wrapped in, which we don't want to show to users.
         '''
-    from django.utils.log import log_response  # expensive import
-
     if isinstance(exc, UNHANDLED_EXCEPTIONS):
         '''copied from Django source, but i don't think these
         exceptions will actually occur.'''
@@ -96,7 +135,9 @@ def response_for_exception(request, exc):
         exc_info=exc,
     )
     if settings.DEBUG:
-        response.content = response.content.split(b'<div id="requestinfo">')[0]
+        response_content = response.content.split(b'<div id="requestinfo">')[0]
+        response_content += TECHNICAL_500_AUTORELOAD_JS
+        response.content = response_content
 
     # Force a TemplateResponse to be rendered.
     if not getattr(response, 'is_rendered', True) and callable(
@@ -517,6 +558,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
 
 
 class Page(FormPageOrInGameWaitPage):
+
     # if a model is not specified, use empty "StubModel"
     form_model = UndefinedFormModel
     form_fields = []
@@ -528,7 +570,6 @@ class Page(FormPageOrInGameWaitPage):
 
     def browser_bot_stuff(self, response: TemplateResponse):
         if self.participant.is_browser_bot:
-
             if hasattr(response, 'render'):
                 response.render()
             browser_bots.set_attributes(
@@ -827,16 +868,8 @@ class Page(FormPageOrInGameWaitPage):
             and participant._timeout_expiration_time is not None
         )
 
-    # don't use lru_cache. it is a global cache
-    # @cached_property only in python 3.8
-    _remaining_timeout_seconds = 'unset'
-
+    @lru_cache(maxsize=None)
     def remaining_timeout_seconds(self):
-        if self._remaining_timeout_seconds == 'unset':
-            self._remaining_timeout_seconds = self.remaining_timeout_seconds_inner()
-        return self._remaining_timeout_seconds
-
-    def remaining_timeout_seconds_inner(self):
         current_time = time.time()
         participant = self.participant
         if participant._timeout_page_index == participant._index_in_pages:
@@ -861,10 +894,12 @@ class Page(FormPageOrInGameWaitPage):
             # submits by the timeout_happened flag), it will "skip ahead"
             # and therefore confuse the bot system.
             if not self.participant.is_browser_bot:
-                otree.tasks.submit_expired_url(
-                    participant_code=self.participant.code,
-                    base_url=self.request.build_absolute_uri('/'),
-                    path=self.request.path,
+                otree.tasks.submit_expired_url.schedule(
+                    (
+                        self.participant.code,
+                        self.request.build_absolute_uri('/'),
+                        self.request.path,
+                    ),
                     # add some seconds to account for latency of request + response
                     # this will (almost) ensure
                     # (1) that the page will be submitted by JS before the
@@ -875,7 +910,7 @@ class Page(FormPageOrInGameWaitPage):
                     # page ahead. that means that entire pages could be skipped
                     # task queue can't schedule tasks in the past
                     # at least 1 second from now
-                    delay=timeout_seconds + 8,
+                    delay=max(1, timeout_seconds + 8),
                 )
         return timeout_seconds
 
@@ -1143,9 +1178,11 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             # if the next page has a timeout, or if it's a wait page
             # but this is not reliable because next page might be skipped anyway,
             # and we don't know what page will actually be shown next to the user.
-            otree.tasks.ensure_pages_visited(
-                participant_pks=participant_pks,
-                base_url=self.request.build_absolute_uri('/'),
+            otree.tasks.ensure_pages_visited.schedule(
+                kwargs=dict(
+                    participant_pks=participant_pks,
+                    base_url=self.request.build_absolute_uri('/'),
+                ),
                 delay=10,
             )
 

@@ -167,20 +167,14 @@ class RequirementsError(Exception):
 
 REQS_BASE_DEFAULT = '''\
 # You should put your requirements in requirements.txt instead.
-# You can delete this file.
 '''
 
-# we do otree>= because if we require the exact version,
-# then if you upgrade and run devserver, otree will complain
-# that you are using the wrong version.
-# if someone needs that exact version, they can manage the file manually.
 _REQS_DEFAULT_FMT = f'''\
 # {OVERWRITE_TOKEN}
 # IF YOU MODIFY THIS FILE, remove these comments. 
 # otherwise, oTree will automatically overwrite it.
-otree%s>={otree_version}
+otree%s=={otree_version}
 psycopg2>=2.8.4
-sentry-sdk==0.7.9
 '''
 
 REQS_DEFAULT = _REQS_DEFAULT_FMT % ''

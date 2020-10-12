@@ -11,10 +11,12 @@ import string
 from collections import OrderedDict
 from importlib import import_module
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, List
+import redis
 from django.apps import apps
 from django.db import connection
 from django.db import transaction
+from huey.contrib.djhuey import HUEY
 import urllib
 import os
 import json
@@ -22,7 +24,7 @@ from django.conf import settings
 from django.utils.safestring import mark_safe
 
 # until 2016, otree apps imported currency from otree.common.
-from otree.currency import Currency, RealWorldCurrency, currency_range  # noqa
+from otree.currency import Currency, RealWorldCurrency
 
 # set to False if using runserver
 
@@ -180,10 +182,6 @@ def ensure_superuser_exists(*args, **kwargs) -> str:
     """
     Creates our default superuser.
     If it fails, it returns a failure message
-    The weakness of this is that if you change your password, you need to resetdb.
-    but that doesn't affect many people. we could show a warning saying that
-    ADMIN_PASSWORD doesn't match the hashed password, but i could not find a trivial way
-    to do that. the make_password function is nondeterministic.
     """
     username = settings.ADMIN_USERNAME
     password = settings.ADMIN_PASSWORD
@@ -194,6 +192,8 @@ def ensure_superuser_exists(*args, **kwargs) -> str:
     from django.contrib.auth.models import User
 
     if User.objects.filter(username=username).exists():
+        # msg = 'Default superuser exists.'
+        # logger.info(msg)
         return ''
     User.objects.create_superuser(username, email='', password=password)
     msg = 'Created superuser "{}"'.format(username)
@@ -219,7 +219,6 @@ def transaction_except_for_sqlite():
     On SQLite, transactions tend to result in "database locked" errors.
     So, skip the transaction on SQLite, to allow local dev.
     Should only be used if omitting the transaction rarely causes problems.
-    2020-10-13: maybe not needed now that we are single threaded
     '''
     if is_sqlite():
         yield
@@ -356,7 +355,6 @@ def dump_db_and_exit(*args, code=0):
 
 
 def dump_db(*args):
-
     # return
     global _dumped
     if _dumped:
@@ -395,4 +393,4 @@ def load_db():
         src = sqlite3.connect('db.sqlite3')
         src.backup(connection.connection)
     else:
-        sys.stdout.write('Creating new database\n')
+        print('Creating new database', db_path.resolve())

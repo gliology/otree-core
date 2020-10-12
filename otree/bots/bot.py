@@ -8,6 +8,7 @@ from urllib.parse import unquote, urlsplit
 from html.parser import HTMLParser
 
 import otree.constants
+from django import test
 from django.urls import resolve
 from django.conf import settings
 from otree.currency import Currency
@@ -112,16 +113,14 @@ def expect(*args):
         raise ExpectError(msg)
 
 
-class ParticipantBot:
+class ParticipantBot(test.Client):
     def __init__(self, participant_or_code, *, player_bots, executed_live_methods=None):
-        from django.test import Client  # expensive import
 
         if isinstance(participant_or_code, Participant):
             self.participant_code = participant_or_code.code
         else:
             self.participant_code = participant_or_code
 
-        self._client = Client()
         self.url = None
         self._response = None
         self._html = None
@@ -130,6 +129,7 @@ class ParticipantBot:
         if executed_live_methods is None:
             executed_live_methods = set()
         self.executed_live_methods = executed_live_methods
+        super().__init__()
 
         for b in player_bots:
             b.participant_bot = self
@@ -138,7 +138,7 @@ class ParticipantBot:
 
     def open_start_url(self):
         start_url = common.participant_start_url(self.participant_code)
-        self.response = self._client.get(start_url, follow=True)
+        self.response = self.get(start_url, follow=True)
 
     def get_submits(self):
         for player_bot in self.player_bots:
@@ -269,7 +269,7 @@ class ParticipantBot:
             return False
 
         # however, wait pages can turn into regular pages, so let's try again
-        self.response = self._client.get(self.url, follow=True)
+        self.response = self.get(self.url, follow=True)
         return is_wait_page(self.response)
 
     def submit(self, *, post_data, must_fail=False, timeout_happened=False, **kwargs):
@@ -282,7 +282,7 @@ class ParticipantBot:
         if timeout_happened:
             log_string += ', timeout_happened'
         logger.info(log_string)
-        self.response = self._client.post(self.url, post_data, follow=True)
+        self.response = self.post(self.url, post_data, follow=True)
 
 
 class PlayerBot:
@@ -404,7 +404,6 @@ def _Submission(
         )
         raise AssertionError(msg)
 
-    # todo: this might not be necessary anymore now that we don't use redis
     for key in post_data:
         if isinstance(post_data[key], Currency):
             # because must be json serializable for Huey

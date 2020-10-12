@@ -1,22 +1,25 @@
 import importlib
-import sys
+import logging
+import os
+import os.path
+import signal
 import time
 import traceback
 from pathlib import Path
-import signal
-from contextlib import contextmanager
-
-from otree.common import dump_db, dump_db_and_exit, load_db
+from unittest.mock import patch
+import sys
 
 import termcolor
 from django.apps import apps
 from django.conf import settings
 from django.core.management import call_command, BaseCommand
+from django.utils import autoreload
 
+import otree.common
 import otree_startup
 from otree import __version__ as CURRENT_VERSION
-from otree.common import dump_db, load_db
-from .prodserver1of2 import get_addr_port, run_asgi_server
+from otree.common import dump_db, dump_db_and_exit, load_db
+from .prodserver1of2 import get_addr_port, run_hypercorn
 
 TMP_MIGRATIONS_DIR = Path('__temp_migrations')
 VERSION_FILE = TMP_MIGRATIONS_DIR.joinpath('otree-version.txt')
@@ -39,11 +42,25 @@ ADVICE_PRINT_DETAILS = (
     '(For technical details about this error, run "otree devserver --verbosity=1")'
 ).format(PRINT_DETAILS_VERBOSITY_LEVEL)
 
+db_engine = settings.DATABASES['default']['ENGINE'].lower()
 
-ADVICE_DELETE_DB = (
-    'ADVICE: Stop the server, '
-    'then delete the file db.sqlite3 in your project folder.'
-)
+if otree.common.is_sqlite():
+    ADVICE_DELETE_DB = (
+        'ADVICE: Stop the server, '
+        'then delete the file db.sqlite3 in your project folder.'
+    )
+else:
+    if 'postgres' in db_engine:
+        db_engine = 'PostgreSQL'
+    elif 'mysql' in db_engine:
+        db_engine = 'MySQL'
+
+    ADVICE_DELETE_DB = (
+        'ADVICE: Delete (drop) your {} database, then create a new empty one '
+        'with the same name. "otree devserver" cannot be used on a database '
+        'that was generated with "otree resetdb". You should either use one '
+        'command or the other.'
+    ).format(db_engine)
 
 # They should start fresh so that:
 # (1) performance refresh
@@ -54,21 +71,7 @@ MSG_OTREE_UPDATE_DELETE_DB = (
 )
 
 
-@contextmanager
-def patch_stdout():
-    '''better than importing unittest.mock just to use this'''
-    orig = sys.stdout.write
-    sys.stdout.write = lambda s: None
-    try:
-        yield
-    finally:
-        sys.stdout.write = orig
-
-
 class Command(BaseCommand):
-    # Validation is called explicitly on first load, see below.
-    requires_system_checks = False
-
     def add_arguments(self, parser):
 
         # see log_action below; we only show logs of each request
@@ -81,18 +84,22 @@ class Command(BaseCommand):
         parser.add_argument(
             'addrport', nargs='?', help='Optional port number, or ipaddr:port'
         )
-
         parser.add_argument(
-            '--is-reload', action='store_true', dest='is_reload', default=False,
+            '--noreload',
+            action='store_false',
+            dest='use_reloader',
+            help='Tells Django to NOT use the auto-reloader.',
         )
 
         parser.add_argument(
-            '--is-zipserver', action='store_true', dest='is_zipserver', default=False,
+            '--inside-zipserver',
+            action='store_true',
+            dest='inside_zipserver',
+            default=False,
         )
 
-    def handle(self, *args, addrport, is_reload, is_zipserver, **options):
+    def handle(self, *args, **options):
         self.verbosity = options.get("verbosity", 1)
-        self.is_zipserver = is_zipserver
 
         if not settings.DEBUG:
             # this tends to cause confusion. people don't know why they get server 500 error,
@@ -103,19 +110,26 @@ class Command(BaseCommand):
                 'and that the OTREE_PRODUCTION env var is not set.'
             )
 
-        if not is_reload:
+        # for performance,
+        # only run checks when the server starts, not when it reloads
+        # (RUN_MAIN is set by Django autoreloader).
+        if not os.environ.get('RUN_MAIN'):
+
             try:
                 # don't suppress output. it's good to know that check is
                 # not failing silently or not being run.
                 # also, intercepting stdout doesn't even seem to work here.
                 self.check(display_num_errors=True)
+
             except Exception as exc:
                 otree_startup.print_colored_traceback_and_exit(exc)
 
             # better to do this here, because:
             # (1) it's redundant to do it on every reload
             # (2) we can exit if we run this before the autoreloader is started
-            if VERSION_FILE.exists() and VERSION_FILE.read_text() != CURRENT_VERSION:
+            if TMP_MIGRATIONS_DIR.exists() and (
+                not VERSION_FILE.exists() or VERSION_FILE.read_text() != CURRENT_VERSION
+            ):
                 # - Don't delete the DB, because it might have important data
                 # - Don't delete __temp_migrations, because then we erase the knowledge that
                 # oTree was updated. If the user starts the server at a later time, we can't remind them
@@ -132,33 +146,72 @@ class Command(BaseCommand):
             # seems to have no impact on perf
             importlib.invalidate_caches()
 
-        self.makemigrations_and_migrate()
+        is_reloader_process = options['use_reloader'] and not (
+            os.environ.get('RUN_MAIN')
+        )
+        if not is_reloader_process:
+            # this handles restarts due Ctrl+C
 
-        addr, port = get_addr_port(addrport, is_devserver=True)
-        if not is_reload:
-            # 0.0.0.0 is not a regular IP address, so we can't tell the user
-            # to open their browser to that address
-            if addr == '127.0.0.1':
-                addr_readable = 'localhost'
-            elif addr == '0.0.0.0':
-                addr_readable = '<ip_address>'
-            else:
-                addr_readable = addr
-            self.stdout.write(
-                (
-                    f"Open your browser to http://{addr_readable}:{port}/\n"
-                    "To quit the server, press Control+C.\n"
-                )
-            )
+            # can't handle this signal in the autoreloader process,
+            # since the DB is stored in the main django process's memory.
+
+            # i guess the child process receives the SIGINT
+            # from the parent autoreloader process.
+            signal.signal(signal.SIGINT, dump_db_and_exit)
 
         try:
-            run_asgi_server(addr, port, is_devserver=True)
-            dump_db()  # for hypercorn 0.11 with Ctrl+C
+            use_reloader = options['use_reloader']
+
+            if use_reloader:
+                autoreload.run_with_reloader(self.inner_run, **options)
+            else:
+                self.inner_run(None, **options)
+        except SystemExit as exc:
+            # this is designed to handle the sys.exit(3) that is fired
+            # by the child process file-watcher thread, when a file is changed.
+            # it needs to be here rather than inner_run because that is only
+            # run by the child process main_func thread.
+
+            # this also gets run if using zipserver and a sys.exit occurs.
+
+            # if an exception occurs inside the main_func thread that executes inner_run,
+            # it will just print the TB and hang, as usual. Then the user presses Ctrl+C,
+            # which triggers the SIGINT handler above.
+            # if the main_func thread calls sys.exit that is not a concern here
+            # because that will just exit that thread and not bubble up here.
+            if not is_reloader_process:
+                dump_db()
+            raise
+
+    def inner_run(self, *args, inside_zipserver, addrport, **options):
+        '''
+        inner_run does not get run twice with runserver, unlike .handle()
+        '''
+
+        self.inside_zipserver = inside_zipserver
+        self.makemigrations_and_migrate()
+
+        # I removed the IPV6 stuff here because its not commonly used yet
+        addr, port = get_addr_port(addrport)
+        # 0.0.0.0 is not a regular IP address, so we can't tell the user
+        # to open their browser to that address
+        if addr == '127.0.0.1':
+            addr_readable = 'localhost'
+        elif addr == '0.0.0.0':
+            addr_readable = '<ip_address>'
+        else:
+            addr_readable = addr
+        self.stdout.write(
+            (
+                f"Open your browser to http://{addr_readable}:{port}/\n"
+                "To quit the server, press Control+C.\n"
+            )
+        )
+
+        try:
+            run_hypercorn(addr, port)
         except KeyboardInterrupt:
             return
-        except SystemExit as exc:
-            dump_db()
-            raise
 
     def makemigrations_and_migrate(self):
 
@@ -179,7 +232,7 @@ class Command(BaseCommand):
             # or raise CommandError.
             # if someone needs to see the details of makemigrations,
             # they can do "otree makemigrations".
-            with patch_stdout():
+            with patch('sys.stdout.write'):
                 call_command('makemigrations', '--noinput', *migrations_modules.keys())
 
         except SystemExit as exc:
@@ -204,19 +257,12 @@ class Command(BaseCommand):
         # should I instead connect to connection_created signal?
         # but this seems better because we know exactly where it happens,
         # and can guarantee we won't subscribe after the signal was already sent.
-
         load_db()
-        # this handles:
-        # (1) keyboardinterrupt
-        # (2) external interrupts
-        # so, it's probably more complete than just having a KeyboardInterrupt handler
-        # especially if the exception occurs outside the try/except
-        signal.signal(signal.SIGINT, dump_db_and_exit)
 
         try:
             # see above comment about makemigrations and capturing stdout.
             # it applies to migrate command also.
-            with patch_stdout():
+            with patch('sys.stdout.write'):
                 # call_command does not add much overhead (0.1 seconds typical)
                 call_command('migrate', '--noinput')
 
@@ -243,15 +289,17 @@ class Command(BaseCommand):
         '''this won't actually exit because we can't kill the autoreload process'''
         self.stdout.write('\n')
         is_verbose = self.verbosity >= PRINT_DETAILS_VERBOSITY_LEVEL
-        show_error_details = is_verbose or self.is_zipserver
+        show_error_details = is_verbose or self.inside_zipserver
         if show_error_details:
             traceback.print_exc()
         else:
             self.stdout.write('An error occurred.')
-        if self.is_zipserver:
+        if self.inside_zipserver:
             self.stdout.write('Please report to chris@otree.org.')
         else:
             termcolor.cprint(advice, 'white', 'on_red')
         if not show_error_details:
             self.stdout.write(ADVICE_PRINT_DETAILS)
         sys.exit(0)
+
+    inside_zipserver = False
