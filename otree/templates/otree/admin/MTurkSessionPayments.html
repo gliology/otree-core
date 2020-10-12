@@ -269,6 +269,12 @@
         <p>You have no participants who finished the
           experiment.</p>
       {% endif %}
+      {% if auto_rejects %}
+        <div class="alert alert-danger">
+          oTree automatically rejected the following assignments because the participants submitted without even
+          opening the link to the study: {{ auto_rejects }}
+        </div>
+      {% endif %}
     </div>
   {% endif %}
   <br>

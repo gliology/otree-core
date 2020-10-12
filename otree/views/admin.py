@@ -464,7 +464,6 @@ class AdminReport(AdminSessionPageMixin, vanilla.TemplateView):
 def get_json_from_pypi() -> dict:
     # import only if we need it
     import urllib.request
-    import urllib.parse
 
     try:
         f = urllib.request.urlopen('https://pypi.python.org/pypi/otree/json')

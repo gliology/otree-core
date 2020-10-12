@@ -14,7 +14,12 @@ from django.conf import settings
 from django.core import signals
 from django.core.exceptions import PermissionDenied, SuspiciousOperation
 from django.core.handlers.exception import handle_uncaught_exception
-from django.http import HttpResponseRedirect, Http404, HttpResponseForbidden
+from django.http import (
+    HttpResponseRedirect,
+    Http404,
+    HttpResponseForbidden,
+    HttpResponseNotFound,
+)
 from django.http.multipartparser import MultiPartParserError
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -147,10 +152,6 @@ def response_for_exception(request, exc):
     return response
 
 
-NO_PARTICIPANTS_LEFT_MSG = (
-    "The maximum number of participants for this session has been exceeded."
-)
-
 ADMIN_SECRET_CODE = get_admin_secret_code()
 
 
@@ -227,7 +228,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
                     "This user ({}) does not exist in the database. "
                     "Maybe the database was reset."
                 ).format(participant_code)
-                raise Http404(msg)
+                return HttpResponseNotFound(msg)
 
             # if the player tried to skip past a part of the subsession
             # (e.g. by typing in a future URL)
