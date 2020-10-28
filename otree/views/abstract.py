@@ -5,7 +5,6 @@ import os
 import time
 from typing import Optional
 
-from functools import lru_cache
 import otree.common2
 import vanilla
 from django.conf import settings
@@ -868,8 +867,16 @@ class Page(FormPageOrInGameWaitPage):
             and participant._timeout_expiration_time is not None
         )
 
-    @lru_cache(maxsize=None)
+    # don't use lru_cache. it is a global cache
+    # @cached_property only in python 3.8
+    _remaining_timeout_seconds = 'unset'
+
     def remaining_timeout_seconds(self):
+        if self._remaining_timeout_seconds == 'unset':
+            self._remaining_timeout_seconds = self.remaining_timeout_seconds_inner()
+        return self._remaining_timeout_seconds
+
+    def remaining_timeout_seconds_inner(self):
         current_time = time.time()
         participant = self.participant
         if participant._timeout_page_index == participant._index_in_pages:
