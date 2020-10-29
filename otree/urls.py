@@ -78,12 +78,12 @@ def url_patterns_from_builtin_module(module_name: str):
         # class's name
         url_name = getattr(ViewCls, 'url_name', ViewCls.__name__)
 
-        if settings.AUTH_LEVEL == 'STUDY':
-            unrestricted = url_name in ALWAYS_UNRESTRICTED
-        elif settings.AUTH_LEVEL == 'DEMO':
-            unrestricted = url_name in UNRESTRICTED_IN_DEMO_MODE
-        else:
-            unrestricted = True
+        unrestricted = {
+            'STUDY': url_name in ALWAYS_UNRESTRICTED,
+            'DEMO': url_name in UNRESTRICTED_IN_DEMO_MODE,
+            '': True,
+            None: True
+        }[settings.AUTH_LEVEL]
 
         if unrestricted:
             as_view = ViewCls.as_view()

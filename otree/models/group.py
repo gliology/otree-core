@@ -6,7 +6,6 @@ from otree.common import (
     InvalidRoundError,
 )
 from otree import common
-from otree.models.fieldchecks import ensure_field
 import django.core.exceptions
 from django.db import models as djmodels
 from otree.constants import BaseConstants, get_role, get_roles
@@ -127,4 +126,4 @@ class BaseGroup(models.OTreeModel, GroupIDMapMixin):
         subsession_field = djmodels.ForeignKey(
             subsession_model, on_delete=models.CASCADE
         )
-        ensure_field(cls, 'subsession', subsession_field)
+        subsession_field.contribute_to_class(cls, 'subsession')

@@ -1,8 +1,9 @@
 import re
 import sys
 from pathlib import Path
-
+import otree
 from django.core.management.base import BaseCommand
+from itertools import chain
 
 
 class Command(BaseCommand):
@@ -40,9 +41,24 @@ class Command(BaseCommand):
         self.dry_run = False
         self.scan()
 
+        # old format imported otree.test and otree.views, so we need to get rid of it
+        _builtins = Path('.').glob('*/_builtin/__init__.py')
+        for pth in _builtins:
+            if 'z_autocomplete' in pth.read_text():
+                print('@@@@z_autocomplete found', pth)
+                new_text = (
+                    Path(otree.__file__)
+                    .parent.joinpath('app_template/_builtin/__init__.py')
+                    .read_text()
+                )
+                pth.write_text(new_text)
+
     def scan(self):
 
-        html_fns = Path('.').glob('**/*.html')
+        root = Path('.')
+        html_fns = chain(
+            root.glob('*/*/*.html'), root.glob('*/*.html'), root.glob('*.html')
+        )
         for fn in html_fns:
             self.apply_rule_to_file(
                 fn, r"% formfield (player|group)\.(\w+)", r"% formfield '\2'"

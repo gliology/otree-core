@@ -148,8 +148,6 @@ def sanitize_for_csv(value) -> str:
 
 
 def sanitize_for_live_update(value):
-    # force_text is necessary e.g. for CountryField, which is otherwise
-    # not Json serializable
     value = escape(sanitize_for_csv(value))
     MAX_LENGTH = 30
     if len(value) > MAX_LENGTH:

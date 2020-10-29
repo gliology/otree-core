@@ -1,35 +1,37 @@
-import logging
 import json
-from collections import OrderedDict
-import otree
+import logging
 import re
-import otree.bots.browser
-import otree.common
-import otree.export
-import otree.models
+from collections import OrderedDict
+
 import vanilla
 from django.conf import settings
 from django.contrib import messages
-from django.urls import reverse
-from django.template.loader import select_template
+from django.db.models import Case, Value, When
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.views.decorators.csrf import csrf_exempt
+from django.template.loader import select_template
+from django.urls import reverse
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+
+import otree
+import otree.bots.browser
+import otree.channels.utils as channel_utils
+import otree.common
+import otree.export
+import otree.models
 from otree import forms, tasks
-from otree.currency import RealWorldCurrency
 from otree.common import (
     missing_db_tables,
     get_models_module,
     get_app_label_from_name,
     DebugTable,
 )
+from otree.currency import RealWorldCurrency
 from otree.forms import widgets
 from otree.models import Participant, Session
 from otree.session import SESSION_CONFIGS_DICT, SessionConfig
 from otree.views.abstract import AdminSessionPageMixin
-from django.db.models import Case, Value, When
-import otree.channels.utils as channel_utils
 
 
 def pretty_name(name):
@@ -477,7 +479,6 @@ class ServerCheck(vanilla.TemplateView):
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(
-            sqlite=otree.common.is_sqlite(),
             debug=settings.DEBUG,
             auth_level=settings.AUTH_LEVEL,
             auth_level_ok=settings.AUTH_LEVEL in {'DEMO', 'STUDY'},
@@ -548,7 +549,7 @@ class TerminateServer(vanilla.View):
 
         if 'devserver_inner' in sys.argv:
             dump_db()
-            from otree.common import shutdown_event
+            from otree.management.commands.prodserver1of2 import shutdown_event
 
             shutdown_event.set()
         else:

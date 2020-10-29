@@ -174,12 +174,15 @@ class LiveConsumer(_OTreeAsyncJsonWebsocketConsumer):
     def clean_kwargs(self):
         return parse_querystring(self.scope['query_string'])
 
-    async def post_receive_json(self, content, participant_code, page_name, **kwargs):
+    def browser_bot_exists(self, participant_code):
         # for browser bots, block liveSend calls that get triggered on page load.
         # instead, everything must happen through call_live_method in a controlled way.
-        if Participant.objects.filter(
+        return Participant.objects.filter(
             code=participant_code, is_browser_bot=True
-        ).exists():
+        ).exists()
+
+    async def post_receive_json(self, content, participant_code, page_name, **kwargs):
+        if database_sync_to_async(self.browser_bot_exists)(participant_code):
             return
         await database_sync_to_async(live_payload_function)(
             participant_code=participant_code, page_name=page_name, payload=content

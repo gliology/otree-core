@@ -22,10 +22,13 @@ def main(remaining_argv):
     port = remaining_argv[0]
 
     proc = Popen(['otree', 'devserver_inner'] + remaining_argv)
+
     root = Path('.')
-
-    files_to_watch = [p for p in root.glob('**/*.py') if 'migrations' not in str(p)]
-
+    files_to_watch = [
+        p
+        for p in list(root.glob('*.py')) + list(root.glob('*/*.py'))
+        if 'migrations' not in str(p)
+    ]
     mtimes = get_mtimes(files_to_watch)
     try:
         while True:
