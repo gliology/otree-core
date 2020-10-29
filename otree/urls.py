@@ -19,6 +19,7 @@ ALWAYS_UNRESTRICTED = {
     'ParticipantRoomHeartbeat',
     'ParticipantHeartbeatGBAT',
     'RESTCreateSession',
+    'RESTSessionVars',
     'PostParticipantVarsThroughREST',
     'CreateBrowserBotsSession',
     'CloseBrowserBotsSession',

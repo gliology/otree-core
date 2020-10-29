@@ -3,6 +3,9 @@ import otree.db
 from otree.channels import utils as channel_utils
 from otree.models import Participant
 from otree.lookup import get_page_lookup
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def live_payload_function(participant_code, page_name, payload):
@@ -15,22 +18,27 @@ def live_payload_function(participant_code, page_name, payload):
     # this could be incorrect if the player advances right after liveSend is executed.
     # maybe just return if it doesn't match. (but leave it in for now and see how much that occurs,
     # don't want silent failures.)
-    assert page_name == PageClass.__name__
-    method_name = PageClass.live_method
+    if page_name != PageClass.__name__:
+        logger.warning(
+            f'Ignoring liveSend message from {participant_code} because '
+            f'they are on page {PageClass.__name__}, not {page_name}.'
+        )
+        return
+    live_method_name = PageClass.live_method
 
     with otree.db.idmap.use_cache():
         player = models_module.Player.objects.get(
             round_number=lookup.round_number, participant=participant
         )
         group = player.group
-        method = getattr(group, method_name)
+        method = getattr(group, live_method_name)
         retval = method(player.id_in_group, payload)
         otree.db.idmap.save_objects()
 
     if not retval:
         return
     if not isinstance(retval, dict):
-        msg = f'{method_name} must return a dict'
+        msg = f'{live_method_name} must return a dict'
         raise LiveMethodBadReturnValue(msg)
 
     pcodes_dict = {
