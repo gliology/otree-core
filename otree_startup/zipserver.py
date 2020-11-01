@@ -153,7 +153,7 @@ class Project:
         from urllib.request import urlopen
 
         try:
-            urlopen(f'http://localhost:{PORT}/KillZipServer/', data=b'foo')
+            urlopen(f'http://127.0.0.1:{PORT}/KillZipServer/', data=b'foo')
         except (http.client.RemoteDisconnected, urllib.error.URLError):
             # - by design, RemoteDisconnected will happen because it sys.exit()
             # before returning an HttpResponse
