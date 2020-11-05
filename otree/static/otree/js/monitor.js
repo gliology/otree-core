@@ -117,7 +117,7 @@ function refreshTable(new_json, $tbody, visitedParticipants) {
             if (index === visitedParticipants.length) {
                 tbody.appendChild(newRow);
             } else {
-                tbody.insertBefore(newRow, tbody.querySelector(index));
+                tbody.insertBefore(newRow, tbody.querySelector(rowSelector));
             }
             let tr = tbody.querySelector(rowSelector);
             flashGreen($(tr));
