@@ -17,7 +17,7 @@ from otree.views.abstract import BaseRESTView
 
 class PostParticipantVarsThroughREST(BaseRESTView):
 
-    url_pattern = r'^api/v1/participant_vars/$'
+    url_pattern = r'^api/participant_vars/$'
 
     def inner_post(self, room_name, participant_label, vars):
         if room_name not in ROOM_DICT:
@@ -41,7 +41,7 @@ class PostParticipantVarsThroughREST(BaseRESTView):
 
 
 class RESTSessionVars(BaseRESTView):
-    url_pattern = r'^api/v1/session_vars/$'
+    url_pattern = r'^api/session_vars/$'
 
     def inner_post(self, room_name, vars):
         if room_name not in ROOM_DICT:
@@ -57,7 +57,7 @@ class RESTSessionVars(BaseRESTView):
 
 class RESTCreateSession(BaseRESTView):
 
-    url_pattern = r'^api/v1/sessions/$'
+    url_pattern = r'^api/sessions/$'
 
     def inner_post(self, **kwargs):
         '''
@@ -76,6 +76,18 @@ class RESTCreateSession(BaseRESTView):
                 event={},
             )
         return HttpResponse(session.code)
+
+
+class RESTCreateSessionLegacy(RESTCreateSession):
+    url_pattern = r'^api/v1/sessions/$'
+
+
+class RESTSessionVarsLegacy(RESTSessionVars):
+    url_pattern = r'^api/v1/session_vars/$'
+
+
+class RESTParticipantVarsLegacy(PostParticipantVarsThroughREST):
+    url_pattern = r'^api/v1/participant_vars/$'
 
 
 class CreateBrowserBotsSession(BaseRESTView):

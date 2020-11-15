@@ -30,9 +30,20 @@ def live_payload_function(participant_code, page_name, payload):
         player = models_module.Player.objects.get(
             round_number=lookup.round_number, participant=participant
         )
+
+        # it makes sense to check the group first because
+        # if the player forgot to define it on the Player,
+        # we shouldn't fall back to checking the group. you could get an error like
+        # 'Group' has no attribute 'live_auction' which would be confusing.
+        # also, we need this 'group' object anyway.
+        # and this is a good place to show the deprecation warning.
         group = player.group
-        method = getattr(group, live_method_name)
-        retval = method(player.id_in_group, payload)
+        if hasattr(group, live_method_name):
+            method = getattr(group, live_method_name)
+            retval = method(player.id_in_group, payload)
+        else:
+            method = getattr(player, live_method_name)
+            retval = method(payload)
         otree.db.idmap.save_objects()
 
     if not retval:
