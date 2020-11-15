@@ -1,7 +1,8 @@
 from time import sleep
 from .common import terminate_through_http
-from subprocess import Popen
+from subprocess import Popen, TimeoutExpired
 from pathlib import Path
+import os
 
 stdout_write = print
 
@@ -29,6 +30,10 @@ def main(remaining_argv):
         for p in list(root.glob('*.py')) + list(root.glob('*/*.py'))
         if 'migrations' not in str(p)
     ]
+    if os.getenv('OTREE_CORE_DEV'):
+        # this code causes it to get stuck on proc.wait() for some reason
+        files_to_watch.extend(Path('c:/otree/core/otree').glob('**/*.py'))
+        files_to_watch.extend(Path('c:/otree/core/otree_startup').glob('**/*.py'))
     mtimes = get_mtimes(files_to_watch)
     try:
         while True:
@@ -45,13 +50,19 @@ def main(remaining_argv):
                 stdout_write(changed_file, 'changed, restarting')
                 mtimes = new_mtimes
                 terminate_through_http(port)
-                proc.wait()
+                # just to be sure
+                try:
+                    proc.wait(4)
+                except TimeoutExpired:
+                    stdout_write('force terminating server (should only happen rarely)')
+                    proc.terminate()
                 proc = Popen(['otree', 'devserver_inner', port, '--is-reload'])
             sleep(1)
     except KeyboardInterrupt:
-        # handle KeyboardInterrupt so we don't get a traceback to console
-        # also, we wait a couple seconds for the subprocess to exit.
-        # The KeyboardInterrupt automatically terminates the subprocess,
-        # but it seems the subprocess can take longer to exit than this process,
-        # resulting in errant console output
+        # handle KeyboardInterrupt (KBI) so we don't get a traceback to console.
+        # The KBI is received first by the subprocess and then by the parent process.
+        # Python's usual behavior is to wait until a subprocess exits before propagating the KBI
+        # to the parent process.
+        # but for some reason in this program, I got console output from the subprocess that seemed to come
+        # after the main process exited. so, we wait.
         proc.wait(2)

@@ -45,7 +45,6 @@ class Command(BaseCommand):
         _builtins = Path('.').glob('*/_builtin/__init__.py')
         for pth in _builtins:
             if 'z_autocomplete' in pth.read_text():
-                print('@@@@z_autocomplete found', pth)
                 new_text = (
                     Path(otree.__file__)
                     .parent.joinpath('app_template/_builtin/__init__.py')

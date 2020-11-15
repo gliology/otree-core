@@ -112,12 +112,12 @@ function refreshTable(new_json, $tbody, visitedParticipants) {
         let index = visitedParticipants.indexOf(id_in_session);
         if (index === -1) {
             index = visitedParticipants.filter((id) => id < id_in_session).length;
-            let newRow = createTableRow(row);
+            let newRow = createTableRowMonitor(row);
             let rowSelector = getNthBodyRowSelector(index);
             if (index === visitedParticipants.length) {
                 tbody.appendChild(newRow);
             } else {
-                tbody.insertBefore(newRow, tbody.querySelector(index));
+                tbody.insertBefore(newRow, tbody.querySelector(rowSelector));
             }
             let tr = tbody.querySelector(rowSelector);
             flashGreen($(tr));

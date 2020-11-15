@@ -54,6 +54,9 @@ MSG_OTREE_UPDATE_DELETE_DB = (
 
 
 class Command(BaseCommand):
+    # Validation is called explicitly on first load, see below.
+    requires_system_checks = False
+
     def add_arguments(self, parser):
 
         # see log_action below; we only show logs of each request
@@ -100,9 +103,7 @@ class Command(BaseCommand):
             # better to do this here, because:
             # (1) it's redundant to do it on every reload
             # (2) we can exit if we run this before the autoreloader is started
-            if TMP_MIGRATIONS_DIR.exists() and (
-                not VERSION_FILE.exists() or VERSION_FILE.read_text() != CURRENT_VERSION
-            ):
+            if VERSION_FILE.exists() and VERSION_FILE.read_text() != CURRENT_VERSION:
                 # - Don't delete the DB, because it might have important data
                 # - Don't delete __temp_migrations, because then we erase the knowledge that
                 # oTree was updated. If the user starts the server at a later time, we can't remind them
@@ -192,6 +193,11 @@ class Command(BaseCommand):
         # and can guarantee we won't subscribe after the signal was already sent.
 
         load_db()
+        # this handles:
+        # (1) keyboardinterrupt
+        # (2) external interrupts
+        # so, it's probably more complete than just having a KeyboardInterrupt handler
+        # especially if the exception occurs outside the try/except
         signal.signal(signal.SIGINT, dump_db_and_exit)
 
         try:

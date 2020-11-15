@@ -3,17 +3,12 @@ import logging
 import os
 
 from django.core.management.base import BaseCommand
-from hypercorn.asyncio import serve
-from hypercorn.config import Config
+from hypercorn_otree.asyncio import serve
+from hypercorn_otree.config import Config
 
 from otree_startup.asgi import application
 
 logger = logging.getLogger(__name__)
-
-# when I put the shutdown_event in common.py, I get this error on py 3.8 (not 3.7):
-# RuntimeError: Task <Task pending name='Task-5' coro=<raise_shutdown() running at ...\hypercorn\utils.py:172>>
-# got Future <Future pending> attached to a different loop
-shutdown_event = asyncio.Event()
 
 
 def run_hypercorn(addr, port, *, is_devserver=False):
@@ -32,12 +27,12 @@ def run_hypercorn(addr, port, *, is_devserver=False):
 
     loop = asyncio.get_event_loop()
 
-    # shutdown_event is used so that it terminates gracefully
-    # when i was doing sys.exit() in the TerminateServer view,
+    # i have alternated between using shutdown_trigger and sys.exit().
+    # originally when i was doing sys.exit() in the TerminateServer view,
     # it kept printing out the SystemExit traceback but not actually terminating the server
-    loop.run_until_complete(
-        serve(application, config, shutdown_trigger=shutdown_event.wait,)
-    )
+    # but now it works (not sure what changed).
+    # and shutdown_trigger sometimes caused the app to hang.
+    loop.run_until_complete(serve(application, config))
 
 
 def get_addr_port(cli_addrport, is_devserver=False):

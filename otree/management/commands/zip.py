@@ -167,6 +167,7 @@ class RequirementsError(Exception):
 
 REQS_BASE_DEFAULT = '''\
 # You should put your requirements in requirements.txt instead.
+# You can delete this file.
 '''
 
 # we do otree>= because if we require the exact version,

@@ -1,5 +1,6 @@
 import logging
 import time
+import random
 
 from django.template import TemplateDoesNotExist
 from django.template.loader import select_template
@@ -173,6 +174,7 @@ class Session(models.OTreeModel, models.VarsMixin, SessionIDMapMixin):
         return self.mturk_expiration and self.mturk_expiration < time.time()
 
     def mturk_is_active(self):
+
         return self.mturk_HITId and not self.mturk_is_expired()
 
     def advance_last_place_participants(self):

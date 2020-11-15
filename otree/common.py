@@ -394,4 +394,4 @@ def load_db():
         src = sqlite3.connect('db.sqlite3')
         src.backup(connection.connection)
     else:
-        print('Creating new database')
+        sys.stdout.write('Creating new database\n')

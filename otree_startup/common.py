@@ -6,7 +6,8 @@ import urllib.error
 def terminate_through_http(PORT):
     try:
         # send data= so it makes a post request
-        urlopen(f'http://localhost:{PORT}/TerminateServer/', data=b'foo')
+        # it seems using localhost is very slow compared to 127.0.0.1
+        urlopen(f'http://127.0.0.1:{PORT}/TerminateServer/', data=b'foo')
     except (
         http.client.RemoteDisconnected,
         urllib.error.URLError,
