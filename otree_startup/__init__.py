@@ -10,12 +10,14 @@ def _thread_sensitive_init(self, func, thread_sensitive=True):
 
 SyncToAsync.__init__ = _thread_sensitive_init
 
+import json
 import logging
+import django.core.management
 import django.conf
 import os
-import re
 import sys
 from sys import argv
+from collections import OrderedDict, defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -24,15 +26,16 @@ from django.conf import settings as django_settings
 from importlib import import_module
 from django.core.management import get_commands, load_command_class
 import django
+from django.apps import apps
 from django.core.management.base import BaseCommand
-
+from django.utils import autoreload
 
 # "from .settings import ..." actually imports the whole settings module
 # confused me, it was overwriting django.conf.settings above
 # https://docs.python.org/3/reference/import.html#submodules
 from otree_startup.settings import augment_settings
 from otree import __version__
-
+from . import zipserver, devserver
 
 # REMEMBER TO ALSO UPDATE THE PROJECT TEMPLATE
 from otree_startup.settings import get_default_settings
@@ -62,15 +65,6 @@ zip
 zipserver
 '''
 
-COMMAND_ALIASES = dict(
-    test='bots',
-    runprodserver='prodserver',
-    webandworkers='prodserver1of2',
-    runprodserver1of2='prodserver1of2',
-    runprodserver2of2='prodserver2of2',
-    timeoutworker='prodserver2of2',
-)
-
 
 def execute_from_command_line(*args, **kwargs):
     '''
@@ -99,19 +93,14 @@ def execute_from_command_line(*args, **kwargs):
         # default command
         argv.append('help')
 
-    subcmd = argv[1]
-    subcmd = COMMAND_ALIASES.get(subcmd, subcmd)
+    subcommand = argv[1]
 
-    if subcmd == 'zipserver':
-        from . import zipserver  # expensive import
-
+    if subcommand == 'zipserver':
         zipserver.main(argv[2:])
         # better to return than sys.exit because testing is complicated
         # with sys.exit -- if you mock it, then the function keeps executing.
         return
-    if subcmd == 'devserver':
-        from . import devserver  # expensive import
-
+    if subcommand == 'devserver':
         devserver.main(argv[2:])
         # better to return than sys.exit because testing is complicated
         # with sys.exit -- if you mock it, then the function keeps executing.
@@ -134,18 +123,24 @@ def execute_from_command_line(*args, **kwargs):
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
     DJANGO_SETTINGS_MODULE = os.environ['DJANGO_SETTINGS_MODULE']
 
-    if subcmd in ['help', '--help', '-h'] and len(argv) == 2:
+    if subcommand in ['help', '--help', '-h'] and len(argv) == 2:
         sys.stdout.write(MAIN_HELP_TEXT)
         return
 
-    # need to set env var rather than setting otree.common.USE_TIMEOUT_WORKER because
-    # that module cannot be loaded yet.
-    # we no longer rely on redis, so eventually we should use the env var USE_TIMEOUT_WORKER.
-    # but for now keep it while test out whether we can skip using redis
-    if subcmd in ['prodserver', 'prodserver1of2']:
-        os.environ['USE_TIMEOUT_WORKER'] = '1'
+    # this env var is necessary because if the botworker submits a wait page,
+    # it needs to broadcast to redis channel layer, not in-memory.
+    # this caused an obscure bug on 2019-09-21.
+    # prodserver1of2, 2of2, etc
+    # we now require REDIS_URL to be defined even if using default localhost:6379
+    # that is to avoid piling up stuff in redis if it's not being used.
+    if (
+        'prodserver' in subcommand
+        or 'webandworkers' in subcommand
+        or 'timeoutworker' in subcommand
+    ) and os.environ.get('REDIS_URL'):
+        os.environ['OTREE_USE_REDIS'] = '1'
 
-    if subcmd in [
+    if subcommand in [
         'startproject',
         'version',
         '--version',
@@ -168,17 +163,19 @@ def execute_from_command_line(*args, **kwargs):
                 logger.warning(msg)
                 return
             raise
+        warning = check_update_needed(Path('.').resolve().joinpath('requirements.txt'))
+        if warning:
+            logger.warning(warning)
 
     do_django_setup()
 
-    if subcmd == 'help' and len(argv) >= 3:
-        about_cmd = argv[2]
-        about_cmd = COMMAND_ALIASES.get(about_cmd, about_cmd)
-        fetch_command(about_cmd).print_help('otree', about_cmd)
-    elif subcmd in ("version", "--version"):
+    if subcommand == 'help' and len(argv) >= 3:
+        command_to_explain = argv[2]
+        fetch_command(command_to_explain).print_help('otree', command_to_explain)
+    elif subcommand in ("version", "--version"):
         sys.stdout.write(__version__ + '\n')
     else:
-        fetch_command(subcmd).run_from_argv(argv)
+        fetch_command(subcommand).run_from_argv(argv)
 
 
 def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings'):
@@ -238,6 +235,40 @@ def fetch_command(subcommand: str) -> BaseCommand:
     else:
         klass = load_command_class(app_name, subcommand)
     return klass
+
+
+def check_update_needed(requirements_path: Path) -> Optional[str]:
+    try:
+        import pkg_resources as pkg
+    except ModuleNotFoundError:
+        return
+    try:
+        # ignore all weird things like "-r foo.txt"
+        req_lines = [
+            r
+            for r in requirements_path.read_text('utf8').split('\n')
+            if r.strip().startswith('otree')
+        ]
+    except FileNotFoundError:
+        return
+    reqs = pkg.parse_requirements(req_lines)
+    for req in reqs:
+        if req.project_name == 'otree':
+            try:
+                pkg.require(str(req))
+            except pkg.DistributionNotFound:
+                # if you require otree[mturk], then the mturk packages
+                # will be missing and you get:
+                # The 's3transfer==0.1.10' distribution was not found and is required by otree
+                # which is very confusing.
+                # all we care about is otree.
+                pass
+            except pkg.VersionConflict as exc:
+                # can't say to install requirements.txt because if they are using zipserver,
+                # that file doesn't exist.
+                # used to tell people to install exc.req, but then they got:
+                # ... Enter: pip3 install "botocore==1.12.235; extra == "mturk""
+                return f'{exc.report()}. Enter: pip3 install "{req}"'
 
 
 def highlight(string):

@@ -1,8 +1,9 @@
-def prepare_for_termination(PORT) -> int:
-    # expensive imports. do it in here so that we don't delay devserver_inner
-    from urllib.request import urlopen
-    import urllib.error
+from urllib.request import urlopen
+import http.client
+import urllib.error
 
+
+def prepare_for_termination(PORT) -> int:
     try:
         # send data= so it makes a post request
         # it seems using localhost is very slow compared to 127.0.0.1

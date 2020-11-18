@@ -74,8 +74,8 @@
           <button class="btn btn-lg" id="btn-refresh">↻</button>
         </td>
         <td style="width: 12ch">
-          <a href="{% url 'ExportSessionWide' session.code %}">Plain</a> |
-          <a href="{% url 'ExportSessionWide' session.code %}?excel=1">Excel</a>
+          <a href="{% url 'ExportSessionWide' session.code %}">CSV</a> |
+          <a href="{% url 'ExportSessionWide' session.code %}?xlsx=1">Excel</a>
         </td>
       </tr>
       <tr>
@@ -179,8 +179,7 @@
                   let changeDescriptions = [];
                   for (let i = 0; i < new_json.length; i++) {
                       let table = tables[i];
-                      let appName = app_names_by_subsession[i];
-                      let headers = FIELD_HEADERS[appName];
+                      let headers = FIELD_HEADERS[i];
                       let data = new_json[i];
                       if (old_json === null) {
                           populateTableBody(table.querySelector('tbody'), data);

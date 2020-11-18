@@ -53,10 +53,10 @@ class BaseConstants(metaclass=BaseConstantsMeta):
 def get_roles(Constants) -> list:
     roles = []
     for k, v in Constants.__dict__.items():
-        if k.startswith('role_') or k.endswith('_role'):
+        if k.startswith('role_'):
             if not isinstance(v, str):
                 # this is especially for legacy apps before the role_* feature was introduced.
-                msg = f"{k}: any Constant that ends with '_role' must be a string, for example: sender_role = 'Sender'"
+                msg = f"{k}: any Constant that starts with 'role_' must be a string, for example: role_sender = 'Sender'"
                 raise Exception(msg)
             roles.append(v)
     return roles

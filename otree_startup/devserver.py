@@ -18,9 +18,6 @@ def get_mtimes(files) -> dict:
 
 
 def main(remaining_argv):
-    '''
-    better to have my own autoreloader so i can easily swap between daphne/hypercorn/uvicorn
-    '''
     if not remaining_argv:
         remaining_argv = ['8000']
     port = remaining_argv[0]
@@ -54,11 +51,10 @@ def main(remaining_argv):
                 mtimes = new_mtimes
                 child_pid = prepare_for_termination(port)
                 proc.terminate()
-                if child_pid:
-                    # for some reason, with Windows + virtualenv,
-                    # proc is not the actual django process.
-                    # so proc.terminate() will not free the port.
-                    os.kill(child_pid, 9)
+                # for some reason, with Windows + virtualenv,
+                # proc is not the actual django process.
+                # so proc.terminate() will not free the port.
+                os.kill(child_pid, 9)
                 proc = Popen(['otree', 'devserver_inner', port, '--is-reload'])
             sleep(1)
     except KeyboardInterrupt:

@@ -102,14 +102,8 @@ class MTurkStart(vanilla.View):
         return super().dispatch(request)
 
     def get(self, request):
-        GET = request.GET
-        try:
-            assignment_id = GET['assignmentId']
-            worker_id = GET['workerId']
-        except Exception:
-            return HttpResponseNotFound(
-                'URL is missing assignmentId or workerId parameter'
-            )
+        assignment_id = self.request.GET['assignmentId']
+        worker_id = self.request.GET['workerId']
         qual_id = self.session.config['mturk_hit_settings'].get(
             'grant_qualification_id'
         )

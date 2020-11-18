@@ -251,7 +251,7 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
         session = self.session
 
         tables = []
-        field_headers = {}
+        field_headers = []
         app_names_by_subsession = []
         round_numbers_by_subsession = []
         for app_name in session.config['app_sequence']:
@@ -260,7 +260,7 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
                 session=session
             ).count()
             pfields, gfields, sfields = export.get_fields_for_data_tab(app_name)
-            field_headers[app_name] = pfields + gfields + sfields
+            field_headers.append(pfields + gfields + sfields)
 
             for round_number in range(1, num_rounds + 1):
                 table = dict(pfields=pfields, gfields=gfields, sfields=sfields,)
@@ -449,6 +449,8 @@ class AdvanceSession(vanilla.View):
 
     def post(self, request, session_code):
         session = get_object_or_404(otree.models.Session, code=session_code)
+        if otree.common.USE_REDIS:
+            tasks.set_base_url(request.build_absolute_uri('/'))
         session.advance_last_place_participants()
         return HttpResponse('ok')
 

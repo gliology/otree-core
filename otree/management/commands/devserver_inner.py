@@ -3,9 +3,8 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from unittest.mock import patch
 import signal
-from contextlib import contextmanager
-
 from otree.common import dump_db, dump_db_and_exit, load_db
 
 import termcolor
@@ -52,17 +51,6 @@ MSG_OTREE_UPDATE_DELETE_DB = (
     'oTree has been updated. Please delete your database (usually "db.sqlite3") '
     f'and the folder "{TMP_MIGRATIONS_DIR}".'
 )
-
-
-@contextmanager
-def patch_stdout():
-    '''better than importing unittest.mock just to use this'''
-    orig = sys.stdout.write
-    sys.stdout.write = lambda s: None
-    try:
-        yield
-    finally:
-        sys.stdout.write = orig
 
 
 class Command(BaseCommand):
@@ -153,7 +141,6 @@ class Command(BaseCommand):
 
         try:
             run_asgi_server(addr, port, is_devserver=True)
-            dump_db()  # for hypercorn 0.11 with Ctrl+C
         except KeyboardInterrupt:
             return
         except SystemExit as exc:
@@ -179,7 +166,7 @@ class Command(BaseCommand):
             # or raise CommandError.
             # if someone needs to see the details of makemigrations,
             # they can do "otree makemigrations".
-            with patch_stdout():
+            with patch('sys.stdout.write'):
                 call_command('makemigrations', '--noinput', *migrations_modules.keys())
 
         except SystemExit as exc:
@@ -216,7 +203,7 @@ class Command(BaseCommand):
         try:
             # see above comment about makemigrations and capturing stdout.
             # it applies to migrate command also.
-            with patch_stdout():
+            with patch('sys.stdout.write'):
                 # call_command does not add much overhead (0.1 seconds typical)
                 call_command('migrate', '--noinput')
 

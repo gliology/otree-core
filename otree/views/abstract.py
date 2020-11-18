@@ -27,6 +27,8 @@ from django.utils.translation import ugettext as _, ugettext_lazy
 from django.views.decorators.cache import never_cache, cache_control
 import django.forms.models
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.log import log_response
+import otree.bots.browser as browser_bots
 import otree.channels.utils as channel_utils
 import otree.common
 import otree.constants
@@ -53,10 +55,8 @@ from otree.models_concrete import (
 )
 from otree import export
 
-# this is an expensive import
-import otree.bots.browser as browser_bots
-
 logger = logging.getLogger(__name__)
+
 
 UNHANDLED_EXCEPTIONS = (
     Http404,
@@ -66,6 +66,51 @@ UNHANDLED_EXCEPTIONS = (
     SystemExit,
 )
 
+# import redis_lock
+# from redis import StrictRedis
+# conn = StrictRedis()
+# dispatch_lock = redis_lock.Lock(conn, "name-of-the-lock")
+
+
+# make the technical 500 page auto-reload when the server restarts
+# when the websocket reconnects, that means the server must have restarted.
+# hardcode path to reconnecting-websocket because
+# can't use Django template tags because template is already rendered
+TECHNICAL_500_AUTORELOAD_JS = b'''
+<style>
+    #disconnected-alert {
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: lightgray;
+        font-style: italic;
+        visibility: hidden;
+    }
+</style>
+<div id='disconnected-alert' class="top-left-fixed-alert" style="visibility: hidden">Lost server connection...</div>
+<script src="/static/otree/js/reconnecting-websocket-iife.min.js" type="text/javascript"></script>
+<script src="/static/otree/js/jquery-3.2.1.min.js"></script>
+<script src="/static/otree/js/common.js" type="text/javascript"></script>
+<script>
+    var disconnectionSocket;
+    
+    function setupDisconnectedAlert() {
+        disconnectionSocket = makeReconnectingWebSocket('/no_op/');
+        var socket = disconnectionSocket;
+
+        var alertStyle = document.querySelector('#disconnected-alert').style;
+        socket.onopen = function (e) {
+            alertStyle.visibility = 'hidden';
+        };
+
+        socket.onclose = function (e) {
+            alertStyle.visibility = 'visible';
+        };
+    }
+    setupDisconnectedAlert();
+</script>
+'''
+
 
 def response_for_exception(request, exc):
     '''simplified from Django 1.11 source.
@@ -73,8 +118,6 @@ def response_for_exception(request, exc):
     rather than referencing sys.exc_info(), which gives us the ResponseForException
     the original exception was wrapped in, which we don't want to show to users.
         '''
-    from django.utils.log import log_response  # expensive import
-
     if isinstance(exc, UNHANDLED_EXCEPTIONS):
         '''copied from Django source, but i don't think these
         exceptions will actually occur.'''
@@ -91,7 +134,9 @@ def response_for_exception(request, exc):
         exc_info=exc,
     )
     if settings.DEBUG:
-        response.content = response.content.split(b'<div id="requestinfo">')[0]
+        response_content = response.content.split(b'<div id="requestinfo">')[0]
+        response_content += TECHNICAL_500_AUTORELOAD_JS
+        response.content = response_content
 
     # Force a TemplateResponse to be rendered.
     if not getattr(response, 'is_rendered', True) and callable(
@@ -512,6 +557,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
 
 
 class Page(FormPageOrInGameWaitPage):
+
     # if a model is not specified, use empty "StubModel"
     form_model = UndefinedFormModel
     form_fields = []
@@ -523,7 +569,6 @@ class Page(FormPageOrInGameWaitPage):
 
     def browser_bot_stuff(self, response: TemplateResponse):
         if self.participant.is_browser_bot:
-
             if hasattr(response, 'render'):
                 response.render()
             browser_bots.set_attributes(
@@ -848,7 +893,7 @@ class Page(FormPageOrInGameWaitPage):
             return None
         participant._timeout_expiration_time = current_time + timeout_seconds
 
-        if otree.common.USE_TIMEOUT_WORKER:
+        if otree.common.USE_REDIS:
             # if using browser bots, don't schedule the timeout,
             # because if it's a short timeout, it could happen before
             # the browser bot submits the page. Because the timeout
@@ -856,9 +901,12 @@ class Page(FormPageOrInGameWaitPage):
             # submits by the timeout_happened flag), it will "skip ahead"
             # and therefore confuse the bot system.
             if not self.participant.is_browser_bot:
-                otree.tasks.submit_expired_url(
-                    participant_code=self.participant.code,
-                    path=self.request.path,
+                otree.tasks.submit_expired_url.schedule(
+                    (
+                        self.participant.code,
+                        self.request.build_absolute_uri('/'),
+                        self.request.path,
+                    ),
                     # add some seconds to account for latency of request + response
                     # this will (almost) ensure
                     # (1) that the page will be submitted by JS before the
@@ -867,7 +915,9 @@ class Page(FormPageOrInGameWaitPage):
                     # (2) that the timeoutworker doesn't accumulate a lead
                     # ahead of the real page, which could result in being >1
                     # page ahead. that means that entire pages could be skipped
-                    delay=timeout_seconds + 6,
+                    # task queue can't schedule tasks in the past
+                    # at least 1 second from now
+                    delay=max(1, timeout_seconds + 8),
                 )
         return timeout_seconds
 
@@ -1129,14 +1179,18 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         ).update(_last_page_timestamp=time.time())
 
         # this can cause messages to get wrongly enqueued in the botworker
-        if otree.common.USE_TIMEOUT_WORKER and not self.participant.is_browser_bot:
+        if otree.common.USE_REDIS and not self.participant.is_browser_bot:
             participant_pks = [p['participant__pk'] for p in player_values]
             # 2016-11-15: we used to only ensure the next page is visited
             # if the next page has a timeout, or if it's a wait page
             # but this is not reliable because next page might be skipped anyway,
             # and we don't know what page will actually be shown next to the user.
-            otree.tasks.ensure_pages_visited(
-                participant_pks=participant_pks, delay=10,
+            otree.tasks.ensure_pages_visited.schedule(
+                kwargs=dict(
+                    participant_pks=participant_pks,
+                    base_url=self.request.build_absolute_uri('/'),
+                ),
+                delay=10,
             )
 
         if self.group_by_arrival_time:
@@ -1297,7 +1351,7 @@ REST_KEY_HEADER = 'otree-rest-key'
 
 @method_decorator(csrf_exempt, name='dispatch')
 class BaseRESTView(vanilla.View):
-    def dispatch(self, request, *args, **kwargs):
+    def post(self, request):
         # hack to force plain text 500 page (Django checks .is_ajax())
         request.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
         if settings.AUTH_LEVEL in ['DEMO', 'STUDY']:
@@ -1315,11 +1369,8 @@ class BaseRESTView(vanilla.View):
                 return HttpResponseForbidden(
                     f'HTTP Request Header {REST_KEY_HEADER} is incorrect'
                 )
-        self.payload = json.loads(request.body.decode("utf-8"))
-        return super().dispatch(request, *args, **kwargs)
+        payload = json.loads(request.body.decode("utf-8"))
+        return self.inner_post(**payload)
 
-    def post(self, request):
-        return self.inner_post(**self.payload)
-
-    def get(self, request):
-        return self.inner_get(**self.payload)
+    def inner_post(self, **kwargs):
+        raise NotImplementedError

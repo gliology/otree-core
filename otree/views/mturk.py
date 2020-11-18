@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import List, Dict, Union, Optional
+from xml.etree import ElementTree
 
 import vanilla
 from django.conf import settings
@@ -286,9 +287,6 @@ class MTurkSessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
 def get_completion_code(xml: str) -> str:
     if not xml:
         return ''
-    # move inside function because it adds 0.03s to startup time
-    from xml.etree import ElementTree
-
     root = ElementTree.fromstring(xml)
     for ans in root:
         if ans[0].text == 'taskAnswers':
