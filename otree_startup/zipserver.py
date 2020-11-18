@@ -98,10 +98,7 @@ def autoreload_for_new_zipfiles() -> int:
                     # use stdout.write because logger is not configured
                     # (django setup has not even been run)
                     stdout_write(MSG_FOUND_NEWER_OTREEZIP)
-                    child_pid = prepare_for_termination(PORT)
                     project.terminate()
-                    # see the explanation in devserver about this
-                    os.kill(child_pid, 9)
                     break
     finally:
         # e.g. KeyboardInterrupt
@@ -147,7 +144,10 @@ class Project:
         return self._proc.wait()
 
     def terminate(self):
-        return self._proc.terminate()
+        child_pid = prepare_for_termination(PORT)
+        self._proc.terminate()
+        # see the explanation in devserver about this
+        os.kill(child_pid, 9)
 
     def take_db_from_previous(self, other_tmpdir: str):
         for item in ['__temp_migrations', 'db.sqlite3']:

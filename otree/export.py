@@ -324,8 +324,8 @@ def get_rows_for_wide_csv_round(app_name, round_number, sessions: List[Session])
                 tweak_player_values_dict(player)
 
                 row = [player[fname] for fname in pfields]
-                row += [group[fname] for fname in pfields]
-                row += [subsession[fname] for fname in pfields]
+                row += [group[fname] for fname in gfields]
+                row += [subsession[fname] for fname in sfields]
 
                 subsession_rows.append(row)
         rows.extend(subsession_rows)
