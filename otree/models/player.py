@@ -1,7 +1,6 @@
 from otree.common import in_round, in_rounds
 
 from otree.db import models
-from otree.models.fieldchecks import ensure_field
 from django.db import models as djmodels
 from otree.db.idmap import PlayerIDMapMixin
 
@@ -110,13 +109,13 @@ class BasePlayer(models.OTreeModel, PlayerIDMapMixin):
         subsession_field = djmodels.ForeignKey(
             subsession_model, on_delete=models.CASCADE
         )
-        ensure_field(cls, 'subsession', subsession_field)
+        subsession_field.contribute_to_class(cls, 'subsession')
 
         group_model = '{app_label}.Group'.format(app_label=cls._meta.app_label)
         group_field = djmodels.ForeignKey(
             group_model, null=True, on_delete=models.CASCADE
         )
-        ensure_field(cls, 'group', group_field)
+        group_field.contribute_to_class(cls, 'group')
 
     def start(self):
         pass

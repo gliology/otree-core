@@ -1,5 +1,3 @@
-import json
-from collections import OrderedDict
 from collections import defaultdict
 from decimal import Decimal
 from functools import reduce
@@ -7,8 +5,6 @@ from typing import List, Dict
 from django.conf import settings
 from django.db import transaction
 
-import otree.bots.browser
-import otree.common
 from otree.db import idmap
 from otree import common
 from otree.common import (

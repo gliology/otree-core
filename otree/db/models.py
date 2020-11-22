@@ -377,6 +377,7 @@ class RealWorldCurrencyField(BaseCurrencyField):
 class BooleanField(_OtreeModelFieldMixin, models.BooleanField):
     def __init__(self, **kwargs):
         # usually checkbox is not required, except for consent forms.
+        kwargs.setdefault('widget', dj_widgets.RadioSelect)
         widget = kwargs.get('widget')
         if isinstance(widget, dj_widgets.CheckboxInput):
             kwargs.setdefault('blank', True)

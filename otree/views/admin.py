@@ -1,34 +1,36 @@
 import json
-from collections import OrderedDict
-import otree
+import logging
 import re
-import otree.bots.browser
-import otree.common
-import otree.export
-import otree.models
 import vanilla
 from django.conf import settings
 from django.contrib import messages
-from django.urls import reverse
-from django.template.loader import select_template
+from django.db.models import Case, Value, When
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.views.decorators.csrf import csrf_exempt
+from django.template.loader import select_template
+from django.urls import reverse
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from django.forms import widgets as dj_widgets
+
+import otree
+import otree.bots.browser
+import otree.channels.utils as channel_utils
+import otree.common
+from otree import export
+import otree.models
 from otree import forms, tasks
-from otree.currency import RealWorldCurrency
 from otree.common import (
     missing_db_tables,
     get_models_module,
     get_app_label_from_name,
     DebugTable,
 )
+from otree.currency import RealWorldCurrency
 from otree.forms import widgets
 from otree.models import Participant, Session
 from otree.session import SESSION_CONFIGS_DICT, SessionConfig
 from otree.views.abstract import AdminSessionPageMixin
-from django.db.models import Case, Value, When
-import otree.channels.utils as channel_utils
 
 
 def pretty_name(name):
@@ -40,14 +42,13 @@ def pretty_name(name):
 
 class CreateSessionForm(forms.Form):
     session_configs = SESSION_CONFIGS_DICT.values()
-    session_config_choices = (
-        # use '' instead of None. '' seems to immediately invalidate the choice,
-        # rather than None which seems to be coerced to 'None'.
-        [('', '-----')]
-        + [(s['name'], s['display_name']) for s in session_configs]
-    )
+    session_config_choices = [(s['name'], s['display_name']) for s in session_configs]
 
-    session_config = forms.ChoiceField(choices=session_config_choices, required=True)
+    session_config = forms.ChoiceField(
+        choices=session_config_choices,
+        required=True,
+        widget=dj_widgets.Select(attrs=dict(autofocus='autofocus')),
+    )
 
     num_participants = forms.IntegerField(required=False)
     is_mturk = forms.BooleanField(
@@ -68,8 +69,8 @@ class CreateSessionForm(forms.Form):
             self.fields['num_participants'].help_text = (
                 'Since workers can return an assignment or drop out, '
                 'some "spare" participants will be created: '
-                f'the oTree session will have {settings.MTURK_NUM_PARTICIPANTS_MULTIPLE}'
-                '{} times more participant objects than the number you enter here.'
+                f'the oTree session will have {settings.MTURK_NUM_PARTICIPANTS_MULTIPLE} '
+                'times more participant objects than the number you enter here.'
             )
         else:
             self.fields['num_participants'].label = "Number of participants"
@@ -236,96 +237,54 @@ def pretty_round_name(app_label, round_number):
         return app_label
 
 
+class SessionDataAjax(vanilla.View):
+    url_pattern = r"^session_data/(?P<code>[a-z0-9]+)/$"
+
+    def get(self, request, code):
+        session = get_object_or_404(Session, code=code)
+        rows = list(export.get_rows_for_data_tab(session))
+        return JsonResponse(rows, safe=False)
+
+
 class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
     def vars_for_template(self):
         session = self.session
 
-        rows = []
+        tables = []
+        field_headers = {}
+        app_names_by_subsession = []
+        round_numbers_by_subsession = []
+        for app_name in session.config['app_sequence']:
+            models_module = get_models_module(app_name)
+            num_rounds = models_module.Subsession.objects.filter(
+                session=session
+            ).count()
+            pfields, gfields, sfields = export.get_fields_for_data_tab(app_name)
+            field_headers[app_name] = pfields + gfields + sfields
 
-        round_headers = []
-        model_headers = []
-        field_names = []
+            for round_number in range(1, num_rounds + 1):
+                table = dict(pfields=pfields, gfields=gfields, sfields=sfields,)
+                tables.append(table)
 
-        # field names for JSON response
-        field_names_json = []
-
-        for subsession in session.get_subsessions():
-            # can't use subsession._meta.app_config.name, because it won't work
-            # if the app is removed from SESSION_CONFIGS after the session is
-            # created.
-            columns_for_models, subsession_rows = otree.export.get_rows_for_live_update(
-                subsession
-            )
-
-            if not rows:
-                rows = subsession_rows
-            else:
-                for i in range(len(rows)):
-                    rows[i].extend(subsession_rows[i])
-
-            round_colspan = 0
-            for model_name in ['player', 'group', 'subsession']:
-                colspan = len(columns_for_models[model_name])
-                model_headers.append((model_name.title(), colspan))
-                round_colspan += colspan
-
-            round_name = pretty_round_name(
-                subsession._meta.app_label, subsession.round_number
-            )
-
-            round_headers.append((round_name, round_colspan))
-
-            this_round_fields = []
-            this_round_fields_json = []
-            for model_name in ['Player', 'Group', 'Subsession']:
-                column_names = columns_for_models[model_name.lower()]
-                this_model_fields = [pretty_name(n) for n in column_names]
-                this_model_fields_json = [
-                    '{}.{}.{}'.format(round_name, model_name, colname)
-                    for colname in column_names
-                ]
-                this_round_fields.extend(this_model_fields)
-                this_round_fields_json.extend(this_model_fields_json)
-
-            field_names.extend(this_round_fields)
-            field_names_json.extend(this_round_fields_json)
-
-        # dictionary for json response
-        # will be used only if json request  is done
-
-        self.context_json = []
-        for i, row in enumerate(rows, start=1):
-            d_row = OrderedDict()
-            # table always starts with participant 1
-            d_row['numeric_label'] = 'P{}'.format(i)
-            for t, v in zip(field_names_json, row):
-                d_row[t] = v
-            self.context_json.append(d_row)
-
+                app_names_by_subsession.append(app_name)
+                round_numbers_by_subsession.append(round_number)
         return dict(
-            subsession_headers=round_headers,
-            model_headers=model_headers,
-            field_headers=field_names,
-            rows=rows,
+            tables=tables,
+            field_headers_json=json.dumps(field_headers),
+            app_names_by_subsession=app_names_by_subsession,
+            round_numbers_by_subsession=round_numbers_by_subsession,
         )
-
-    def get(self, request, **kwargs):
-        context = self.get_context_data()
-        if self.request.META.get('CONTENT_TYPE') == 'application/json':
-            return JsonResponse(self.context_json, safe=False)
-        else:
-            return self.render_to_response(context)
 
 
 class SessionMonitor(AdminSessionPageMixin, vanilla.TemplateView):
     def get_context_data(self, **kwargs):
-        field_names = otree.export.get_field_names_for_live_update(Participant)
+        field_names = export.get_fields_for_monitor()
 
         display_names = {
             '_numeric_label': '',
             'code': 'Code',
             'label': 'Label',
-            '_current_page': 'Page',
+            '_current_page': 'Progress',
             '_current_app_name': 'App',
             '_round_number': 'Round',
             '_current_page_name': 'Page name',
@@ -439,7 +398,7 @@ def get_json_from_pypi() -> dict:
     import urllib.request
 
     try:
-        f = urllib.request.urlopen('https://pypi.python.org/pypi/otree/json')
+        f = urllib.request.urlopen('https://pypi.python.org/pypi/otree/json', timeout=5)
         return json.loads(f.read().decode('utf-8'))
     except:
         return {'releases': []}
@@ -476,7 +435,6 @@ class ServerCheck(vanilla.TemplateView):
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(
-            sqlite=otree.common.is_sqlite(),
             debug=settings.DEBUG,
             auth_level=settings.AUTH_LEVEL,
             auth_level_ok=settings.AUTH_LEVEL in {'DEMO', 'STUDY'},
@@ -538,14 +496,16 @@ class ToggleArchivedSessions(vanilla.View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class KillZipServer(vanilla.View):
-    url_pattern = r'^KillZipServer/'
+class SaveDB(vanilla.View):
+    url_pattern = r'^SaveDB/'
 
     def post(self, request):
         import sys
+        import os
         from otree.common import dump_db
 
-        if '--inside-zipserver' in sys.argv:
-
+        # prevent unauthorized requests
+        if 'devserver_inner' in sys.argv:
+            # very fast, ~0.05s
             dump_db()
-            sys.exit(0)
+        return HttpResponse(str(os.getpid()))

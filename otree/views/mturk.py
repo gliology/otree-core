@@ -1,37 +1,31 @@
+import contextlib
 import json
-from datetime import datetime
-from collections import defaultdict, namedtuple
-from typing import List, Dict, Union, Optional
 import logging
-from xml.etree import ElementTree
-
-from django.conf import settings
-from django.contrib import messages
-from django.urls import reverse
-from django.http import HttpResponseServerError
-from django.shortcuts import get_object_or_404
-
-from django.template.loader import render_to_string
+from collections import defaultdict, namedtuple
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
+from typing import List, Dict, Union, Optional
 
 import vanilla
+from django.conf import settings
+from django.contrib import messages
+from django.http import HttpResponseServerError
+from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
+from django.template.loader import render_to_string
+from django.urls import reverse
+
+import otree
+from otree.models import Session, Participant
+from otree.views.abstract import AdminSessionPageMixin
 
 try:
     import boto3
 except ImportError:
     boto3 = None
 
-import otree
-
-from otree.views.abstract import AdminSessionPageMixin
-
-from otree.models import Session, Participant
-from decimal import Decimal
-from django.shortcuts import redirect
-
 logger = logging.getLogger('otree')
-
-import contextlib
-from dataclasses import dataclass
 
 
 @dataclass
@@ -292,6 +286,9 @@ class MTurkSessionPayments(AdminSessionPageMixin, vanilla.TemplateView):
 def get_completion_code(xml: str) -> str:
     if not xml:
         return ''
+    # move inside function because it adds 0.03s to startup time
+    from xml.etree import ElementTree
+
     root = ElementTree.fromstring(xml)
     for ans in root:
         if ans[0].text == 'taskAnswers':

@@ -1,24 +1,24 @@
-import threading
 import time
 
 import django.utils.timezone
-import otree.common
-import otree.constants
-import otree.models
-import otree.views.admin
-import otree.views.mturk
 import vanilla
 from django.http import (
     HttpResponse,
     HttpResponseRedirect,
     HttpResponseNotFound,
-    Http404,
 )
 from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
 from django.utils.translation import ugettext as _
-from otree.common import make_hash, BotError
+
+import otree.bots.browser as browser_bots
 import otree.channels.utils as channel_utils
+import otree.common
+import otree.constants
+import otree.models
+import otree.views.admin
+import otree.views.mturk
+from otree.common import make_hash, BotError
 from otree.db import idmap
 from otree.models import Participant, Session
 from otree.models_concrete import (
@@ -28,7 +28,6 @@ from otree.models_concrete import (
 )
 from otree.room import ROOM_DICT
 from otree.views.abstract import GenericWaitPageMixin
-import otree.bots.browser as browser_bots
 
 
 def no_participants_left_http_response():
@@ -36,9 +35,7 @@ def no_participants_left_http_response():
     this function exists because i'm not sure if Http response objects can be reused
     better to return 404 so browser bot client & tests can recognize it
     '''
-    return HttpResponseNotFound(
-        _("The maximum number of participants for this session has been reached.")
-    )
+    return HttpResponseNotFound(_("Session is full."))
 
 
 class OutOfRangeNotification(vanilla.View):
@@ -92,7 +89,6 @@ class InitializeParticipant(vanilla.UpdateView):
                 player = participant._get_current_player()
                 player.start()
 
-
         first_url = participant._url_i_should_be_on()
         return HttpResponseRedirect(first_url)
 
@@ -106,8 +102,14 @@ class MTurkStart(vanilla.View):
         return super().dispatch(request)
 
     def get(self, request):
-        assignment_id = self.request.GET['assignmentId']
-        worker_id = self.request.GET['workerId']
+        GET = request.GET
+        try:
+            assignment_id = GET['assignmentId']
+            worker_id = GET['workerId']
+        except Exception:
+            return HttpResponseNotFound(
+                'URL is missing assignmentId or workerId parameter'
+            )
         qual_id = self.session.config['mturk_hit_settings'].get(
             'grant_qualification_id'
         )
