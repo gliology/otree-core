@@ -28,27 +28,6 @@ $(function () {
                 window.parent.location.href = $(this).attr("href");
         }
     });
-
-    // i guess sockets must be global variables, and i should name it
-    // something other than 'socket' because there might be other sockets
-    // in descendant pages
-    var disconnectionSocket;
-
-    function setupDisconnectedAlert() {
-        disconnectionSocket = makeReconnectingWebSocket('/no_op/');
-        var socket = disconnectionSocket;
-
-        var alertStyle = document.querySelector('#disconnected-alert').style;
-        socket.onopen = function (e) {
-            alertStyle.visibility = 'hidden';
-        };
-
-        socket.onclose = function (e) {
-            alertStyle.visibility = 'visible';
-        };
-    }
-    setupDisconnectedAlert();
-
 });
 
 </script>
@@ -60,7 +39,7 @@ $(function () {
 
 {% endblock %}
 {% block body_main %}
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark" id="top_menu">
+    <nav class="navbar navbar-expand-sm navbar-dark bg-dark" id="top_menu">
         <a class="navbar-brand" href="/">oTree</a>
 
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent">

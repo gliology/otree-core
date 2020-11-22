@@ -11,7 +11,7 @@ import os
 import subprocess
 import shutil
 from time import sleep
-from .common import terminate_through_http
+from .common import prepare_for_termination
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +98,7 @@ def autoreload_for_new_zipfiles() -> int:
                     # use stdout.write because logger is not configured
                     # (django setup has not even been run)
                     stdout_write(MSG_FOUND_NEWER_OTREEZIP)
-                    project.terminate_through_http()
-                    project.wait()
+                    project.terminate()
                     break
     finally:
         # e.g. KeyboardInterrupt
@@ -141,11 +140,14 @@ class Project:
     def poll(self):
         return self._proc.poll()
 
-    def terminate_through_http(self):
-        terminate_through_http(PORT)
-
     def wait(self) -> int:
         return self._proc.wait()
+
+    def terminate(self):
+        child_pid = prepare_for_termination(PORT)
+        self._proc.terminate()
+        # see the explanation in devserver about this
+        os.kill(child_pid, 9)
 
     def take_db_from_previous(self, other_tmpdir: str):
         for item in ['__temp_migrations', 'db.sqlite3']:

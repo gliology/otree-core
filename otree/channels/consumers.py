@@ -90,7 +90,6 @@ class _OTreeAsyncJsonWebsocketConsumer(AsyncJsonWebsocketConsumer):
             msg = 'rejected un-authenticated access to websocket path {}'.format(
                 self.scope['path']
             )
-            # print(msg)
             logger.error(msg)
             # consider also self.accept() then send error message then self.close(code=1008)
             # this only affects otree core websockets.
@@ -114,6 +113,16 @@ class _OTreeAsyncJsonWebsocketConsumer(AsyncJsonWebsocketConsumer):
 
     async def post_receive_json(self, content, **kwargs):
         pass
+
+    # can't override send(), because send_json calls super().send.
+    # this override causes another error:
+    # TypeError: An asyncio.Future, a coroutine or an awaitable is required
+    # async def send_json(self, content, close=False):
+    #     # https://github.com/encode/uvicorn/issues/757
+    #     try:
+    #         await super().send_json(content, close)
+    #     except websockets.exceptions.ConnectionClosedError:
+    #         pass
 
 
 class BaseWaitPage(_OTreeAsyncJsonWebsocketConsumer):
@@ -182,7 +191,7 @@ class LiveConsumer(_OTreeAsyncJsonWebsocketConsumer):
         ).exists()
 
     async def post_receive_json(self, content, participant_code, page_name, **kwargs):
-        if database_sync_to_async(self.browser_bot_exists)(participant_code):
+        if await database_sync_to_async(self.browser_bot_exists)(participant_code):
             return
         await database_sync_to_async(live_payload_function)(
             participant_code=participant_code, page_name=page_name, payload=content
@@ -755,53 +764,35 @@ class ExportData(_OTreeAsyncJsonWebsocketConsumer):
         don't need time_spent or chat yet, they are quick enough
         '''
 
-        file_extension = content['file_extension']
         app_name = content.get('app_name')
         is_custom = content.get('is_custom')
 
-        if file_extension == 'xlsx':
-            mime_type = (
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-            IOClass = io.BytesIO
-        else:
-            mime_type = 'text/csv'
-            IOClass = io.StringIO
-
         iso_date = datetime.date.today().isoformat()
-        with IOClass() as fp:
+        with io.StringIO() as fp:
+            # Excel requires BOM; otherwise non-english characters are garbled
+            if content.get('for_excel'):
+                fp.write('\ufeff')
             if app_name:
                 if is_custom:
                     fxn = custom_export_app
                 else:
                     fxn = export_app
-                await database_sync_to_async(fxn)(
-                    app_name, fp, file_extension=file_extension
-                )
+                await database_sync_to_async(fxn)(app_name, fp)
                 file_name_prefix = app_name
             else:
-                await database_sync_to_async(export_wide)(
-                    fp, file_extension=file_extension
-                )
+                await database_sync_to_async(export_wide)(fp)
                 file_name_prefix = 'all_apps_wide'
             data = fp.getvalue()
 
-        file_name = f'{file_name_prefix}_{iso_date}.{file_extension}'
+        file_name = f'{file_name_prefix}_{iso_date}.csv'
 
-        if file_extension == 'xlsx':
-            data = base64.b64encode(data).decode('utf-8')
-
-        content.update(file_name=file_name, data=data, mime_type=mime_type)
+        content.update(file_name=file_name, data=data, mime_type='text/csv')
         # this doesn't go through channel layer, so it is probably safer
         # in terms of sending large data
         await self.send_json(content)
 
     def group_name(self, **kwargs):
         return None
-
-
-class NoOp(WebsocketConsumer):
-    pass
 
 
 def parse_querystring(query_string) -> dict:

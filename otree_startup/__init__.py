@@ -10,14 +10,11 @@ def _thread_sensitive_init(self, func, thread_sensitive=True):
 
 SyncToAsync.__init__ = _thread_sensitive_init
 
-import json
 import logging
-import django.core.management
 import django.conf
 import os
 import sys
 from sys import argv
-from collections import OrderedDict, defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -26,16 +23,15 @@ from django.conf import settings as django_settings
 from importlib import import_module
 from django.core.management import get_commands, load_command_class
 import django
-from django.apps import apps
 from django.core.management.base import BaseCommand
-from django.utils import autoreload
+
 
 # "from .settings import ..." actually imports the whole settings module
 # confused me, it was overwriting django.conf.settings above
 # https://docs.python.org/3/reference/import.html#submodules
 from otree_startup.settings import augment_settings
 from otree import __version__
-from . import zipserver, devserver
+
 
 # REMEMBER TO ALSO UPDATE THE PROJECT TEMPLATE
 from otree_startup.settings import get_default_settings
@@ -96,11 +92,15 @@ def execute_from_command_line(*args, **kwargs):
     subcommand = argv[1]
 
     if subcommand == 'zipserver':
+        from . import zipserver  # expensive import
+
         zipserver.main(argv[2:])
         # better to return than sys.exit because testing is complicated
         # with sys.exit -- if you mock it, then the function keeps executing.
         return
     if subcommand == 'devserver':
+        from . import devserver  # expensive import
+
         devserver.main(argv[2:])
         # better to return than sys.exit because testing is complicated
         # with sys.exit -- if you mock it, then the function keeps executing.
@@ -237,38 +237,31 @@ def fetch_command(subcommand: str) -> BaseCommand:
     return klass
 
 
-def check_update_needed(requirements_path: Path) -> Optional[str]:
-    try:
-        import pkg_resources as pkg
-    except ModuleNotFoundError:
+def split_dotted_version(version):
+    return [int(n) for n in version.split('.')]
+
+
+def check_update_needed(
+    requirements_path: Path, current_version=__version__
+) -> Optional[str]:
+    '''rewrote this without pkg_resources since that takes 0.4 seconds just to import'''
+
+    if not requirements_path.exists():
         return
-    try:
-        # ignore all weird things like "-r foo.txt"
-        req_lines = [
-            r
-            for r in requirements_path.read_text('utf8').split('\n')
-            if r.strip().startswith('otree')
-        ]
-    except FileNotFoundError:
-        return
-    reqs = pkg.parse_requirements(req_lines)
-    for req in reqs:
-        if req.project_name == 'otree':
-            try:
-                pkg.require(str(req))
-            except pkg.DistributionNotFound:
-                # if you require otree[mturk], then the mturk packages
-                # will be missing and you get:
-                # The 's3transfer==0.1.10' distribution was not found and is required by otree
-                # which is very confusing.
-                # all we care about is otree.
-                pass
-            except pkg.VersionConflict as exc:
-                # can't say to install requirements.txt because if they are using zipserver,
-                # that file doesn't exist.
-                # used to tell people to install exc.req, but then they got:
-                # ... Enter: pip3 install "botocore==1.12.235; extra == "mturk""
-                return f'{exc.report()}. Enter: pip3 install "{req}"'
+
+    for line in requirements_path.read_text('utf8').splitlines():
+        if (not line.startswith('otree')) or ' ' in line or '\t' in line:
+            continue
+        for start in ['otree>=', 'otree[mturk]>=']:
+            if line.startswith(start):
+                version_dotted = line[len(start) :]
+                try:
+                    required_version = split_dotted_version(version_dotted)
+                    installed_version = split_dotted_version(current_version)
+                except ValueError:
+                    return
+                if required_version > installed_version:
+                    return f'''This project requires a newer oTree version. Enter: pip3 install "{line}"'''
 
 
 def highlight(string):

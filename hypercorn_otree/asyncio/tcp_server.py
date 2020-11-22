@@ -91,7 +91,8 @@ class TCPServer:
                 try:
                     self.writer.write(event.data)
                     await self.writer.drain()
-                except (BrokenPipeError, ConnectionResetError):
+                # CYW added ConnectionAbortedError
+                except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()
@@ -129,7 +130,9 @@ class TCPServer:
         try:
             self.writer.close()
             await self.writer.wait_closed()
-        except (BrokenPipeError, ConnectionResetError):
+        # CYW added ConnectionAbortedError, but strangely it's not enough to add it
+        # just here even when the traceback passes through here. Probably an asyncio thing
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass  # Already closed
 
     async def _update_keep_alive_timeout(self) -> None:

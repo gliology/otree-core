@@ -24,6 +24,7 @@ ALWAYS_UNRESTRICTED = {
     'CreateBrowserBotsSession',
     'CloseBrowserBotsSession',
     'BrowserBotStartLink',
+    'SaveDB',
 }
 
 
@@ -82,7 +83,7 @@ def url_patterns_from_builtin_module(module_name: str):
             'STUDY': url_name in ALWAYS_UNRESTRICTED,
             'DEMO': url_name in UNRESTRICTED_IN_DEMO_MODE,
             '': True,
-            None: True
+            None: True,
         }[settings.AUTH_LEVEL]
 
         if unrestricted:

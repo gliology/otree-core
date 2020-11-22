@@ -1,5 +1,5 @@
 from time import sleep
-from .common import terminate_through_http
+from .common import prepare_for_termination
 from subprocess import Popen, TimeoutExpired
 from pathlib import Path
 import os
@@ -18,6 +18,9 @@ def get_mtimes(files) -> dict:
 
 
 def main(remaining_argv):
+    '''
+    better to have my own autoreloader so i can easily swap between daphne/hypercorn/uvicorn
+    '''
     if not remaining_argv:
         remaining_argv = ['8000']
     port = remaining_argv[0]
@@ -49,13 +52,12 @@ def main(remaining_argv):
             if changed_file:
                 stdout_write(changed_file, 'changed, restarting')
                 mtimes = new_mtimes
-                terminate_through_http(port)
-                # just to be sure
-                try:
-                    proc.wait(4)
-                except TimeoutExpired:
-                    stdout_write('force terminating server (should only happen rarely)')
-                    proc.terminate()
+                child_pid = prepare_for_termination(port)
+                proc.terminate()
+                # for some reason, with Windows + virtualenv,
+                # proc is not the actual django process.
+                # so proc.terminate() will not free the port.
+                os.kill(child_pid, 9)
                 proc = Popen(['otree', 'devserver_inner', port, '--is-reload'])
             sleep(1)
     except KeyboardInterrupt:

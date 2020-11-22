@@ -356,6 +356,7 @@ def dump_db_and_exit(*args, code=0):
 
 
 def dump_db(*args):
+
     # return
     global _dumped
     if _dumped:

@@ -126,21 +126,6 @@ def get_default_settings(user_settings: dict):
         AWS_SECRET_ACCESS_KEY=os.environ.get('AWS_SECRET_ACCESS_KEY'),
         AUTH_LEVEL=os.environ.get('OTREE_AUTH_LEVEL'),
         DATABASES={'default': default_db},
-        HUEY={
-            'name': 'otree-huey',
-            'connection': {'url': REDIS_URL},
-            'always_eager': False,
-            # I need a result store to retrieve the results of browser-bots
-            # tasks and pinging, even if the result is evaluated immediately
-            # (otherwise, calling the task returns None.
-            'result_store': False,
-            'consumer': {
-                'workers': 1,
-                # 'worker_type': 'thread',
-                'scheduler_interval': 5,
-                'loglevel': 'warning',
-            },
-        },
         STATIC_ROOT='__temp_static_root',
         STATIC_URL='/static/',
         STATICFILES_STORAGE='whitenoise.storage.CompressedManifestStaticFilesStorage',
@@ -158,7 +143,16 @@ def get_default_settings(user_settings: dict):
         USE_L10N=True,
         SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'),
         ASGI_APPLICATION="otree.channels.routing.application",
-        CHANNEL_LAYERS={'default': {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
+        CHANNEL_LAYERS={
+            'default': {"BACKEND": "channels.layers.InMemoryChannelLayer"},
+            'redis': {
+                "BACKEND": "channels_redis.core.RedisChannelLayer",
+                # the timeout arg was recommended by Heroku support around 2019-10-17
+                # when users were getting ConnectionClosed('reader at end of file')
+                # Heroku uses 300 so we should stay under that?
+                "CONFIG": {"hosts": [dict(address=REDIS_URL, timeout=280)]},
+            },
+        },
         REDIS_URL=REDIS_URL,
         MTURK_NUM_PARTICIPANTS_MULTIPLE=2,
         LOCALE_PATHS=['locale'],
@@ -268,7 +262,6 @@ def augment_settings(settings: dict):
         # have {% load static %}
         'django.contrib.staticfiles',
         'channels',
-        'huey.contrib.djhuey',
     ]
 
     if os.environ.get('OTREE_SECRET_KEY'):

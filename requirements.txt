@@ -1,26 +1,16 @@
 asgiref==3.2.7  # channels
-# MacPython "Install certificates" command may install
-# a newer version of the certifi package, so keep it flexible.
-certifi>=2019.3.9  # sentry-sdk
 colorama==0.4.1  # honcho
 dj-database-url==0.5.0
 Django==2.2.12
 django-vanilla-views==1.0.6
-h11==0.9.0  # hypercorn
-h2==3.1.1  # hypercorn
+h11  # hypercorn
+h2>=3.1.0  # hypercorn
 honcho==1.0.1
-hpack==3.0.0  # hypercorn
-huey==2.1.1
-#Hypercorn==0.9.2  # we have a fork of hypercorn
-hyperframe==5.2.0  # hypercorn
-priority==1.3.0  # hypercorn
+priority  # hypercorn
 pytz==2019.2  # Django
 redis==3.3.8
-sentry-sdk==0.7.9
 termcolor==1.1.0  # used for colored devserver output
-toml==0.10.0  # hypercorn
-typing-extensions==3.7.4  # hypercorn
-urllib3==1.25.3  # sentry-sdk
+toml  # hypercorn
+typing_extensions  # hypercorn
 whitenoise==4.1.3
-wsproto==0.14.1  # hypercorn
-XlsxWriter==0.9.3
+wsproto>=0.14.0  # hypercorn

@@ -1,11 +1,8 @@
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
+from django.conf.urls import url
 from otree.channels import consumers
 from otree.extensions import get_extensions_modules
-
-from django.conf.urls import url
-
-from channels.routing import ProtocolTypeRouter, URLRouter, ChannelNameRouter
-from channels.auth import AuthMiddlewareStack
-
 
 websocket_routes = [
     # WebSockets
@@ -32,9 +29,6 @@ websocket_routes = [
         consumers.ChatConsumer,
     ),
     url(r"^export/$", consumers.ExportData),
-    # for django autoreloader
-    # just so client can detect when server has finished restarting
-    url(r'^no_op/$', consumers.NoOp),
 ]
 
 

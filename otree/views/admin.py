@@ -251,7 +251,7 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
         session = self.session
 
         tables = []
-        field_headers = []
+        field_headers = {}
         app_names_by_subsession = []
         round_numbers_by_subsession = []
         for app_name in session.config['app_sequence']:
@@ -260,7 +260,7 @@ class SessionData(AdminSessionPageMixin, vanilla.TemplateView):
                 session=session
             ).count()
             pfields, gfields, sfields = export.get_fields_for_data_tab(app_name)
-            field_headers.append(pfields + gfields + sfields)
+            field_headers[app_name] = pfields + gfields + sfields
 
             for round_number in range(1, num_rounds + 1):
                 table = dict(pfields=pfields, gfields=gfields, sfields=sfields,)
@@ -496,19 +496,16 @@ class ToggleArchivedSessions(vanilla.View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class TerminateServer(vanilla.View):
-    url_pattern = r'^TerminateServer/'
+class SaveDB(vanilla.View):
+    url_pattern = r'^SaveDB/'
 
     def post(self, request):
         import sys
+        import os
         from otree.common import dump_db
 
+        # prevent unauthorized requests
         if 'devserver_inner' in sys.argv:
             # very fast, ~0.05s
             dump_db()
-            # from my testing this always works, whereas using shutdown_trigger
-            # can cause a hang. and we have always used this approach with zipserver
-            sys.exit(0)
-        else:
-            logging.warning('Rejected unauthorized attempt to shut down server')
-        return HttpResponse('ok')
+        return HttpResponse(str(os.getpid()))

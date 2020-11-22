@@ -39,6 +39,6 @@ class Command(BaseCommand):
             cmd.append(addrport)
         # can't pass a list to add_process because honcho uses shell=True
         manager.add_otree_process('asgiserver', ' '.join(cmd))
-        manager.add_otree_process('huey', 'otree prodserver2of2')
+        manager.add_otree_process('timeoutworker', 'otree prodserver2of2')
         manager.loop()
         sys_exit(manager.returncode)

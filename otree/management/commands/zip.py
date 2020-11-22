@@ -180,6 +180,7 @@ _REQS_DEFAULT_FMT = f'''\
 # otherwise, oTree will automatically overwrite it.
 otree%s>={otree_version}
 psycopg2>=2.8.4
+sentry-sdk==0.7.9
 '''
 
 REQS_DEFAULT = _REQS_DEFAULT_FMT % ''
