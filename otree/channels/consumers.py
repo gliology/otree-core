@@ -795,6 +795,11 @@ class ExportData(_OTreeAsyncJsonWebsocketConsumer):
         return None
 
 
+class NoOp(WebsocketConsumer):
+    '''keep this in for a few months'''
+    pass
+
+
 def parse_querystring(query_string) -> dict:
     '''it seems parse_qs omits keys with empty values'''
     return {k: v[0] for k, v in urllib.parse.parse_qs(query_string.decode()).items()}

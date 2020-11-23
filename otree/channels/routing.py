@@ -29,6 +29,7 @@ websocket_routes = [
         consumers.ChatConsumer,
     ),
     url(r"^export/$", consumers.ExportData),
+    url(r'^no_op/$', consumers.NoOp),
 ]
 
 
