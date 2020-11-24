@@ -4,6 +4,8 @@ import os
 from otree.common import dump_db
 from django.core.management.base import BaseCommand
 from otree_startup.asgi import application
+import sys
+import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -95,4 +97,5 @@ class Command(BaseCommand):
 
     def handle(self, *args, addrport=None, verbosity=1, **kwargs):
         addr, port = get_addr_port(addrport)
+        subprocess.Popen([sys.executable, 'manage.py', 'timeoutsubprocess', str(port)])
         run_asgi_server(addr, port)

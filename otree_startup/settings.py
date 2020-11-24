@@ -104,8 +104,6 @@ def get_default_settings(user_settings: dict):
         },
     }
 
-    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
-
     if 'devserver_inner' in sys.argv:
         if os.environ.get('DATABASE_URL'):
             # otherwise, people will get a different DB when they use other management commands like 'otree shell'
@@ -145,15 +143,7 @@ def get_default_settings(user_settings: dict):
         ASGI_APPLICATION="otree.channels.routing.application",
         CHANNEL_LAYERS={
             'default': {"BACKEND": "channels.layers.InMemoryChannelLayer"},
-            'redis': {
-                "BACKEND": "channels_redis.core.RedisChannelLayer",
-                # the timeout arg was recommended by Heroku support around 2019-10-17
-                # when users were getting ConnectionClosed('reader at end of file')
-                # Heroku uses 300 so we should stay under that?
-                "CONFIG": {"hosts": [dict(address=REDIS_URL, timeout=280)]},
-            },
         },
-        REDIS_URL=REDIS_URL,
         MTURK_NUM_PARTICIPANTS_MULTIPLE=2,
         LOCALE_PATHS=['locale'],
         BOTS_CHECK_HTML=True,

@@ -750,7 +750,7 @@ class DeleteSessions(_OTreeAsyncJsonWebsocketConsumer):
 class ExportData(_OTreeAsyncJsonWebsocketConsumer):
 
     '''
-    I load tested this locally with sqlite/redis and:
+    I load tested this locally with sqlite and:
     - large files up to 22MB (by putting long text in LongStringFields)
     - thousands of participants/rounds, 111000 rows and 20 cols in excel file.
     '''
@@ -797,6 +797,7 @@ class ExportData(_OTreeAsyncJsonWebsocketConsumer):
 
 class NoOp(WebsocketConsumer):
     '''keep this in for a few months'''
+
     pass
 
 

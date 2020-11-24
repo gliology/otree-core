@@ -1,21 +1,21 @@
-import random
 import heapq
 import json
+import random
 from logging import getLogger
 from time import time, sleep
 from urllib import request, parse
 from urllib.error import URLError
 from urllib.parse import urljoin
 
+from django.db import transaction
+
 import otree.constants
-from django.conf import settings
+from otree.models_concrete import TaskQueueMessage
 
 print_function = print
 
-in_memory_base_url = ''
 
 logger = getLogger(__name__)
-TIMEOUTWORKER_REDIS_KEY = 'otree-timeoutworker'
 
 
 def post(url, data: dict):
@@ -37,41 +37,29 @@ def get(url):
         raise Exception(f'Error occurred when opening {url}: {repr(exc)}') from None
 
 
-def enqueue(queue, method, kwargs, delay):
-    # random.random() is the tiebreaker, so we don't resort to comparing kwargs
-    heapq.heappush(queue, (time() + delay, random.random(), method, kwargs))
-
-
 class Worker:
-    def __init__(self, redis_conn):
-        self.redis_conn = redis_conn
-        # flush old stuff
-        redis_conn.delete(TIMEOUTWORKER_REDIS_KEY)
+    def __init__(self, port):
+        self.base_url = f'http://127.0.0.1:{port}'
+        # delete all old stuff
+        TaskQueueMessage.objects.all().delete()
 
-    def redis_listen(self):
-        print_function('timeoutworker is listening for messages through Redis')
-        q = []
+    def listen(self):
+        print_function('timeoutworker is listening for messages through DB')
+
         while True:
-            result = self.redis_conn.blpop(TIMEOUTWORKER_REDIS_KEY, timeout=3)
-            if result:
-                _, message_bytes = result
-                message = json.loads(message_bytes.decode('utf-8'))
-                enqueue(q, **message)
-            while q and q[0][0] < time():
-                _, _, method, kwargs = heapq.heappop(q)
+            for task in TaskQueueMessage.objects.order_by('epoch_time').filter(
+                epoch_time__lte=time()
+            ):
                 try:
-                    getattr(self, method)(**kwargs)
+                    getattr(self, task.method)(**task.kwargs())
                 except Exception as exc:
                     # don't raise, because then this would crash.
                     # logger.exception() will record the full traceback
                     logger.exception(repr(exc))
+                task.delete()
+            sleep(1)
 
-    def submit_expired_url(self, participant_code, base_url, path):
-        if 'testserver' in base_url:
-            base_url = in_memory_base_url
-            if not base_url:
-                return
-
+    def submit_expired_url(self, participant_code, path):
         from otree.models.participant import Participant
 
         # if the participant exists in the DB,
@@ -90,19 +78,17 @@ class Worker:
         if Participant.objects.filter(
             code=participant_code, _current_form_page_url=path
         ).exists():
-            post(urljoin(base_url, path), data={otree.constants.timeout_happened: True})
+            post(
+                urljoin(self.base_url, path),
+                data={otree.constants.timeout_happened: True},
+            )
 
-    def ensure_pages_visited(self, base_url, participant_pks):
+    def ensure_pages_visited(self, participant_pks):
         """This is necessary when a wait page is followed by a timeout page.
         We can't guarantee the user's browser will properly continue to poll
         the wait page and get redirected, so after a grace period we load the page
         automatically, to kick off the expiration timer of the timeout page.
         """
-
-        if 'testserver' in base_url:
-            base_url = in_memory_base_url
-            if not base_url:
-                return
 
         from otree.models.participant import Participant
 
@@ -117,45 +103,18 @@ class Worker:
             # because that will redirect to the current wait page.
             # (alternatively we could define _current_page_url or
             # current_wait_page_url)
-            get(urljoin(base_url, participant._url_i_should_be_on()))
-
-    def set_base_url(self, url):
-        '''this is necessary because advance_last_place_participants uses the test client, which has a bogus url of
-        http://testserver that doesn't work when we make requests over the network.
-        '''
-        global in_memory_base_url
-        in_memory_base_url = url
+            get(urljoin(self.base_url, participant._url_i_should_be_on()))
 
 
-_main_process_redis = None
-
-
-def get_redis_client():
-    '''
-    (1) redis is an expensive import
-    (2) we can't instantiate redis globally because REDIS_URL may not be defined'''
-    global _main_process_redis
-    if _main_process_redis is None:
-        from redis import StrictRedis
-
-        _main_process_redis = StrictRedis.from_url(settings.REDIS_URL)
-    return _main_process_redis
-
-
-def redis_enqueue(method, delay, kwargs):
-    get_redis_client().rpush(
-        TIMEOUTWORKER_REDIS_KEY,
-        json.dumps(dict(method=method, delay=delay, kwargs=kwargs)),
+def _db_enqueue(method, delay, kwargs):
+    TaskQueueMessage.objects.create(
+        method=method, epoch_time=delay + round(time()), kwargs_json=json.dumps(kwargs),
     )
 
 
-def set_base_url(url):
-    redis_enqueue(method='ensure_pages_visited', delay=0, kwargs=dict(url=url))
-
-
 def ensure_pages_visited(delay, **kwargs):
-    redis_enqueue(method='ensure_pages_visited', delay=delay, kwargs=kwargs)
+    _db_enqueue(method='ensure_pages_visited', delay=delay, kwargs=kwargs)
 
 
 def submit_expired_url(delay, **kwargs):
-    redis_enqueue(method='submit_expired_url', delay=delay, kwargs=kwargs)
+    _db_enqueue(method='submit_expired_url', delay=delay, kwargs=kwargs)

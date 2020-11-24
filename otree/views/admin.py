@@ -449,8 +449,6 @@ class AdvanceSession(vanilla.View):
 
     def post(self, request, session_code):
         session = get_object_or_404(otree.models.Session, code=session_code)
-        if otree.common.USE_REDIS:
-            tasks.set_base_url(request.build_absolute_uri('/'))
         session.advance_last_place_participants()
         return HttpResponse('ok')
 

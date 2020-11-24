@@ -66,11 +66,6 @@ UNHANDLED_EXCEPTIONS = (
     SystemExit,
 )
 
-# import redis_lock
-# from redis import StrictRedis
-# conn = StrictRedis()
-# dispatch_lock = redis_lock.Lock(conn, "name-of-the-lock")
-
 
 def response_for_exception(request, exc):
     '''simplified from Django 1.11 source.
@@ -853,7 +848,7 @@ class Page(FormPageOrInGameWaitPage):
             return None
         participant._timeout_expiration_time = current_time + timeout_seconds
 
-        if otree.common.USE_REDIS:
+        if otree.common.USE_TIMEOUT_WORKER:
             # if using browser bots, don't schedule the timeout,
             # because if it's a short timeout, it could happen before
             # the browser bot submits the page. Because the timeout
@@ -863,7 +858,6 @@ class Page(FormPageOrInGameWaitPage):
             if not self.participant.is_browser_bot:
                 otree.tasks.submit_expired_url(
                     participant_code=self.participant.code,
-                    base_url=self.request.build_absolute_uri('/'),
                     path=self.request.path,
                     # add some seconds to account for latency of request + response
                     # this will (almost) ensure
@@ -873,9 +867,7 @@ class Page(FormPageOrInGameWaitPage):
                     # (2) that the timeoutworker doesn't accumulate a lead
                     # ahead of the real page, which could result in being >1
                     # page ahead. that means that entire pages could be skipped
-                    # task queue can't schedule tasks in the past
-                    # at least 1 second from now
-                    delay=timeout_seconds + 8,
+                    delay=timeout_seconds + 6,
                 )
         return timeout_seconds
 
@@ -1137,7 +1129,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         ).update(_last_page_timestamp=time.time())
 
         # this can cause messages to get wrongly enqueued in the botworker
-        if otree.common.USE_REDIS and not self.participant.is_browser_bot:
+        if otree.common.USE_TIMEOUT_WORKER and not self.participant.is_browser_bot:
             participant_pks = [p['participant__pk'] for p in player_values]
             # 2016-11-15: we used to only ensure the next page is visited
             # if the next page has a timeout, or if it's a wait page
@@ -1145,7 +1137,6 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             # and we don't know what page will actually be shown next to the user.
             otree.tasks.ensure_pages_visited(
                 participant_pks=participant_pks,
-                base_url=self.request.build_absolute_uri('/'),
                 delay=10,
             )
 

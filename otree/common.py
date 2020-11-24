@@ -26,7 +26,7 @@ from otree.currency import Currency, RealWorldCurrency, currency_range  # noqa
 
 # set to False if using runserver
 
-USE_REDIS = bool(os.environ.get('OTREE_USE_REDIS', ''))
+USE_TIMEOUT_WORKER = bool(os.getenv('USE_TIMEOUT_WORKER'))
 
 
 class _CurrencyEncoder(json.JSONEncoder):

@@ -61,6 +61,15 @@ zip
 zipserver
 '''
 
+COMMAND_ALIASES = dict(
+    test='bots',
+    runprodserver='prodserver',
+    webandworkers='prodserver1of2',
+    runprodserver1of2='prodserver1of2',
+    runprodserver2of2='prodserver2of2',
+    timeoutworker='prodserver2of2',
+)
+
 
 def execute_from_command_line(*args, **kwargs):
     '''
@@ -89,16 +98,17 @@ def execute_from_command_line(*args, **kwargs):
         # default command
         argv.append('help')
 
-    subcommand = argv[1]
+    subcmd = argv[1]
+    subcmd = COMMAND_ALIASES.get(subcmd, subcmd)
 
-    if subcommand == 'zipserver':
+    if subcmd == 'zipserver':
         from . import zipserver  # expensive import
 
         zipserver.main(argv[2:])
         # better to return than sys.exit because testing is complicated
         # with sys.exit -- if you mock it, then the function keeps executing.
         return
-    if subcommand == 'devserver':
+    if subcmd == 'devserver':
         from . import devserver  # expensive import
 
         devserver.main(argv[2:])
@@ -123,24 +133,18 @@ def execute_from_command_line(*args, **kwargs):
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
     DJANGO_SETTINGS_MODULE = os.environ['DJANGO_SETTINGS_MODULE']
 
-    if subcommand in ['help', '--help', '-h'] and len(argv) == 2:
+    if subcmd in ['help', '--help', '-h'] and len(argv) == 2:
         sys.stdout.write(MAIN_HELP_TEXT)
         return
 
-    # this env var is necessary because if the botworker submits a wait page,
-    # it needs to broadcast to redis channel layer, not in-memory.
-    # this caused an obscure bug on 2019-09-21.
-    # prodserver1of2, 2of2, etc
-    # we now require REDIS_URL to be defined even if using default localhost:6379
-    # that is to avoid piling up stuff in redis if it's not being used.
-    if (
-        'prodserver' in subcommand
-        or 'webandworkers' in subcommand
-        or 'timeoutworker' in subcommand
-    ) and os.environ.get('REDIS_URL'):
-        os.environ['OTREE_USE_REDIS'] = '1'
+    # need to set env var rather than setting otree.common.USE_TIMEOUT_WORKER because
+    # that module cannot be loaded yet.
+    # we no longer rely on redis, so eventually we should use the env var USE_TIMEOUT_WORKER.
+    # but for now keep it while test out whether we can skip using redis
+    if subcmd in ['prodserver', 'prodserver1of2']:
+        os.environ['USE_TIMEOUT_WORKER'] = '1'
 
-    if subcommand in [
+    if subcmd in [
         'startproject',
         'version',
         '--version',
@@ -169,13 +173,14 @@ def execute_from_command_line(*args, **kwargs):
 
     do_django_setup()
 
-    if subcommand == 'help' and len(argv) >= 3:
-        command_to_explain = argv[2]
-        fetch_command(command_to_explain).print_help('otree', command_to_explain)
-    elif subcommand in ("version", "--version"):
+    if subcmd == 'help' and len(argv) >= 3:
+        about_cmd = argv[2]
+        about_cmd = COMMAND_ALIASES.get(about_cmd, about_cmd)
+        fetch_command(about_cmd).print_help('otree', about_cmd)
+    elif subcmd in ("version", "--version"):
         sys.stdout.write(__version__ + '\n')
     else:
-        fetch_command(subcommand).run_from_argv(argv)
+        fetch_command(subcmd).run_from_argv(argv)
 
 
 def configure_settings(DJANGO_SETTINGS_MODULE: str = 'settings'):
