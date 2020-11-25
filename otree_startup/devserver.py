@@ -54,10 +54,11 @@ def main(remaining_argv):
                 mtimes = new_mtimes
                 child_pid = prepare_for_termination(port)
                 proc.terminate()
-                # for some reason, with Windows + virtualenv,
-                # proc is not the actual django process.
-                # so proc.terminate() will not free the port.
-                os.kill(child_pid, 9)
+                if child_pid:
+                    # for some reason, with Windows + virtualenv,
+                    # proc is not the actual django process.
+                    # so proc.terminate() will not free the port.
+                    os.kill(child_pid, 9)
                 proc = Popen(['otree', 'devserver_inner', port, '--is-reload'])
             sleep(1)
     except KeyboardInterrupt:

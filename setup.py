@@ -52,6 +52,8 @@ if sys.argv[-1] == 'publish':
         exit_code = os.system(cmd)
         if exit_code != 0:
             raise AssertionError
+    if Path('build').is_dir():
+        shutil.rmtree('build')
 
     sys.exit()
 

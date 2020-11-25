@@ -54,11 +54,6 @@ class Command(BaseCommand):
     help = "Zip into an archive"
 
     def handle(self, **options):
-        # remove these lines after a month or so
-        legacy_filename = 'zipped.otreezip'
-        if os.path.exists(legacy_filename):
-            self.stdout.write('removing zipped.otreezip, this should only happen once')
-            os.remove(legacy_filename)
         zip_project(PROJECT_PATH)
 
     def run_from_argv(self, argv):

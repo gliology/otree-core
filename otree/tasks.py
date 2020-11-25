@@ -1,13 +1,9 @@
-import heapq
 import json
-import random
 from logging import getLogger
 from time import time, sleep
 from urllib import request, parse
 from urllib.error import URLError
 from urllib.parse import urljoin
-
-from django.db import transaction
 
 import otree.constants
 from otree.models_concrete import TaskQueueMessage
@@ -41,7 +37,7 @@ class Worker:
     def __init__(self, port):
         self.base_url = f'http://127.0.0.1:{port}'
         # delete all old stuff
-        TaskQueueMessage.objects.all().delete()
+        TaskQueueMessage.objects.filter(epoch_time__lt=time() - 60).delete()
 
     def listen(self):
         print_function('timeoutworker is listening for messages through DB')
@@ -57,7 +53,7 @@ class Worker:
                     # logger.exception() will record the full traceback
                     logger.exception(repr(exc))
                 task.delete()
-            sleep(1)
+            sleep(3)
 
     def submit_expired_url(self, participant_code, path):
         from otree.models.participant import Participant
