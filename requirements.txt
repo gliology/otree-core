@@ -20,7 +20,7 @@ dj-database-url==0.5.0
 Django==2.2.12
 django-vanilla-views==1.0.6
 honcho==1.0.1
-huey==2.1.1
+huey>=2.1.1
 hyperlink==19.0.0  # Twisted
 idna==2.8  # Twisted
 incremental==17.5.0  # Twisted
