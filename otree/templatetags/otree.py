@@ -57,3 +57,18 @@ def formfields(context):
 def do_static(parser, token):
     '''this is copied from Django source'''
     return StaticNode.handle_token(parser, token)
+
+
+@register.filter
+def to0(val):
+    return round(val, 0)
+
+
+@register.filter
+def to1(val):
+    return round(val, 1)
+
+
+@register.filter
+def to2(val):
+    return round(val, 2)
