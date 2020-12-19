@@ -124,11 +124,11 @@ class Project:
 
     def unzip_to_tempdir(self):
         self.tmpdir = TemporaryDirectory()
-        unzip.unzip(str(self._otreezip), self.tmpdir.name)
+        unzip(str(self._otreezip), self.tmpdir.name)
 
     def start(self):
         self._proc = subprocess.Popen(
-            ['otree', 'devserver_inner', PORT,],
+            [sys.executable, 'manage.py', 'devserver_inner', PORT,],
             cwd=self.tmpdir.name,
             env=os.environ.copy(),
         )
@@ -149,7 +149,7 @@ class Project:
         os.kill(child_pid, 9)
 
     def take_db_from_previous(self, other_tmpdir: str):
-        for item in ['db.sqlite3']:
+        for item in ['__temp_migrations', 'db.sqlite3']:
             item_path = Path(other_tmpdir) / item
             if item_path.exists():
                 shutil.move(str(item_path), self.tmpdir.name)

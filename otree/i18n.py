@@ -1,5 +1,3 @@
-import gettext as gettext_lib
-
 from otree import settings
 import re
 
@@ -201,17 +199,12 @@ def get_currency_format(lc: str, LO: str, CUR: str) -> str:
     return '# ¤'
 
 
-def format_number(number, places=None):
+def format_number(number):
     """we don't use locale.setlocale because e.g.
-    only english locale is installed on heroku
-    """
-    str_number = str(number)
-    if '.' in str_number:
-        lhs, rhs = str_number.split('.')
-        if places == 0:
-            return lhs
-        return lhs + settings.DECIMAL_SEPARATOR + rhs[:places]
-    return str_number
+    only english locale is installed on heroku"""
+    if settings.DECIMAL_SEPARATOR == ',':
+        return str(number).replace('.', ',')
+    return str(number)
 
 
 def extract_otreetemplate(fileobj, keywords, comment_tags, options):
@@ -219,11 +212,3 @@ def extract_otreetemplate(fileobj, keywords, comment_tags, options):
     for lineno, line in enumerate(fileobj, start=1):
         for msg in re.findall(r"""\{%\s?trans ['"](.*)['"]\s?%\}""", line.decode()):
             yield (lineno, 'trans', msg, [])
-
-
-def gettext(msg):
-    return gettext_lib.dgettext('django', msg)
-
-
-def ngettext(msg1, msg2, n):
-    return gettext_lib.dngettext('django', msg1, msg2, n)

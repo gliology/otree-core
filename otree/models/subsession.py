@@ -12,9 +12,9 @@ from sqlalchemy.sql.functions import func
 import otree.common
 import otree.database
 
-from otree.common import get_models_module, in_round, in_rounds
+from otree.common import get_models_module, in_round, in_rounds, ResponseForException
 from otree.common import has_group_by_arrival_time
-from otree.database import db, dbq, values_flat, SPGModel, MixinSessionFK
+from otree.database import db, dbq, values_flat, SSPPGModel, MixinSessionFK
 
 
 class GroupMatrixError(ValueError):
@@ -25,7 +25,7 @@ class RoundMismatchError(GroupMatrixError):
     pass
 
 
-class BaseSubsession(SPGModel, MixinSessionFK):
+class BaseSubsession(SSPPGModel, MixinSessionFK):
     __abstract__ = True
 
     round_number = C(st.Integer, index=True,)
@@ -42,13 +42,16 @@ class BaseSubsession(SPGModel, MixinSessionFK):
     def in_all_rounds(self):
         return self.in_previous_rounds() + [self]
 
+    def __unicode__(self):
+        return str(self.id)
+
     def get_groups(self):
         return list(self.group_set.order_by('id_in_subsession'))
 
     def get_players(self):
         return list(self.player_set.order_by('id'))
 
-    def _get_group_matrix(self, objects):
+    def _get_group_matrix(self, ids_only=False):
         Player = self._PlayerClass()
         Group = self._GroupClass()
         players = (
@@ -59,11 +62,14 @@ class BaseSubsession(SPGModel, MixinSessionFK):
         )
         d = defaultdict(list)
         for p in players:
-            d[p.group.id_in_subsession].append(p if objects else p.id_in_subsession)
+            d[p.group.id_in_subsession].append(p.id_in_subsession if ids_only else p)
         return list(d.values())
 
-    def get_group_matrix(self, objects=False):
-        return self._get_group_matrix(objects=objects)
+    def get_group_matrix(self):
+        return self._get_group_matrix()
+
+    def get_group_matrix_ids(self):
+        return self._get_group_matrix(ids_only=True)
 
     def set_group_matrix(self, matrix):
         """
@@ -71,23 +77,56 @@ class BaseSubsession(SPGModel, MixinSessionFK):
         """
 
         try:
-            sample_item = matrix[0][0]
+            players_flat = [p for g in matrix for p in g]
         except TypeError:
             raise GroupMatrixError('Group matrix must be a list of lists.') from None
-
-        if isinstance(sample_item, SPGModel):
-            matrix = [[p.id_in_subsession for p in row] for row in matrix]
-
-        ids_flat = [iis for row in matrix for iis in row]
-
-        ids_flat = sorted(ids_flat)
-        players_from_db = self.get_players()
-
-        if not ids_flat == list(range(1, len(players_from_db) + 1)):
-            msg = 'The matrix of integers either has duplicate or missing elements.'
-            raise GroupMatrixError(msg) from None
-
-        matrix = [[players_from_db[iis - 1] for iis in row] for row in matrix]
+        try:
+            matrix_pks = sorted(p.id for p in players_flat)
+        except AttributeError:
+            # if integers, it's OK
+            if isinstance(players_flat[0], int):
+                # deep copy so that we don't modify the input arg
+                matrix = copy.deepcopy(matrix)
+                players_flat = sorted(players_flat)
+                players_from_db = self.get_players()
+                if players_flat == list(range(1, len(players_from_db) + 1)):
+                    for i, row in enumerate(matrix):
+                        for j, val in enumerate(row):
+                            matrix[i][j] = players_from_db[val - 1]
+                else:
+                    msg = (
+                        'If you pass a matrix of integers to this function, '
+                        'It must contain all integers from 1 to '
+                        'the number of players in the subsession.'
+                    )
+                    raise GroupMatrixError(msg) from None
+            else:
+                msg = (
+                    'The elements of the group matrix '
+                    'must either be Player objects, or integers.'
+                )
+                raise GroupMatrixError(msg) from None
+        else:
+            existing_pks = values_flat(self.player_set.order_by('id'), 'id')
+            if matrix_pks != existing_pks:
+                wrong_round_numbers = [
+                    p.round_number
+                    for p in players_flat
+                    if p.round_number != self.round_number
+                ]
+                if wrong_round_numbers:
+                    msg = (
+                        'You are setting the groups for round {}, '
+                        'but the matrix contains players from round {}.'.format(
+                            self.round_number, wrong_round_numbers[0]
+                        )
+                    )
+                    raise GroupMatrixError(msg)
+                msg = (
+                    'The group matrix must contain each player '
+                    'in the subsession exactly once.'
+                )
+                raise GroupMatrixError(msg)
 
         self.player_set.update({self._PlayerClass().group_id: None})
         self.group_set.delete()
@@ -104,7 +143,7 @@ class BaseSubsession(SPGModel, MixinSessionFK):
 
     def group_like_round(self, round_number):
         previous_round: BaseSubsession = self.in_round(round_number)
-        group_matrix = previous_round.get_group_matrix()
+        group_matrix = previous_round._get_group_matrix(ids_only=True)
         self.set_group_matrix(group_matrix)
 
     @property
@@ -152,10 +191,10 @@ class BaseSubsession(SPGModel, MixinSessionFK):
             )
         )
 
-        target = self.get_user_defined_target()
-        # user may not have defined it
-        func = getattr(target, 'group_by_arrival_time_method', type(self).group_by_arrival_time_method)
-        players_for_group = func(self, waiting_players)
+        try:
+            players_for_group = self.group_by_arrival_time_method(waiting_players)
+        except:
+            raise  #  ResponseForException
 
         if not players_for_group:
             return None
@@ -225,9 +264,11 @@ class BaseSubsession(SPGModel, MixinSessionFK):
 
         if Constants.players_per_group is None:
             msg = (
-                'If using group_by_arrival_time, you must either set '
+                'Page "{}": if using group_by_arrival_time, you must either set '
                 'Constants.players_per_group to a value other than None, '
-                'or define group_by_arrival_time_method.'
+                'or define group_by_arrival_time_method.'.format(
+                    self.__class__.__name__
+                )
             )
             raise AssertionError(msg)
 

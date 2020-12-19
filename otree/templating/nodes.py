@@ -4,12 +4,12 @@ import logging
 import operator
 import re
 import types
+from gettext import gettext
 
 import wtforms.fields as wtfields
 from otree.chat import chat_template_tag
 from otree.common import CSRF_TOKEN_NAME
-from otree.i18n import format_number, gettext
-from otree.forms.fields import CheckboxField
+from otree.i18n import format_number
 
 from . import errors
 from . import filters
@@ -130,9 +130,7 @@ class Expression:
 
     def _resolve_variable(self, context):
         obj = context.resolve(self.varstring, self.token)
-        if self.is_func_call or isinstance(
-            obj, (types.MethodType, types.BuiltinMethodType)
-        ):
+        if self.is_func_call or isinstance(obj, types.MethodType):
             try:
                 obj = obj(*self.func_args)
             except Exception as err:
@@ -474,7 +472,7 @@ class IncludeNode(Node):
 
         if expr.is_literal:
             if isinstance(expr.literal, str):
-                template = ibis_loader.load(expr.literal)
+                template = ibis_loader(expr.literal)
                 self.children.append(template.root_node)
             else:
                 msg = f"Malformed 'include' tag. "
@@ -491,7 +489,7 @@ class IncludeNode(Node):
         else:
             template_name = self.expr.eval(context)
             if isinstance(template_name, str):
-                template = ibis_loader.load(template_name)
+                template = ibis_loader(template_name)
                 return template.root_node.render(context)
             else:
                 msg = f"Invalid argument for the 'include' tag. "
@@ -520,7 +518,7 @@ class ExtendsNode(Node):
         expr = Expression(arg, token)
 
         if expr.is_literal and isinstance(expr.literal, str):
-            template = ibis_loader.load(expr.literal)
+            template = ibis_loader(expr.literal)
             self.children.append(template.root_node)
         else:
             msg = (
@@ -644,13 +642,7 @@ class FormFieldNode(Node):
             label = fld.label
         # if not label.endswith(':'):
         #    label += ':'
-
-        is_checkbox = isinstance(fld, CheckboxField)
-
-        if is_checkbox:
-            classes = 'form-check'
-        else:
-            classes = 'mb-3 _formfield'
+        classes = 'mb-3 _formfield'
 
         if fld.errors:
             classes += ' has-errors'
@@ -658,23 +650,14 @@ class FormFieldNode(Node):
         return Template(
             '''
 <div class="{{classes}}">
-    {% if is_checkbox %}
-      {{fld}}
-      <label class="form-check-label">
-        {{label}}
-      </label>
-    {% else %}
-        <label class="col-form-label" for="id_{{fld.name}}">{{label}}</label>
-        <div class="controls">
-            {{fld}}
-        </div>
-    {% endif %}
+    <label class="col-form-label" for="id_{{fld.name}}">{{label}}</label>
+    <div class="controls">
+        {{fld}}
+    </div>
     {% if fld.description %}
-        <p>
         <small>
             <p class="form-text text-muted">{{ fld.description }}</p>
         </small>
-        </p>
     {% endif %}
     {% if errors %}
         <div class="form-control-errors">
@@ -683,13 +666,7 @@ class FormFieldNode(Node):
     {% endif %}
 </div>'''
         ).render(
-            dict(
-                fld=fld,
-                label=label,
-                classes=classes,
-                errors=fld.errors,
-                is_checkbox=is_checkbox,
-            ),
+            dict(fld=fld, label=label, classes=classes, errors=fld.errors),
             strict_mode=True,
         )
 
@@ -742,10 +719,12 @@ class CloseBlock(Node):
         return '%}'
 
 
+NEXT_BTN_TEXT = gettext('Next')
+
+
 @register('next_button')
 class NextButton(Node):
     def wrender(self, context):
-        NEXT_BTN_TEXT = gettext('Next')
         return f'''
         <p>
             <button class="otree-btn-next btn btn-primary">{NEXT_BTN_TEXT}</button>
@@ -780,9 +759,7 @@ class ChatNode(Node):
         if self.nickname_expr:
             kwargs['nickname'] = self.nickname_expr.eval(context)
         tag_context = chat_template_tag(context, **kwargs)
-        return ibis_loader.load('otree/tags/chat.html').render(
-            tag_context, strict_mode=True
-        )
+        return ibis_loader('otree/tags/chat.html').render(tag_context, strict_mode=True)
 
 
 class BackslashError(ValueError):

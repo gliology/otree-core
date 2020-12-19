@@ -51,6 +51,8 @@ class RoomToSession(AnyModel, MixinSessionFK):
 
 
 class ChatMessage(AnyModel):
+    class Meta:
+        index_together = ['channel', 'timestamp']
 
     # the name "channel" here is unrelated to Django channels
     channel = Column(st.String(255))

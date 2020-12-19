@@ -12,11 +12,11 @@ class FileLoader:
         self.dirs = dirs
         self.cache = {}
 
-    def load(self, filename: str, extends=None):
+    def __call__(self, filename: str):
         if filename in self.cache:
             return self.cache[filename]
 
-        template, path = self.load_from_disk(filename, extends=extends)
+        template, path = self.load_template(filename)
         self.cache[filename] = template
         return template
 
@@ -28,7 +28,7 @@ class FileLoader:
         msg = f"Loader cannot locate the template file '{template_id}'."
         raise TemplateLoadError(msg)
 
-    def load_from_disk(self, template_id, extends) -> tuple:
+    def load_template(self, template_id) -> tuple:
         from .template import Template  # todo: resolve circular import
 
         abspath = self.search_template(template_id)
@@ -37,30 +37,27 @@ class FileLoader:
         except OSError as err:
             msg = f"FileLoader cannot load the template file '{abspath}'."
             raise TemplateLoadError(msg) from err
-        template = Template(template_string, template_id, extends=extends)
+        template = Template(template_string, template_id)
         return template, abspath
 
 
 class FileReloader(FileLoader):
-    def load(self, filename: str, extends=None):
-        if filename in self.cache:
-            cached_mtime, cached_path, cached_template = self.cache[filename]
+    def __call__(self, template_id: str):
+        if template_id in self.cache:
+            cached_mtime, cached_path, cached_template = self.cache[template_id]
             if cached_path.exists() and cached_path.stat().st_mtime == cached_mtime:
                 return cached_template
-        template, path = self.load_from_disk(filename, extends=extends)
+        template, path = self.load_template(template_id)
         mtime = path.stat().st_mtime
-        self.cache[filename] = (mtime, path, template)
+        self.cache[template_id] = (mtime, path, template)
         return template
 
 
 def get_ibis_loader():
     loader_class = FileReloader if settings.DEBUG else FileLoader
-
-    dirs = [
-        Path('.'),  # for noself
-        Path(otree.__file__).parent.joinpath('templates'),
-        Path('_templates'),
-    ] + [Path(app_name, 'templates') for app_name in settings.OTREE_APPS]
+    dirs = [Path(otree.__file__).parent.joinpath('templates'), Path('_templates'),] + [
+        Path(app_name, 'templates') for app_name in settings.OTREE_APPS
+    ]
     return loader_class(*dirs)
 
 
@@ -71,7 +68,7 @@ def get_template_name_if_exists(template_names) -> str:
     '''return the path of the first template that exists'''
     for fname in template_names:
         try:
-            ibis_loader.load(fname)
+            ibis_loader(fname)
         except TemplateLoadError:
             pass
         else:
@@ -79,11 +76,9 @@ def get_template_name_if_exists(template_names) -> str:
     raise TemplateLoadError(str(template_names))
 
 
-def render(template_name, context, extends=None, **extra_context):
+def render(template_name, context, **extra_context):
     return HTMLResponse(
-        ibis_loader.load(template_name, extends=extends).render(
-            context, **extra_context, strict_mode=True
-        )
+        ibis_loader(template_name).render(context, **extra_context, strict_mode=True)
     )
     # i used to modify the traceback to report the original error,
     # but actually i think we shouldn't.

@@ -1,13 +1,15 @@
-from sqlalchemy import Column, ForeignKey
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import sqltypes as st
-
+import otree.database
 from otree.common import in_round, in_rounds
-from otree.database import db, MixinSessionFK, SPGModel, CurrencyType
+
+from sqlalchemy.orm import relationship, backref
+import sqlalchemy.orm
+from sqlalchemy import Column, ForeignKey
+from sqlalchemy.sql import sqltypes as st
+from otree.database import db, MixinSessionFK, SSPPGModel, CurrencyType
+from sqlalchemy.ext.declarative import declared_attr
 
 
-class BasePlayer(SPGModel, MixinSessionFK):
+class BasePlayer(SSPPGModel, MixinSessionFK):
     __abstract__ = True
 
     id_in_group = Column(st.Integer, nullable=True, index=True,)
@@ -17,12 +19,7 @@ class BasePlayer(SPGModel, MixinSessionFK):
 
     round_number = Column(st.Integer, index=True)
 
-    # make it non-nullable so that we don't raise an error with null.
-    # the reason i chose to make this different from ordinary StringFields
-    # is that it's a property. users can't just use .get('role') because
-    # that will just access ._role. So we would need some special-casing
-    # in __getattribute__ for role, which is not desirable.
-    _role = Column(st.String, nullable=False, default='')
+    _role = otree.database.StringField()
 
     # as a property, that means it's overridable
     @property
@@ -47,6 +44,16 @@ class BasePlayer(SPGModel, MixinSessionFK):
     @property
     def id_in_subsession(self):
         return self.participant.id_in_session
+
+    # TODO: add back in
+    # def __repr__(self):
+    #     id_in_subsession = self.id_in_subsession
+    #     if id_in_subsession < 10:
+    #         # 2 spaces so that it lines up if printing a matrix
+    #         fmt_string = '<Player  {}>'
+    #     else:
+    #         fmt_string = '<Player {}>'
+    #     return fmt_string.format(id_in_subsession)
 
     def in_round(self, round_number):
         return in_round(type(self), round_number, participant=self.participant)

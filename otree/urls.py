@@ -89,20 +89,17 @@ class OTreeStaticFiles(StaticFiles):
         return directories
 
 
-def url_patterns_from_app_pages(app_name, name_in_url):
-    pages_module = common.get_pages_module(app_name)
-    is_noself = common.is_noself(app_name)
+def url_patterns_from_app_pages(module_name, name_in_url):
+    views_module = import_module(module_name)
 
-    page_urls = []
-    for ViewCls in pages_module.page_sequence:
-        ViewCls.is_noself = is_noself
-        # don't set it back because this just happens on startup
+    view_urls = []
+    for ViewCls in views_module.page_sequence:
 
         url_pattern = ViewCls.url_pattern(name_in_url)
         url_name = ViewCls.url_name()
-        page_urls.append(Route(url_pattern, ViewCls, name=url_name))
+        view_urls.append(Route(url_pattern, ViewCls, name=url_name))
 
-    return page_urls
+    return view_urls
 
 
 def url_patterns_from_builtin_module(module_name: str):
@@ -148,7 +145,8 @@ def get_urlpatterns():
 
         used_names_in_url.add(name_in_url)
 
-        routes += url_patterns_from_app_pages(app_name, name_in_url)
+        views_module = common.get_pages_module(app_name)
+        routes += url_patterns_from_app_pages(views_module.__name__, name_in_url)
 
     routes += url_patterns_from_builtin_module('otree.views.participant')
     routes += url_patterns_from_builtin_module('otree.views.demo')

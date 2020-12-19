@@ -11,10 +11,10 @@ from otree.common import (
     InvalidRoundError,
 )
 from otree.constants import BaseConstants, get_role, get_roles
-from otree.database import db, NoResultFound, MixinSessionFK, SPGModel
+from otree.database import db, NoResultFound, MixinSessionFK, SSPPGModel
 
 
-class BaseGroup(SPGModel, MixinSessionFK):
+class BaseGroup(SSPPGModel, MixinSessionFK):
     __abstract__ = True
 
     id_in_subsession = C(st.Integer, index=True)
@@ -24,6 +24,9 @@ class BaseGroup(SPGModel, MixinSessionFK):
     @property
     def _Constants(self) -> BaseConstants:
         return get_models_module(self.get_folder_name()).Constants
+
+    def __unicode__(self):
+        return str(self.id)
 
     def get_players(self):
         return list(self.player_set.order_by('id_in_group'))
@@ -49,11 +52,6 @@ class BaseGroup(SPGModel, MixinSessionFK):
         raise ValueError(msg)
 
     def set_players(self, players_list):
-        """
-        don't allow passing in a list of ints, because there are 2 ways of reading it.
-        Does set_players([2,3,1]) mean that player 1 gets id_in_group 2,
-        or does it mean player 2 gets id_in_group 1?
-        """
         Constants = self._Constants
         roles = get_roles(Constants)
         for i, player in enumerate(players_list, start=1):
@@ -120,6 +118,4 @@ class BaseGroup(SPGModel, MixinSessionFK):
 
     @declared_attr
     def player_set(cls):
-        return relationship(
-            f'{cls.__module__}.Player', back_populates="group", lazy='dynamic'
-        )
+        return relationship(f'{cls.__module__}.Player', back_populates="group", lazy='dynamic')

@@ -1,4 +1,5 @@
 import asyncio
+import gettext as gettext_lib
 import hashlib
 import itertools
 import os
@@ -10,8 +11,6 @@ import urllib.parse
 from collections import OrderedDict
 from importlib import import_module
 from typing import Iterable, Tuple
-from pathlib import Path
-from functools import lru_cache
 
 from itsdangerous import Signer
 
@@ -48,31 +47,20 @@ def random_chars_10():
     return random_chars(10)
 
 
-@lru_cache()
-def is_noself(app_name):
-    return (
-        Path(f'{app_name}/__init__.py').exists()
-        and not Path(f'{app_name}/models.py').exists()
-    )
-    # return Path(f'{app_name}/app.py').exists()
+def get_models_module(app_name):
+    '''shouldn't rely on app registry because the app might have been removed
+    from SESSION_CONFIGS, especially if the session was created a long time
+    ago and you want to export it'''
+    return import_module(f'{app_name}.models')
 
 
 def get_bots_module(app_name):
     return import_module(f'{app_name}.tests')
 
 
-@lru_cache()
-def get_models_module(app_name):
-    module_name = app_name if is_noself(app_name) else f'{app_name}.models'
-    return import_module(module_name)
-
-
-@lru_cache()
 def get_pages_module(app_name):
-    module_name = [f'{app_name}.pages', app_name][is_noself(app_name)]
-
     try:
-        return import_module(module_name)
+        return import_module(f'{app_name}.pages')
     except Exception as exc:
         # to give a smaller traceback on startup
         import traceback
@@ -90,8 +78,7 @@ def get_dotted_name(Cls):
 
 
 def get_app_label_from_import_path(import_path):
-    """works for self and no-self"""
-    return import_path.split('.')[0]
+    return import_path.split('.')[-2]
 
 
 def expand_choice_tuples(choices):
@@ -118,8 +105,6 @@ def get_admin_secret_code():
     s = _SECRET
     return hashlib.sha224(s.encode()).hexdigest()[:8]
 
-
-ADMIN_SECRET_CODE = get_admin_secret_code()
 
 _signer = Signer(_SECRET)
 
@@ -206,6 +191,15 @@ def participant_start_url(code):
     return '/InitializeParticipant/{}'.format(code)
 
 
+class ResponseForException(Exception):
+    '''
+    allows us to show a much simplified traceback without
+    framework code.
+    '''
+
+    pass
+
+
 def _group_by_rank(ranked_list, players_per_group):
     ppg = players_per_group
     players = ranked_list
@@ -245,3 +239,11 @@ AUTH_COOKIE_VALUE = signer_sign(AUTH_COOKIE_NAME)
 
 
 lock = asyncio.Lock()
+
+
+def gettext(msg):
+    return gettext_lib.dgettext('django', msg)
+
+
+def ngettext(msg1, msg2, n):
+    return gettext_lib.dngettext('django', msg1, msg2, n)

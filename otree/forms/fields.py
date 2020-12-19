@@ -74,7 +74,3 @@ class TextAreaField(StringField):
     """
 
     widget = wg.TextArea()
-
-
-class CheckboxField(wtfields.BooleanField):
-    widget = wg.CheckboxInput()

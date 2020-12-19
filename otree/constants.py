@@ -1,4 +1,4 @@
-from otree.i18n import gettext
+from otree.common import gettext
 
 
 class MustCopyError(Exception):
@@ -53,10 +53,10 @@ class BaseConstants(metaclass=BaseConstantsMeta):
 def get_roles(Constants) -> list:
     roles = []
     for k, v in Constants.__dict__.items():
-        if k.startswith('role_') or k.endswith('_role'):
+        if k.startswith('role_'):
             if not isinstance(v, str):
                 # this is especially for legacy apps before the role_* feature was introduced.
-                msg = f"{k}: any Constant that ends with '_role' must be a string, for example: sender_role = 'Sender'"
+                msg = f"{k}: any Constant that starts with 'role_' must be a string, for example: role_sender = 'Sender'"
                 raise Exception(msg)
             roles.append(v)
     return roles
@@ -66,7 +66,6 @@ def get_role(roles, id_in_group):
     '''this is split apart from get_roles_ as a perf optimization'''
     if roles and len(roles) >= id_in_group:
         return roles[id_in_group - 1]
-    return ''
 
 
 get_param_truth_value = '1'

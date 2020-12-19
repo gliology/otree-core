@@ -66,19 +66,14 @@ def download_from_github(dest: Path):
     from urllib.request import urlopen
     import zipfile
 
-    branch_name = 'lite'
-    resp = urlopen(f"https://github.com/oTree-org/oTree/archive/{branch_name}.zip")
+    resp = urlopen("https://github.com/oTree-org/oTree/archive/master.zip")
     f = BytesIO()
     f.write(resp.read())
     f.seek(0)
     with TemporaryDirectory() as tmpdir:
         with zipfile.ZipFile(f, 'r') as zip_ref:
-            # omit tests.py because it is jarring/distracting with __init__.py format.
-            zip_ref.extractall(
-                tmpdir,
-                members=[f for f in zip_ref.namelist() if not f.endswith('tests.py')],
-            )
-        shutil.move(Path(tmpdir, f'oTree-{branch_name}'), dest)
+            zip_ref.extractall(tmpdir)
+        shutil.move(Path(tmpdir, 'oTree-master'), dest)
 
 
 def copy_project_template(dest: Path):

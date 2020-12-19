@@ -9,7 +9,6 @@ from . import cbv
 import otree.common
 import otree.models
 import otree.export
-from otree.export import BOM
 from otree.models.participant import Participant
 from otree.models.session import Session
 from otree.models_concrete import ChatMessage
@@ -30,14 +29,9 @@ class Export(cbv.AdminView):
 
         custom_export_apps = []
         for app_name in app_names_with_data:
-            try:
-                models_module = otree.common.get_models_module(app_name)
-            except ModuleNotFoundError:
-                # maybe the app was removed from the project.
-                pass
-            else:
-                if getattr(models_module, 'custom_export', None):
-                    custom_export_apps.append(app_name)
+            models_module = otree.common.get_models_module(app_name)
+            if getattr(models_module, 'custom_export', None):
+                custom_export_apps.append(app_name)
 
         return dict(
             db_is_empty=not bool(dbq(Participant).first()),
@@ -66,9 +60,9 @@ class ExportSessionWide(HTTPEndpoint):
     def get(self, request):
         code = request.path_params['code']
         buf = StringIO()
-        if bool(request.query_params.get('excel')):
+        if bool(request.GET.get('excel')):
             # BOM
-            buf.write(BOM)
+            buf.write('\ufeff')
         otree.export.export_wide(buf, session_code=code)
         return get_csv_http_response(buf, 'all_apps_wide')
 

@@ -1,20 +1,16 @@
-import asyncio
 import html
 import inspect
-import os
 import traceback
-from pathlib import Path
-
-from starlette.concurrency import run_in_threadpool
-from starlette.middleware.errors import ServerErrorMiddleware, STYLES, JS
-from starlette.requests import Request
-from starlette.types import Message, Receive, Scope, Send
-
+import os
+from otree.templating.compiler import Token
 from otree.templating.errors import (
+    TemplateError,
     TemplateRenderingError,
     TemplateLexingError,
     ErrorWithToken,
 )
+from starlette.middleware.errors import ServerErrorMiddleware, STYLES, JS
+from pathlib import Path
 from otree.templating.loader import ibis_loader
 
 CWD_PATH = Path(os.getcwd())
@@ -41,7 +37,7 @@ IBIS_TEMPLATE = """
 
 FRAME_TEMPLATE = """
 <div>
-    <p class="frame-title {faded}">File <span class="frame-filename">{frame_filename}</span>,
+    <p class="frame-title">File <span class="frame-filename">{frame_filename}</span>,
     line <i>{frame_lineno}</i>,
     in <b>{frame_name}</b>
     <span class="collapse-btn" data-frame-id="{frame_filename}-{frame_lineno}" onclick="collapse(this)">{collapse_button}</span>
@@ -84,10 +80,6 @@ OTREE_STYLES = """
   border: 1px solid #999;
   padding: 0.5rem;
   text-align: left;
-}
-
-.faded {
-    color: #888888;
 }
 """
 
@@ -135,13 +127,18 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
         traceback_obj = traceback.TracebackException.from_exception(
             exc, capture_locals=True
         )
+        frames = inspect.getinnerframes(
+            traceback_obj.exc_traceback, limit  # type: ignore
+        )
 
         exc_html = ""
-        exc_traceback = exc.__traceback__
-        if exc_traceback is not None:
-            frames = inspect.getinnerframes(exc_traceback, limit)
-            for frame in reversed(frames):
-                exc_html += self.generate_frame_html(frame)
+        for frame in reversed(frames):
+            # if it's in the user's project, except for a venv folder
+            is_expanded = (
+                CWD_PATH in Path(frame.filename).parents
+                and not 'site-packages' in frame.filename
+            )
+            exc_html += self.generate_frame_html(frame, is_expanded)
 
         # escape error class and text
         error = (
@@ -158,25 +155,19 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
             otree_styles=OTREE_STYLES,
         )
 
-    def generate_frame_html(self, frame: inspect.FrameInfo) -> str:
+    def generate_frame_html(self, frame: inspect.FrameInfo, is_expanded: bool) -> str:
         code_context = "".join(
             self.format_line(index, line, frame.lineno, frame.index)  # type: ignore
             for index, line in enumerate(frame.code_context or [])
         )
-
-        path = Path(frame.filename)
-        # if it's in the user's project, except for a venv folder
-        is_expanded = CWD_PATH in path.parents and not 'site-packages' in frame.filename
 
         # only show locals if is expanded. reduces the risk of issues happening during __repr__
         if is_expanded:
             try:
                 locals = []
                 for k, v in frame.frame.f_locals.items():
-                    # need to escape, e.g. if it's <player id=1>
-                    locals.append(
-                        f'<tr><th>{k}</th><td>{html.escape(repr(v)[:100])}</td></tr>'
-                    )
+                    if k not in ['self']:
+                        locals.append(f'<tr><th>{k}</th><td>{repr(v)[:50]}</td></tr>')
                 locals_table = (
                     '<table class="locals-table source-code">'
                     + ''.join(locals)
@@ -184,61 +175,19 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
                 )
             except Exception:
                 locals_table = ''
-            path = path.relative_to(CWD_PATH)
         else:
             locals_table = ''
-
         values = {
             # HTML escape - filename could contain < or >, especially if it's a virtual
             # file e.g. <stdin> in the REPL
-            "frame_filename": html.escape(str(path)),
+            "frame_filename": html.escape(frame.filename),
             "frame_lineno": frame.lineno,
             # HTML escape - if you try very hard it's possible to name a function with <
             # or >
             "frame_name": html.escape(frame.function),
             "code_context": code_context,
             "collapsed": "" if is_expanded else "collapsed",
-            "faded": "" if is_expanded else "faded",
             "collapse_button": "&#8210;" if is_expanded else "+",
             "locals_table": locals_table,
         }
         return FRAME_TEMPLATE.format(**values)
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        """oTree just removed the 'from None'. everything else is the same
-        Need this until https://github.com/encode/starlette/issues/1114 is fixed"""
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        response_started = False
-
-        async def _send(message: Message) -> None:
-            nonlocal response_started, send
-
-            if message["type"] == "http.response.start":
-                response_started = True
-            await send(message)
-
-        try:
-            await self.app(scope, receive, _send)
-        except Exception as exc:
-            if not response_started:
-                request = Request(scope)
-                if self.debug:
-                    # In debug mode, return traceback responses.
-                    response = self.debug_response(request, exc)
-                elif self.handler is None:
-                    # Use our default 500 error handler.
-                    response = self.error_response(request, exc)
-                else:
-                    # Use an installed 500 error handler.
-                    if asyncio.iscoroutinefunction(self.handler):
-                        response = await self.handler(request, exc)
-                    else:
-                        response = await run_in_threadpool(self.handler, request, exc)
-
-                await response(scope, receive, send)
-
-            # oTree modified this line
-            raise exc  # from None

@@ -2,7 +2,8 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 
 from otree import settings
-from otree.i18n import CURRENCY_SYMBOLS, get_currency_format, format_number, ngettext
+from otree.common import ngettext
+from otree.i18n import CURRENCY_SYMBOLS, get_currency_format, format_number
 
 
 # Set up money arithmetic
@@ -78,25 +79,25 @@ class BaseCurrency(Decimal):
         return float(Decimal(self))
 
     def __unicode__(self):
-        return self._format_currency()
+        return self._format_currency(Decimal(self))
 
     def __str__(self):
-        string = self._format_currency()
+        string = self._format_currency(Decimal(self))
         return string
 
-    def _format_currency(self, places=None):
-        number = Decimal(self)
+    @classmethod
+    def _format_currency(cls, number):
+
         LANGUAGE_CODE = settings.LANGUAGE_CODE
         if '-' in LANGUAGE_CODE:
             lc, LO = LANGUAGE_CODE.split('-')
         else:
             lc, LO = LANGUAGE_CODE, ''
         return format_currency(
-            number, lc=lc, LO=LO, CUR=settings.REAL_WORLD_CURRENCY_CODE, places=places
+            number, lc=lc, LO=LO, CUR=settings.REAL_WORLD_CURRENCY_CODE
         )
 
     def __format__(self, format_spec):
-        """needed if you use eg. f-strings in .py code"""
         if format_spec in {'', 's'}:
             formatted = str(self)
         else:
@@ -108,7 +109,7 @@ class BaseCurrency(Decimal):
             return formatted
 
     def __repr__(self):
-        return f'{Decimal.__str__(self)}cu'
+        return '{}({})'.format(self.__class__.__name__, Decimal.__str__(self))
 
     def __eq__(self, other):
         if isinstance(other, BaseCurrency):
@@ -151,6 +152,13 @@ class BaseCurrency(Decimal):
     __rdivmod__ = _make_binary_operator('__rdivmod__')
     __rpow__ = _make_binary_operator('__rpow__')
 
+    def deconstruct(self):
+        return (
+            '{}.{}'.format(self.__module__, self.__class__.__name__),
+            [Decimal.__str__(self)],
+            {},
+        )
+
     @classmethod
     def get_num_decimal_places(cls):
         raise NotImplementedError()
@@ -172,8 +180,7 @@ class Currency(BaseCurrency):
         else:
             return self
 
-    def _format_currency(self, places=None):
-        number = Decimal(self)
+    def _format_currency(cls, number):
         if settings.USE_POINTS:
 
             formatted_number = f'{number:n}'
@@ -191,7 +198,7 @@ class Currency(BaseCurrency):
             # don't forget to include it in your translation
             return ngettext('{} point', '{} points', number).format(formatted_number)
         else:
-            return super()._format_currency(places=places)
+            return super()._format_currency(number)
 
 
 class RealWorldCurrency(BaseCurrency):
@@ -212,13 +219,14 @@ def to_dec(value):
     return Decimal(value) if isinstance(value, Currency) else value
 
 
-def format_currency(number, lc, LO, CUR, places):
+def format_currency(number, lc, LO, CUR):
+
     symbol = CURRENCY_SYMBOLS.get(CUR, CUR)
     c_format = get_currency_format(lc, LO, CUR)
-    number_part = format_number(abs(number), places=places)
-    retval = c_format.replace('¤', symbol).replace('#', number_part)
+    formatted_abs = format_number(abs(number))
+    retval = c_format.replace('¤', symbol).replace('#', formatted_abs)
     if number < 0:
-        return '-' + retval
+        retval = '-{}'.format(retval)
     return retval
 
 

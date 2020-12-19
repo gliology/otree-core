@@ -5,7 +5,6 @@ from sqlalchemy import MetaData
 
 from .base import BaseCommand
 from otree.database import engine, AnyModel
-from sqlalchemy.orm import close_all_sessions
 
 logger = logging.getLogger('otree')
 
@@ -48,17 +47,14 @@ class Command(BaseCommand):
         # hub depends on this string
         logger.info(f"{MSG_DB_ENGINE_FOR_HUB}: {engine.name}")
 
-        with contextlib.closing(engine.connect()) as bind:
-            trans = bind.begin()
+        with contextlib.closing(engine.connect()) as conn:
+            trans = conn.begin()
+            # note: this probably won't delete data from apps
+            # that are no longer used.
             old_meta = MetaData()
-
-            # these will hang if any other processes have a long-running DB connection
-            old_meta.reflect(bind)
-            old_meta.drop_all(bind)
-
-            # tables get automatically created during init_orm()
-            # but since we just deleted tables, we need to re-create
-            AnyModel.metadata.create_all(bind)
+            old_meta.reflect(conn)
+            old_meta.drop_all(conn)
+            AnyModel.metadata.create_all(conn)
             trans.commit()
         # oTree Hub depends on this string
         logger.info(MSG_RESETDB_SUCCESS_FOR_HUB)

@@ -1,8 +1,7 @@
 import html
-from otree.i18n import gettext as original_gettext
+from otree.common import gettext as original_gettext
 
-from otree.currency import Currency, json_dumps, BaseCurrency
-from otree.i18n import format_number
+from otree.currency import Currency, json_dumps
 
 # Dictionary of registered filter functions.
 filtermap = {}
@@ -51,7 +50,6 @@ def length(seq):
 
 
 @register('c')
-@register('cu')
 def currency_filter(val):
     return Currency(val)
 
@@ -71,25 +69,19 @@ def json(val):
     return json_dumps(val)
 
 
-def to_places(val, places):
-    if isinstance(val, BaseCurrency):
-        return val._format_currency(places=places)
-    return format_number(val, places)
-
-
 @register
 def to0(val):
-    return to_places(val, 0)
+    return round(val, 0)
 
 
 @register
 def to1(val):
-    return to_places(val, 1)
+    return round(val, 1)
 
 
 @register
 def to2(val):
-    return to_places(val, 2)
+    return round(val, 2)
 
 
 @register

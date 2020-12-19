@@ -1,13 +1,10 @@
-from otree.common import signer_sign
-import asyncio
-from collections import defaultdict
-from typing import DefaultDict, Dict
+from asgiref.sync import async_to_sync
+from otree.common import signer_sign, signer_unsign
 from urllib.parse import urlencode
-
+from collections import defaultdict
+from typing import Set, DefaultDict, Dict
 from starlette.websockets import WebSocket
-
-from otree.common import signer_sign
-from otree.currency import json_dumps
+import asyncio
 
 
 class ChannelLayer:
@@ -28,7 +25,7 @@ class ChannelLayer:
 
     async def send(self, group, data):
         for socket in self._get_sockets(group):
-            await socket.send_text(json_dumps(data))
+            await socket.send_json(data)
 
     def sync_send(self, group, data):
         asyncio.run(self.send(group, data))

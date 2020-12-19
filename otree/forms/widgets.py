@@ -4,8 +4,7 @@ from wtforms.compat import text_type
 from wtforms.widgets import html_params
 from otree import settings
 from otree.currency import CURRENCY_SYMBOLS
-from otree.i18n import gettext
-
+from otree.common import gettext
 
 # the below code is adapted from wtforms
 
@@ -29,16 +28,6 @@ class BaseWidget:
 
     def attrs(self):
         return html_params(name=self.field.name, **self.render_kw)
-
-
-class CheckboxInput(BaseWidget):
-    def __call__(self, field, **render_kw):
-        if getattr(field, 'checked', field.data):
-            render_kw['checked'] = True
-        return super().__call__(field, **render_kw)
-
-    def get_html_fragments(self):
-        yield ('<input type="checkbox" class="form-check-input" %s>' % (self.attrs()))
 
 
 class IntegerWidget(BaseWidget):

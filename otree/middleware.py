@@ -20,13 +20,12 @@ class CommitTransactionMiddleware(BaseHTTPMiddleware):
         async with lock2:
             if NEW_IDMAP_EACH_REQUEST:
                 db.new_session()
-            response = await call_next(request)
-            if response.status_code < 500:
+            try:
+                response = await call_next(request)
                 db.commit()
-            else:
-                # it's necessary to roll back. if i don't, the values get saved to DB
-                # (even though i don't commit, not sure...)
+            except Exception:
                 db.rollback()
+                raise
             # closing seems to interfere with errors middleware, which tries to get the value of local vars
             # and therefore queries the db
             # maybe it's not necessary to close since we just overwrite.
@@ -51,3 +50,10 @@ class PerfMiddleware(BaseHTTPMiddleware):
             logger.info(msg)
 
         return response
+
+
+middlewares = [
+    Middleware(PerfMiddleware),
+    Middleware(CommitTransactionMiddleware),
+    Middleware(SessionMiddleware, secret_key=_SECRET),
+]

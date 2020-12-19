@@ -17,8 +17,7 @@ POINTS_CUSTOM_NAME = None  # define it so we can patch it
 ADMIN_PASSWORD = os.environ.get('OTREE_ADMIN_PASSWORD', '')
 MTURK_NUM_PARTICIPANTS_MULTIPLE = 2
 BOTS_CHECK_HTML = True
-PARTICIPANT_FIELDS = []
-SESSION_FIELDS = []
+
 
 # Add the current directory to sys.path so that Python can find
 # the settings module.
@@ -70,13 +69,7 @@ def get_locale_name(language_code):
 
 LANGUAGE_CODE_ISO = get_locale_name(LANGUAGE_CODE)
 
-
-def get_decimal_separator(lc):
-
-    if lc in ['en', 'ja', 'ko', 'ms', 'th', 'zh']:
-        return '.'
-    else:
-        return ','
-
-
-DECIMAL_SEPARATOR = get_decimal_separator(LANGUAGE_CODE[:2])
+if LANGUAGE_CODE[:2] in ['en', 'ja', 'ko', 'ms', 'th', 'zh']:
+    DECIMAL_SEPARATOR = '.'
+else:
+    DECIMAL_SEPARATOR = ','

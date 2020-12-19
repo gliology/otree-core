@@ -1,5 +1,5 @@
 import enum
-from ..i18n import gettext
+from otree.common import gettext
 from typing import Dict
 
 import wtforms
@@ -28,16 +28,13 @@ def model_form(ModelClass, obj, only):
         if 'label' in field_props:
             fa['label'] = field_props['label']
 
-        target = obj.get_user_defined_target()
-        func = getattr(target, f'{name}_min', None)
-        if func:
-            min = func(obj)
+        if hasattr(obj, f'{name}_min'):
+            min = getattr(obj, f'{name}_min')()
         else:
             min = field_props.get('min')
 
-        func = getattr(target, f'{name}_max', None)
-        if func:
-            max = func(obj)
+        if hasattr(obj, f'{name}_max'):
+            max = getattr(obj, f'{name}_max')()
         else:
             max = field_props.get('max')
 
@@ -53,9 +50,8 @@ def model_form(ModelClass, obj, only):
 
         fa['description'] = field_props.get('help_text')
 
-        func = getattr(target, f'{name}_choices', None)
-        if func:
-            fa['choices'] = func(obj)
+        if hasattr(obj, f'{name}_choices'):
+            fa['choices'] = getattr(obj, f'{name}_choices')()
         elif 'choices' in field_props:
             fa['choices'] = field_props['choices']
 
@@ -84,11 +80,8 @@ def model_form(ModelClass, obj, only):
 
 
 def get_form(instance, field_names, view, formdata):
-    instance._is_frozen = False
     FormClass = model_form(type(instance), obj=instance, only=field_names)
-    form = FormClass(formdata=formdata, obj=instance, view=view)
-    instance._is_frozen = True
-    return form
+    return FormClass(formdata=formdata, obj=instance, view=view)
 
 
 class ModelConverter(wtforms_sqlalchemy.orm.ModelConverterBase):
@@ -115,8 +108,6 @@ class ModelConverter(wtforms_sqlalchemy.orm.ModelConverterBase):
     @converts("Boolean")
     def conv_Boolean(self, field_args, **extra):
         field_args.setdefault('widget', widgets.RadioSelect())
-        if isinstance(field_args['widget'], widgets.CheckboxInput):
-            return fields.CheckboxField(**field_args)
         fld = get_choices_field(field_args, FormDataTypes.bool)
         return fld
 
@@ -231,14 +222,22 @@ class ModelForm(wtforms.Form):
                 msg = otree.constants.field_required_msg
                 field.errors.append(msg)
 
-            error_string = self.instance.call_user_defined(
-                f'{name}_error_message', field.data, missing_ok=True
+            error_message_method = self._get_method_from_page_or_model(
+                f'{name}_error_message'
             )
-            if error_string:
-                field.errors.append(error_string)
+            if error_message_method:
+                try:
+                    error_string = error_message_method(field.data)
+                except:
+                    raise  #  ResponseForException
+                if error_string:
+                    field.errors.append(error_string)
 
         if not self.errors and hasattr(self.view, 'error_message'):
-            error = self.view.call_user_defined('error_message', self.data)
+            try:
+                error = self.view.error_message(self.data)
+            except:
+                raise  #  ResponseForException
             if error:
                 if isinstance(error, dict):
                     for k, v in error.items():

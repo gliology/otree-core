@@ -9,7 +9,9 @@
   <ul class="nav nav-tabs">
     <li role="presentation">
       {% if session.is_demo %}
-        <a class="nav-link" href="{% url 'CreateDemoSession' session.config.name %}">
+        <a class="nav-link" href="{% url 'CreateDemoSession' session.config.name %}" data-bs-toggle="popover"
+           data-bs-trigger="hover" data-bs-placement="top"
+           data-bs-content="Recreate session from scratch. You can also copy this link and share with others.">
           <img src='{% static "glyphicons/refresh.png" %}'> New
         </a>
       {% else %}

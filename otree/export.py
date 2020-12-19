@@ -14,7 +14,6 @@ from otree.common import get_models_module
 from otree.common2 import TIME_SPENT_COLUMNS, write_page_completion_buffer
 from otree.currency import Currency, RealWorldCurrency
 from otree.database import dbq, values_flat
-from otree import database
 from otree.models.group import BaseGroup
 from otree.models.participant import Participant
 from otree.models.player import BasePlayer
@@ -143,7 +142,7 @@ def tweak_player_values_dict(player: dict, group_id_in_subsession=None):
 
 
 def sanitize_for_live_update(value):
-    value = escape(str(sanitize_for_csv(value)))
+    value = escape(sanitize_for_csv(value))
     MAX_LENGTH = 30
     if len(value) > MAX_LENGTH:
         return value[:MAX_LENGTH] + '…'
@@ -288,7 +287,7 @@ def get_rows_for_wide_csv_round(app_name, round_number, sessions: List[Session])
                     f"but round {round_number} of app '{app_name}' "
                     f"has {len(players)} players. The number of players in the subsession "
                     "should always match the number of players in the session. "
-                    "Please report this issue and then reset the database."
+                    "Reset the database and examine your code."
                 )
                 raise AssertionError(msg)
 
@@ -407,7 +406,7 @@ def get_rows_for_data_tab_app(session, app_name):
                 + [g[fname] for fname in gfields]
                 + [s[fname] for fname in sfields]
             )
-            table.append([sanitize_for_live_update(v) for v in row])
+            table.append([sanitize_for_csv(v) for v in row])
         yield table
 
 
@@ -421,25 +420,11 @@ def export_app(app_name, fp):
     _export_csv(fp, rows)
 
 
-from sqlalchemy.orm import joinedload
-
-
 def custom_export_app(app_name, fp):
     models_module = get_models_module(app_name)
-    Player = models_module.Player
-    qs = list(
-        dbq(Player)
-        .order_by('id')
-        .options(
-            joinedload(Player.participant, innerjoin=True),
-            joinedload(Player.group, innerjoin=True),
-            joinedload(Player.subsession, innerjoin=True),
-            joinedload(Player.session, innerjoin=True),
-        )
-    )
-    for player in qs:
-        # need this to query null values
-        player._is_frozen = False
+    qs = models_module.Player.objects.select_related(
+        'participant', 'group', 'subsession', 'session'
+    ).order_by('id')
     rows = models_module.custom_export(qs)
     # convert to strings so we don't get errors especially for Excel
     str_rows = []
@@ -459,6 +444,3 @@ def export_page_times(fp):
     fp.write(','.join(TIME_SPENT_COLUMNS) + '\n')
     for batch in batches:
         fp.write(batch)
-
-
-BOM = '\ufeff'

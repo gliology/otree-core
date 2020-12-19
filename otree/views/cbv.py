@@ -1,7 +1,8 @@
+import json
 import asyncio
 import os
 import random
-
+from asgiref.sync import async_to_sync
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData
 from starlette.endpoints import HTTPEndpoint
@@ -32,20 +33,22 @@ class AdminView(HTTPEndpoint):
     _form_data = None
 
     def _is_unauthorized(self):
-        return self._requires_login and not self._is_logged_in()
+        return (
+            self._requires_login
+            and not self._is_logged_in()
+        )
 
     def _is_logged_in(self):
         return self.request.session.get(AUTH_COOKIE_NAME) == AUTH_COOKIE_VALUE
 
     async def dispatch(self) -> None:
         self.request = request = Request(self.scope, receive=self.receive)
-        if request.method.lower() == 'post':
-            # better done from async
-            self._form_data = await self.request.form()
         response = await run_in_threadpool(self.inner_dispatch, request)
         await response(self.scope, self.receive, self.send)
 
     def get_post_data(self) -> FormData:
+        if not self._form_data:
+            self._form_data = async_to_sync(self.request.form)()
         return self._form_data
 
     def inner_dispatch(self, request: Request):
@@ -107,6 +110,7 @@ class AdminView(HTTPEndpoint):
             view=self,
             admin_message_queue=_admin_message_queue,
             is_debug=settings.DEBUG,
+            http_request=self.request,
             current_page_name=self.__class__.__name__,
             url_for=self.request.url_for,
         )

@@ -357,13 +357,7 @@ class AdminReport(AdminSessionPage):
             session=self.session, round_number=form.round_number.data
         )
 
-        target = subsession.get_user_defined_target()
-        func = getattr(target, 'vars_for_admin_report', None)
-        if func:
-            vars_for_admin_report = func(subsession)
-        else:
-            vars_for_admin_report = {}
-
+        vars_for_admin_report = subsession.vars_for_admin_report() or {}
         self.debug_tables = [
             DebugTable(
                 title='vars_for_admin_report', rows=vars_for_admin_report.items()
@@ -470,7 +464,7 @@ class Sessions(AdminView):
 class ToggleArchivedSessions(AdminView):
     url_pattern = '/ToggleArchivedSessions'
 
-    def post(self, request):
+    async def post(self, request):
         post_data = self.get_post_data()
         code_list = post_data.getlist('session')
         for session in Session.objects_filter(Session.code.in_(code_list)):

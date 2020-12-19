@@ -1,13 +1,13 @@
-import logging
 import os
-import re
-import sys
-from logging.config import dictConfig
-from pathlib import Path
-from sys import argv
-from typing import Optional
 
+from sys import argv
+from pathlib import Path
+from typing import Optional
+from importlib import import_module
+import logging
+from logging.config import dictConfig
 from otree import __version__
+
 
 # adapted from uvicorn
 LOGGING_CONFIG = {
@@ -95,8 +95,6 @@ def execute_from_command_line(*args, **kwargs):
         'zipserver',
         'devserver',
         'update_my_code',
-        'remove_self',
-        'remove_self_finalize',
     ]:
         # skip full setup.
         pass
@@ -113,40 +111,14 @@ def execute_from_command_line(*args, **kwargs):
     call_command(cmd, *argv[2:])
 
 
-MSG_V5_WELCOME = """
-Welcome to oTree Lite!
-To ensure this project runs properly on oTree Lite:
-
-1)   Run "otree update_my_code" and fix any warning messages.
-2)   Delete 'db.sqlite3' and the folder '__temp_migrations'.
-
-oTree Lite is generally compatible with oTree 3.x but there may be small differences. 
-Note that it does not use Django.
-If you want to go back to oTree 3.x, enter: pip3 install -U "otree<5"
-"""
-
-
 def setup():
-    if Path('__temp_migrations').exists():
-        sys.exit(MSG_V5_WELCOME)
-
     from otree import settings
 
-    init_i18n(settings.LANGUAGE_CODE_ISO)
+    os.environ['LANGUAGE'] = settings.LANGUAGE_CODE_ISO
 
     from otree.database import init_orm  # noqa
-
-    check_for_sentry()
-    init_orm()
-
-    import otree.bots.browser
-
-    otree.bots.browser.browser_bot_worker = otree.bots.browser.BotWorker()
-
-
-def init_i18n(LANGUAGE_CODE_ISO):
-    os.environ['LANGUAGE'] = LANGUAGE_CODE_ISO
     import gettext
+    import locale
 
     # because the files are called django.mo
     gettext.textdomain('django')
@@ -154,6 +126,12 @@ def init_i18n(LANGUAGE_CODE_ISO):
     if Path('_locale').is_dir():
         gettext.bindtextdomain('messages', localedir='_locale')
         gettext.textdomain('messages')
+
+    init_orm()
+
+    import otree.bots.browser
+
+    otree.bots.browser.browser_bot_worker = otree.bots.browser.BotWorker()
 
 
 def split_dotted_version(version):
@@ -173,19 +151,15 @@ def check_update_needed(
             continue
         for start in ['otree>=', 'otree[mturk]>=']:
             if line.startswith(start):
-                return check_update_needed_line(line, current_version)
+                version_dotted = line[len(start) :]
+                try:
 
-
-def check_update_needed_line(line, current_version):
-    version_dotted = re.search(r'>=([\d\.]+)\b', line)
-    if version_dotted:
-        try:
-            required_version = split_dotted_version(version_dotted.group(1))
-            installed_version = split_dotted_version(current_version)
-        except ValueError:
-            return
-        if required_version > installed_version:
-            return f'''This project requires a newer oTree version. Enter: pip3 install "{line}"'''
+                    required_version = split_dotted_version(version_dotted)
+                    installed_version = split_dotted_version(current_version)
+                except ValueError:
+                    return
+                if required_version > installed_version:
+                    return f'''This project requires a newer oTree version. Enter: pip3 install "{line}"'''
 
 
 def send_termination_notice(PORT) -> int:
@@ -202,34 +176,6 @@ def send_termination_notice(PORT) -> int:
         # - URLError may happen if the server didn't even start up yet
         #  (if you stop it right away)
         pass
-
-
-def check_for_sentry():
-    SENTRY_DSN = os.environ.get('SENTRY_DSN')
-    if SENTRY_DSN:
-        try:
-            import sentry_sdk
-        except ModuleNotFoundError:
-            sys.exit(
-                'For Sentry to work, you need to add sentry_sdk to your requirements.txt.'
-            )
-
-        sentry_sdk.init(
-            dsn=SENTRY_DSN,
-            # 2018-11-24: breadcrumbs were causing memory leaks when doing queries,
-            # especially when creating sessions, which construct hugely verbose
-            # queries with bulk_create.
-            # however, i could only clearly observe the difference this line makes
-            # when testing
-            # on a script that bulk_created thousands of non-otree models.
-            # when testing on a live server, things are more ambiguous.
-            # maybe just refreshing the page several times after creating a session
-            # is enough to reset memory to reasnoable levels?
-            # disabling also may make things faster...
-            # in anecdotal test, 40 vs 50 seconds
-            max_breadcrumbs=0,
-            release=__version__,
-        )
 
 
 MAIN_HELP_TEXT = '''

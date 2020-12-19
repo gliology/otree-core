@@ -9,8 +9,8 @@ from otree import settings
 from otree.common import get_pages_module, get_models_module
 from collections import namedtuple
 
-Error = namedtuple('Error', ['title', 'id', 'app_name',])
-Warning = namedtuple('Warning', ['title', 'id', 'app_name'])
+Error = namedtuple('Error', ['title', 'id'])
+Warning = namedtuple('Warning', ['title', 'id'])
 
 print_function = print
 
@@ -23,10 +23,10 @@ class AppCheckHelper:
         self.warnings = []
 
     def add_error(self, title, numeric_id: int):
-        self.errors.append(Error(title, id=numeric_id, app_name=self.app_name))
+        self.errors.append(Error(title, id=numeric_id))
 
     def add_warning(self, title, numeric_id: int):
-        self.warnings.append(Warning(title, id=numeric_id, app_name=self.app_name))
+        self.warnings.append(Warning(title, id=numeric_id))
 
     def get_template_names(self):
         templates_dir = self.path / 'templates'
@@ -40,6 +40,35 @@ class AppCheckHelper:
 
     def module_exists(self, module):
         return self.path.joinpath(module + '.py').exists()
+
+
+def files(helper: AppCheckHelper, app_name):
+    # don't check pages.py because it might be views.py
+    for fn in ['models.py']:
+        if not helper.get_path(fn).exists():
+            helper.add_error('No "%s" file found in app folder' % fn, numeric_id=102)
+
+    templates_dir = helper.get_path('templates')
+    if templates_dir.is_dir():
+        # check for files in templates/, but not in templates/<label>
+        misplaced_files = list(templates_dir.glob('*.html'))
+        if misplaced_files:
+            msg = (
+                "Templates files in wrong folder"
+                'Move template files from "{app}/templates/" '
+                'to "{app}/templates/{app}" subfolder'.format(app=app_name)
+            )
+            helper.add_error(msg, numeric_id=103)
+
+        all_subfolders = set(templates_dir.glob('*/'))
+        correctly_named_subfolders = set(templates_dir.glob('{}/'.format(app_name)))
+        other_subfolders = all_subfolders - correctly_named_subfolders
+        if other_subfolders and not correctly_named_subfolders:
+            msg = (
+                "The 'templates' folder has a subfolder called '{}', "
+                "but it should be renamed '{}' to match the name of the app. "
+            ).format(other_subfolders.pop().name, app_name)
+            helper.add_error(msg, numeric_id=104)
 
 
 base_model_attrs = {
@@ -77,73 +106,89 @@ def model_classes(helper: AppCheckHelper, app_name):
         )
         helper.add_error(msg, numeric_id=119)
 
-    FORBIDDEN_COLNAMES = {'payoff', 'role', 'order'}
+    player_columns = list(Player.__table__.columns)
+    if any(f.name == 'payoff' for f in player_columns):
+        msg = (
+            'You must remove the field "payoff" from Player, '
+            "because it is already defined on BasePlayer."
+        )
+        helper.add_error(msg, numeric_id=114)
+    if any(f.name == 'role' for f in player_columns):
+        msg = (
+            'You must remove the field "role" from Player, '
+            "because it is already defined on BasePlayer."
+        )
+        helper.add_error(msg, numeric_id=114)
 
     for Model in [Player, Group, Subsession]:
-        columns = list(Model.__table__.columns)
-        for f in columns:
-            if f.name in FORBIDDEN_COLNAMES:
-                msg = f'You should rename the model field "{f.name}" to something else. This name is reserved.'
-                helper.add_error(msg, numeric_id=114)
         for attr_name in dir(Model):
             if attr_name not in base_model_attrs[Model.__name__]:
-                attr_value = getattr(Model, attr_name)
-                _type = type(attr_value)
-                if _type in model_field_substitutes.keys():
-                    msg = (
-                        'NonModelFieldAttr: '
-                        '{model} has attribute "{attr}", which is not a model field, '
-                        'and will therefore not be saved '
-                        'to the database. '
-                        'Consider changing to "{attr} = models.{FieldType}(initial={attr_value})"'
-                    ).format(
-                        model=Model.__name__,
-                        attr=attr_name,
-                        FieldType=model_field_substitutes[_type],
-                        attr_value=repr(attr_value),
-                    )
-                    helper.add_error(msg, numeric_id=111)
+                try:
+                    attr_value = getattr(Model, attr_name)
+                    _type = type(attr_value)
+                except AttributeError:
+                    # I got "The 'q_country' attribute can only be accessed
+                    # from Player instances."
+                    # can just filter/ignore these.
+                    pass
+                else:
+                    if _type in model_field_substitutes.keys():
+                        msg = (
+                            'NonModelFieldAttr: '
+                            '{model} has attribute "{attr}", which is not a model field, '
+                            'and will therefore not be saved '
+                            'to the database.'
+                            'Consider changing to "{attr} = models.{FieldType}(initial={attr_value})"'
+                        ).format(
+                            model=Model.__name__,
+                            attr=attr_name,
+                            FieldType=model_field_substitutes[_type],
+                            attr_value=repr(attr_value),
+                        )
+                        helper.add_error(msg, numeric_id=111)
 
-                # if people just need an iterable of choices for a model field,
-                # they should use a tuple, not list or dict
-                elif _type in {list, dict, set}:
-                    warning = (
-                        'MutableModelClassAttr: '
-                        '{ModelName}.{attr} is a {type_name}. '
-                        'Modifying it during a session (e.g. appending or setting values) '
-                        'will have unpredictable results; '
-                        'you should use '
-                        'session.vars or participant.vars instead. '
-                        'Or, if this {type_name} is read-only, '
-                        "then it's recommended to move it outside of this class "
-                        '(e.g. put it in Constants).'
-                    ).format(
-                        ModelName=Model.__name__,
-                        attr=attr_name,
-                        type_name=_type.__name__,
-                    )
+                    # if people just need an iterable of choices for a model field,
+                    # they should use a tuple, not list or dict
+                    elif _type in {list, dict, set}:
+                        warning = (
+                            'MutableModelClassAttr: '
+                            '{ModelName}.{attr} is a {type_name}. '
+                            'Modifying it during a session (e.g. appending or setting values) '
+                            'will have unpredictable results; '
+                            'you should use '
+                            'session.vars or participant.vars instead. '
+                            'Or, if this {type_name} is read-only, '
+                            "then it's recommended to move it outside of this class "
+                            '(e.g. put it in Constants).'
+                        ).format(
+                            ModelName=Model.__name__,
+                            attr=attr_name,
+                            type_name=_type.__name__,
+                        )
 
-                    helper.add_error(warning, numeric_id=112)
+                        helper.add_error(warning, numeric_id=112)
 
 
 def constants(helper: AppCheckHelper, app_name):
+    if not helper.module_exists('models'):
+        return
 
     models = get_models_module(app_name)
 
     if not hasattr(models, 'Constants'):
-        helper.add_error('Constants class is missing', numeric_id=11)
+        helper.add_error('models.py does not contain Constants class', numeric_id=11)
         return
 
     Constants = models.Constants
     attrs = ['name_in_url', 'players_per_group', 'num_rounds']
     for attr_name in attrs:
         if not hasattr(Constants, attr_name):
-            msg = "'Constants' class needs to define '{}'"
+            msg = "models.py: 'Constants' class needs to define '{}'"
             helper.add_error(msg.format(attr_name), numeric_id=12)
     ppg = Constants.players_per_group
     if ppg == 0 or ppg == 1:
         helper.add_error(
-            "Constants.players_per_group cannot be {}. You "
+            "models.py: Constants.players_per_group cannot be {}. You "
             "should set it to None, which makes the group "
             "all players in the subsession.".format(ppg),
             numeric_id=13,
@@ -159,7 +204,9 @@ def pages_function(helper: AppCheckHelper, app_name):
     try:
         page_list = pages_module.page_sequence
     except:
-        helper.add_error('The variable page_sequence is missing.', numeric_id=21)
+        helper.add_error(
+            'pages.py is missing the variable page_sequence.', numeric_id=21
+        )
         return
     else:
         for i, ViewCls in enumerate(page_list):
@@ -216,12 +263,11 @@ def pages_function(helper: AppCheckHelper, app_name):
                 msg = '"{}" is not a valid page'.format(ViewCls)
                 helper.add_error(msg, numeric_id=26)
 
-
 def get_checks_output(app_names=None):
     app_names = app_names or settings.OTREE_APPS
     errors = []
     warnings = []
-    for check_function in [model_classes, constants, pages_function]:
+    for check_function in [model_classes, files, constants, pages_function]:
         for app_name in app_names:
             helper = AppCheckHelper(app_name)
             check_function(helper, app_name)

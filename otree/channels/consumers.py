@@ -23,7 +23,7 @@ from otree.currency import json_dumps
 from otree.database import NoResultFound
 from otree.database import db, session_scope
 from otree.database import dbq
-from otree.export import export_wide, export_app, custom_export_app, BOM
+from otree.export import export_wide, export_app, custom_export_app
 from otree.live import live_payload_function
 from otree.models import Participant, Session
 from otree.models_concrete import (
@@ -432,7 +432,6 @@ class WSCreateSession(BaseCreateSession):
 
         # if room_name is missing, it will be empty string
         room_name = form.room_name.data or None
-        print('room_name', room_name)
 
         await self.create_session_then_send_start_link(
             session_config_name=session_config_name,
@@ -598,9 +597,7 @@ class WSChat(_OTreeAsyncJsonWebsocketConsumer):
 
 class WSDeleteSessions(_OTreeAsyncJsonWebsocketConsumer):
     async def post_receive_json(self, content):
-        Session.objects_filter(Session.code.in_(content)).delete(
-            synchronize_session=False
-        )
+        Session.objects_filter(Session.code.in_(content)).delete()
         await self.send_json('ok')
 
     def group_name(self, **kwargs):
@@ -629,7 +626,7 @@ class WSExportData(_OTreeAsyncJsonWebsocketConsumer):
         with io.StringIO() as fp:
             # Excel requires BOM; otherwise non-english characters are garbled
             if content.get('for_excel'):
-                fp.write(BOM)
+                fp.write('\ufeff')
             if app_name:
                 if is_custom:
                     fxn = custom_export_app

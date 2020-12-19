@@ -1,5 +1,5 @@
 import time
-from otree.i18n import gettext as _
+from otree.common import gettext as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.responses import HTMLResponse, Response, RedirectResponse
 from starlette.requests import Request
@@ -257,6 +257,7 @@ class AssignVisitorToRoom(GenericWaitPageMixin, HTTPEndpoint):
                     view=self,
                     title_text=_('Please wait'),
                     body_text=_('Waiting for your session to begin'),
+                    http_request=request,
                 ),
             )
 
@@ -295,11 +296,12 @@ class BrowserBotStartLink(GenericWaitPageMixin, HTTPEndpoint):
     because the rest of these views are accessible without password login.
     '''
 
-    # remote CLI browser bots won't work if this takes an admin_secret_code param because
-    # SECRET_KEY might be different on the server.
-    url_pattern = '/browser_bot_start'
+    url_pattern = '/browser_bot_start/{admin_secret_code}'
 
     def get(self, request):
+        admin_secret_code = request.path_params['admin_secret_code']
+        if admin_secret_code != otree.common.get_admin_secret_code():
+            return Response('Incorrect code', status_code=404)
 
         session_code = GlobalState.browser_bots_launcher_session_code
         if session_code:

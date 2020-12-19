@@ -37,23 +37,9 @@ class Command(BaseCommand):
                 "another name."
             )
 
-        use_noself = False
-        for p in Path('.').glob('*/__init__.py'):
-            if 'class Player' in p.read_text('utf8'):
-                use_noself = True
-        # if it's an empty project, we should default to noself.
-        if not list(Path('.').glob('*/models.py')):
-            use_noself = True
-        if use_noself:
-            src = Path(otree.__file__).parent / 'app_template_lite'
-            shutil.copytree(src, dest)
-            models_path = dest.joinpath('__init__.py')
-        else:
-            src = Path(otree.__file__).parent / 'app_template'
-            shutil.copytree(src, dest)
-            dest.joinpath('templates/app_name').rename(
-                dest.joinpath('templates/', name)
-            )
-            models_path = dest.joinpath('models.py')
+        src = Path(otree.__file__).parent / 'app_template'
+        shutil.copytree(src, dest)
+        dest.joinpath('templates/app_name').rename(dest.joinpath('templates/', name))
+        models_path = dest.joinpath('models.py')
         models_path.write_text(models_path.read_text().replace("{{ app_name }}", name))
         print_function('Created app folder')
