@@ -1,5 +1,5 @@
 import enum
-from otree.common import gettext
+from ..i18n import gettext
 from typing import Dict
 
 import wtforms

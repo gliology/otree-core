@@ -1,5 +1,5 @@
 import html
-from otree.common import gettext as original_gettext
+from otree.i18n import gettext as original_gettext
 
 from otree.currency import Currency, json_dumps
 

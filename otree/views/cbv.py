@@ -110,7 +110,6 @@ class AdminView(HTTPEndpoint):
             view=self,
             admin_message_queue=_admin_message_queue,
             is_debug=settings.DEBUG,
-            http_request=self.request,
             current_page_name=self.__class__.__name__,
             url_for=self.request.url_for,
         )

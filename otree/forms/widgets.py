@@ -4,7 +4,8 @@ from wtforms.compat import text_type
 from wtforms.widgets import html_params
 from otree import settings
 from otree.currency import CURRENCY_SYMBOLS
-from otree.common import gettext
+from otree.i18n import gettext
+
 
 # the below code is adapted from wtforms
 

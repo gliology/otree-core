@@ -160,7 +160,8 @@ class Session(otree.database.SSPPGModel, MixinVars):
         for p in participants:
             if p._index_in_pages == 0:
                 p.initialize(None)
-                p._update_monitor_table()
+                # need this in order to kick off any timeout, update the admin
+                p._visit_current_page()
                 unvisited_participants = True
 
         if unvisited_participants:
@@ -172,41 +173,11 @@ class Session(otree.database.SSPPGModel, MixinVars):
             p for p in participants if p._index_in_pages == last_place_page_index
         ]
         for p in last_place_participants:
-            if p._index_in_pages > p._max_page_index:
-                return
-            page = get_page_lookup(
-                self.code, p._index_in_pages
-            ).page_class.instantiate_without_request()
-            page.set_attributes(p)
+            p._submit_current_page()
+            # need to do this to update the monitor table, set any timeouts, etc.
+            p._visit_current_page()
 
-            if isinstance(page, Page):
-                from starlette.datastructures import FormData
-
-                page._is_frozen = False
-                page._form_data = FormData(
-                    {
-                        otree.constants.admin_secret_code: ADMIN_SECRET_CODE,
-                        otree.constants.timeout_happened: '1',
-                    }
-                )
-                resp: Response = page.post()
-                if resp.status_code >= 400:
-                    msg = (
-                        f'Submitting page {p._current_form_page_url} failed, '
-                        f'returned HTTP status code {resp.status_code}. '
-                        'Check the logs'
-                    )
-                    raise AssertionError(msg)
-
-            else:
-                # it's possible that the slowest user is on a wait page,
-                # especially if their browser is closed.
-                # because they were waiting for another user who then
-                # advanced past the wait page, but they were never
-                # advanced themselves.
-                resp = page.inner_dispatch(request=None)
-            p._update_monitor_table()
-
+            # 2020-12-20: this is needed.
             # do the auto-advancing here,
             # rather than in increment_index_in_pages,
             # because it's only needed here.

@@ -1,4 +1,4 @@
-from otree.common import gettext
+from otree.i18n import gettext
 
 
 class MustCopyError(Exception):

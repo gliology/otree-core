@@ -1,5 +1,5 @@
 import time
-from otree.common import gettext as _
+from otree.i18n import gettext as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.responses import HTMLResponse, Response, RedirectResponse
 from starlette.requests import Request
@@ -257,7 +257,6 @@ class AssignVisitorToRoom(GenericWaitPageMixin, HTTPEndpoint):
                     view=self,
                     title_text=_('Please wait'),
                     body_text=_('Waiting for your session to begin'),
-                    http_request=request,
                 ),
             )
 

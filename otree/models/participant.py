@@ -7,7 +7,8 @@ from sqlalchemy.sql import sqltypes as st
 
 import otree.common
 import otree.database
-from otree.common import random_chars_8
+from otree.common import random_chars_8, ADMIN_SECRET_CODE
+import otree.constants
 from otree.database import MixinVars, CurrencyType
 from otree.lookup import url_i_should_be_on, get_page_lookup
 import otree.channels.utils as channel_utils
@@ -151,3 +152,48 @@ class Participant(otree.database.SSPPGModel, MixinVars):
             group=channel_utils.session_monitor_group_name(self._session_code),
             data=dict(rows=export.get_rows_for_monitor([self])),
         )
+
+    def _get_page_instance(self):
+        if self._index_in_pages > self._max_page_index:
+            return
+        page = get_page_lookup(
+            self._session_code, self._index_in_pages
+        ).page_class.instantiate_without_request()
+        page.set_attributes(self)
+        return page
+
+    def _submit_current_page(self):
+        from otree.api import Page
+
+        page = self._get_page_instance()
+        if isinstance(page, Page):
+            from starlette.datastructures import FormData
+
+            page._is_frozen = False
+            page._form_data = FormData(
+                {
+                    otree.constants.admin_secret_code: ADMIN_SECRET_CODE,
+                    otree.constants.timeout_happened: '1',
+                }
+            )
+            page.post()
+
+    def _visit_current_page(self):
+        """
+        we need the redirect logic because if it's from ensure_pages_visited,
+        then the previous page
+        was a wait page, so that will not handle redirects.
+        """
+        # don't need to handle more redirects than that.
+        for i in range(5):
+            page = self._get_page_instance()
+            if not page:
+                return
+            # it's possible that the slowest user is on a wait page,
+            # especially if their browser is closed.
+            # because they were waiting for another user who then
+            # advanced past the wait page, but they were never
+            # advanced themselves.
+            resp = page.get()
+            if not str(resp.status_code).startswith('3'):
+                return

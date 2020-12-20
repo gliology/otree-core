@@ -2,8 +2,7 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 
 from otree import settings
-from otree.common import ngettext
-from otree.i18n import CURRENCY_SYMBOLS, get_currency_format, format_number
+from otree.i18n import CURRENCY_SYMBOLS, get_currency_format, format_number, ngettext
 
 
 # Set up money arithmetic

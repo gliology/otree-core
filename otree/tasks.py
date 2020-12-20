@@ -59,7 +59,7 @@ class Worker:
                 db.delete(task)
             sleep(3)
 
-    def submit_expired_url(self, participant_code, path):
+    def submit_expired_url(self, participant_code, page_index):
         from otree.models.participant import Participant
 
         # if the participant exists in the DB,
@@ -75,11 +75,12 @@ class Worker:
         # we filter by _current_form_page_url (which is set in GET,
         # AFTER the next page's timeout is scheduled.)
 
-        if Participant.objects_exists(
-            code=participant_code, _current_form_page_url=path
-        ):
+        pp = Participant.objects_filter(
+            code=participant_code, _index_in_pages=page_index
+        ).first()
+        if pp:
             post(
-                urljoin(self.base_url, path),
+                urljoin(self.base_url, pp._url_i_should_be_on()),
                 data={otree.constants.timeout_happened: True},
             )
 

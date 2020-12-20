@@ -1,7 +1,7 @@
 import logging
 import time
 import typing
-from otree.common import gettext
+from otree.i18n import gettext
 from pathlib import Path
 from typing import List
 from typing import Optional
@@ -130,7 +130,6 @@ class FormPageOrInGameWaitPage:
     def get_context_data(self, **context):
         context.update(
             view=self,
-            http_request=self.request,
             object=getattr(self, 'object', None),
             player=self.player,
             group=self.group,
@@ -470,7 +469,7 @@ class Page(FormPageOrInGameWaitPage):
         # this needs to be set AFTER scheduling submit_expired_url,
         # to prevent race conditions.
         # see that function for an explanation.
-        self.participant._current_form_page_url = self.request.url.path
+        # self.participant._current_form_page_url = self.request.url.path
 
         self._update_monitor_table()
 
@@ -741,7 +740,7 @@ class Page(FormPageOrInGameWaitPage):
             if not self.participant.is_browser_bot:
                 otree.tasks.submit_expired_url(
                     participant_code=self.participant.code,
-                    path=self.request.url.path,
+                    page_index=self.participant._index_in_pages,
                     # add some seconds to account for latency of request + response
                     # this will (almost) ensure
                     # (1) that the page will be submitted by JS before the
@@ -836,6 +835,11 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         return 'otree/WaitPage.html'
 
     def inner_dispatch(self, request):
+        # we need inner_dispatch() for common interface w/ parent class
+        # and .get() so it can be called explicitly.
+        return self.get()
+
+    def get(self):
         # necessary because queries are made directly from DB
 
         if self.wait_for_all_groups == True:

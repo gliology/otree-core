@@ -4,12 +4,11 @@ import logging
 import operator
 import re
 import types
-from gettext import gettext
 
 import wtforms.fields as wtfields
 from otree.chat import chat_template_tag
 from otree.common import CSRF_TOKEN_NAME
-from otree.i18n import format_number
+from otree.i18n import format_number, gettext
 
 from . import errors
 from . import filters

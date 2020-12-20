@@ -2,7 +2,7 @@ import re
 from otree.common import signer_sign, signer_unsign
 
 from otree.channels import utils as channel_utils
-from otree.common import gettext
+from otree.i18n import gettext
 
 
 class ChatTagError(Exception):

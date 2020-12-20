@@ -1,5 +1,4 @@
 import asyncio
-import gettext as gettext_lib
 import hashlib
 import itertools
 import os
@@ -105,6 +104,7 @@ def get_admin_secret_code():
     s = _SECRET
     return hashlib.sha224(s.encode()).hexdigest()[:8]
 
+ADMIN_SECRET_CODE = get_admin_secret_code()
 
 _signer = Signer(_SECRET)
 
@@ -241,9 +241,3 @@ AUTH_COOKIE_VALUE = signer_sign(AUTH_COOKIE_NAME)
 lock = asyncio.Lock()
 
 
-def gettext(msg):
-    return gettext_lib.dgettext('django', msg)
-
-
-def ngettext(msg1, msg2, n):
-    return gettext_lib.dngettext('django', msg1, msg2, n)
