@@ -1024,6 +1024,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             # and we don't know what page will actually be shown next to the user.
             otree.tasks.ensure_pages_visited(
                 participant_pks=[pp.id for pp in participants], delay=10,
+                page_index=self._index_in_pages,
             )
 
         if self.group_by_arrival_time:

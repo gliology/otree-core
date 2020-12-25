@@ -143,7 +143,9 @@ class Command(BaseCommand):
                 )
 
             if 'vars_for_all_templates' in txt:
-                print_numbered(f'{pth}: vars_for_all_templates is not supported.')
+                print_numbered(
+                    f'{pth}: vars_for_all_templates is not supported. You should move this code to vars_for_template.'
+                )
 
         for pth in root.glob('*/templates/*/*.html'):
             txt = pth.read_text('utf8')

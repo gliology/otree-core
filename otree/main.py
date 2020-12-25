@@ -1,5 +1,5 @@
 import os
-
+import re
 from sys import argv
 from pathlib import Path
 from typing import Optional
@@ -151,15 +151,19 @@ def check_update_needed(
             continue
         for start in ['otree>=', 'otree[mturk]>=']:
             if line.startswith(start):
-                version_dotted = line[len(start) :]
-                try:
+                return check_update_needed_line(line, current_version)
 
-                    required_version = split_dotted_version(version_dotted)
-                    installed_version = split_dotted_version(current_version)
-                except ValueError:
-                    return
-                if required_version > installed_version:
-                    return f'''This project requires a newer oTree version. Enter: pip3 install "{line}"'''
+
+def check_update_needed_line(line, current_version):
+    version_dotted = re.search(r'>=([\d\.]+)\b', line)
+    if version_dotted:
+        try:
+            required_version = split_dotted_version(version_dotted.group(1))
+            installed_version = split_dotted_version(current_version)
+        except ValueError:
+            return
+        if required_version > installed_version:
+            return f'''This project requires a newer oTree version. Enter: pip3 install "{line}"'''
 
 
 def send_termination_notice(PORT) -> int:

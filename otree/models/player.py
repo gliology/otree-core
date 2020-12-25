@@ -19,7 +19,7 @@ class BasePlayer(SSPPGModel, MixinSessionFK):
 
     round_number = Column(st.Integer, index=True)
 
-    _role = otree.database.StringField()
+    _role = Column(st.String, nullable=True)
 
     # as a property, that means it's overridable
     @property

@@ -84,7 +84,7 @@ class Worker:
                 data={otree.constants.timeout_happened: True},
             )
 
-    def ensure_pages_visited(self, participant_pks):
+    def ensure_pages_visited(self, participant_pks, page_index):
         """This is necessary when a wait page is followed by a timeout page.
         We can't guarantee the user's browser will properly continue to poll
         the wait page and get redirected, so after a grace period we load the page
@@ -96,7 +96,10 @@ class Worker:
         # we used to filter by _index_in_pages, but that is not reliable,
         # because of the race condition described above.
         unvisited_participants = Participant.objects_filter(
-            Participant.id.in_(participant_pks)
+            Participant.id.in_(participant_pks),
+            # the +1 is just a buffer for any edge cases
+            # (as we saw with advance_slowest)
+            Participant._index_in_pages <= page_index + 1,
         )
         for participant in unvisited_participants:
 

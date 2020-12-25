@@ -234,16 +234,25 @@ def init_orm():
 
             traceback.print_exc()
             sys.exit(1)
-        for cls in [models.Player, models.Group, models.Subsession]:
-            # TODO:
-            # fields = []
-            # for name, value in cls.__dict__.items():
-            #     if isinstance(value, OTreeColumn):
-            #     if hasattr(cls, name + '_choices'):
-            #         method_name = f'get_{name}_display'
-            #         setattr(cls, method_name, make_get_display(name))
-            #
 
+        # make get_FIELD_display
+        from time import time
+
+        for cls in [models.Player, models.Group, models.Subsession]:
+            for field in cls.__table__.columns:
+                if isinstance(field, OTreeColumn):
+                    name = field.name
+                    if hasattr(cls, name + '_choices'):
+                        method = make_get_display_dynamic(name)
+                    elif field.form_props.get('choices'):
+                        method = make_get_display_static(
+                            name, field.form_props['choices']
+                        )
+                    else:
+                        method = None
+                    if method:
+                        method_name = f'get_{name}_display'
+                        setattr(cls, method_name, method)
             cls.freeze_setattr()
     from otree.models import Participant, Session
 
@@ -268,7 +277,7 @@ def init_orm():
 class AnyModel(DeclarativeBase):
     __abstract__ = True
 
-    id = OTreeColumn(st.Integer, primary_key=True)
+    id = Column(st.Integer, primary_key=True)
 
     def __repr__(self):
         return '<{} id={}>'.format(self.__class__.__name__, self.id)
@@ -360,7 +369,7 @@ class SSPPGModel(AnyModel):
 class MixinSessionFK:
     @declared_attr
     def session_id(cls):
-        return OTreeColumn(st.Integer, ForeignKey(f'otree_session.id'))
+        return Column(st.Integer, ForeignKey(f'otree_session.id'))
 
     @declared_attr
     def session(cls):
@@ -403,7 +412,15 @@ def scan_for_model_instances(vars_dict: dict):
                 inspect_obj(ele)
 
 
-def make_get_display(name):
+def make_get_display_static(name, choices):
+    def get_FIELD_display(self):
+        value = getattr(self, name)
+        return dict(expand_choice_tuples(choices))[value]
+
+    return get_FIELD_display
+
+
+def make_get_display_dynamic(name):
     def get_FIELD_display(self):
         choices = getattr(self, name + '_choices')()
         value = getattr(self, name)
