@@ -143,11 +143,8 @@ class FormPageOrInGameWaitPage:
 
         vars_for_template = {}
 
-        try:
-            user_vars = self.vars_for_template()
-            context['js_vars'] = self.js_vars()
-        except:
-            raise  #  ResponseForException
+        user_vars = self.vars_for_template()
+        context['js_vars'] = self.js_vars()
 
         vars_for_template.update(user_vars or {})
 
@@ -1023,7 +1020,8 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             # but this is not reliable because next page might be skipped anyway,
             # and we don't know what page will actually be shown next to the user.
             otree.tasks.ensure_pages_visited(
-                participant_pks=[pp.id for pp in participants], delay=10,
+                participant_pks=[pp.id for pp in participants],
+                delay=10,
                 page_index=self._index_in_pages,
             )
 

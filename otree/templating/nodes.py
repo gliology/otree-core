@@ -129,7 +129,9 @@ class Expression:
 
     def _resolve_variable(self, context):
         obj = context.resolve(self.varstring, self.token)
-        if self.is_func_call or isinstance(obj, types.MethodType):
+        if self.is_func_call or isinstance(
+            obj, (types.MethodType, types.BuiltinMethodType)
+        ):
             try:
                 obj = obj(*self.func_args)
             except Exception as err:

@@ -120,6 +120,7 @@ To ensure this project runs properly on oTree Lite:
 2)   Delete the folder '__temp_migrations'.
 
 oTree Lite is compatible with oTree 3.x but internally it does not use Django.
+If you want to go back to oTree 3.x, enter: pip3 install -U "otree<5"
 """
 
 

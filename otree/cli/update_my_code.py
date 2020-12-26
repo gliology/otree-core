@@ -143,9 +143,7 @@ class Command(BaseCommand):
                 )
 
             if 'vars_for_all_templates' in txt:
-                print_numbered(
-                    f'{pth}: vars_for_all_templates is not supported. You should move this code to vars_for_template.'
-                )
+                print_numbered(f'{pth}: {VARS_FOR_ALL_TEMPLATES_MSG}')
 
         for pth in root.glob('*/templates/*/*.html'):
             txt = pth.read_text('utf8')
@@ -159,6 +157,12 @@ class Command(BaseCommand):
                     str(pth)
                     + ': the formfield tag should not use "with label=". Just change it to "label=" '
                 )
+            if '|floatformat' in txt:
+                print_numbered(
+                    str(pth)
+                    + ': |floatformat is not available because it comes from Django. '
+                    'You should replace it with to0/to1/to2, for example {{ my_number|to2 }}'
+                )
 
         custom_css_pth = Path('_static/global/custom.css')
         if custom_css_pth.exists():
@@ -169,3 +173,18 @@ class Command(BaseCommand):
                     )
 
         print_function('Done. all files checked.')
+
+
+VARS_FOR_ALL_TEMPLATES_MSG = """
+****************************************************************************************************************
+* vars_for_all_templates() will not be called automatically. You should rename it to something like "shared_vars", 
+* then call it from each page's vars_for_template. For example:
+*
+* def vars_for_template(self):
+*    return shared_vars(self)
+*    
+* def vars_for_template(self):
+*    # combine it with the page's vars
+*    return {'a': 1, 'b': 2, **shared_vars(self)}
+****************************************************************************************************************
+"""
