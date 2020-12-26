@@ -61,7 +61,7 @@ def do_static(parser, token):
 
 @register.filter
 def to0(val):
-    return round(val, 0)
+    return int(round(val, 0))
 
 
 @register.filter
