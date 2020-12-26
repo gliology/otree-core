@@ -1,6 +1,7 @@
 import os
 import re
 from sys import argv
+import sys
 from pathlib import Path
 from typing import Optional
 from importlib import import_module
@@ -111,7 +112,21 @@ def execute_from_command_line(*args, **kwargs):
     call_command(cmd, *argv[2:])
 
 
+MSG_V5_WELCOME = """
+Welcome to oTree 5!
+To ensure this project runs properly on oTree 5:
+
+1)   Run "otree update_my_code" and fix any warning messages.
+2)   Delete the folder '__temp_migrations'.
+
+oTree 5 is compatible with previous versions but internally it does not use Django.
+"""
+
+
 def setup():
+    if Path('__temp_migrations').exists():
+        sys.exit(MSG_V5_WELCOME)
+
     from otree import settings
 
     os.environ['LANGUAGE'] = settings.LANGUAGE_CODE_ISO

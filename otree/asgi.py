@@ -6,6 +6,7 @@ from starlette.middleware import Middleware
 from starlette.exceptions import ExceptionMiddleware
 from .errorpage import OTreeServerErrorMiddleware
 from starlette.routing import NoMatchFound
+from starlette.responses import HTMLResponse
 
 
 class OTreeStarlette(Starlette):
@@ -36,7 +37,19 @@ class OTreeStarlette(Starlette):
         return app
 
 
-app = OTreeStarlette(debug=settings.DEBUG, routes=routes, middleware=middlewares)
+ERR_500 = 500
+
+
+async def server_error(request, exc):
+    return HTMLResponse(content=HTML_500_PAGE, status_code=ERR_500)
+
+
+app = OTreeStarlette(
+    debug=settings.DEBUG,
+    routes=routes,
+    middleware=middlewares,
+    exception_handlers={ERR_500: server_error},
+)
 
 # alias like django reverse()
 def reverse(name, **path_params):
@@ -44,3 +57,27 @@ def reverse(name, **path_params):
         return app.url_path_for(name, **path_params)
     except NoMatchFound as exc:
         raise NoMatchFound(f'{name}, {path_params}') from None
+
+
+HTML_500_PAGE = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Error (500)</title>
+</head>
+<body>
+
+<h2>Server Error (500)</h2>
+
+<p>
+  For security reasons, the error message is not displayed here.
+  You can view it with one of the below techniques:
+</p>
+
+<ul>
+    <li>Delete the <code>OTREE_PRODUCTION</code> environment variable and reload this page</li>
+    <li>Look at your Sentry messages (see the docs on how to enable Sentry)</li>
+    <li>Look at the server logs</li>
+</ul>
+
+</body>
+</html>"""

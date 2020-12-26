@@ -149,7 +149,7 @@ class Project:
         os.kill(child_pid, 9)
 
     def take_db_from_previous(self, other_tmpdir: str):
-        for item in ['__temp_migrations', 'db.sqlite3']:
+        for item in ['db.sqlite3']:
             item_path = Path(other_tmpdir) / item
             if item_path.exists():
                 shutil.move(str(item_path), self.tmpdir.name)
