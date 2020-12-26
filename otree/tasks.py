@@ -5,7 +5,7 @@ from time import sleep
 from urllib import request, parse
 from urllib.error import URLError
 from urllib.parse import urljoin
-from otree.database import db
+from otree.database import db, session_scope
 import otree.constants
 from otree.models_concrete import TaskQueueMessage
 
@@ -47,16 +47,19 @@ class Worker:
         print_function('timeoutworker is listening for messages through DB')
 
         while True:
-            for task in TaskQueueMessage.objects_filter(
-                TaskQueueMessage.epoch_time <= time.time()
-            ).order_by('epoch_time'):
-                try:
-                    getattr(self, task.method)(**task.kwargs())
-                except Exception as exc:
-                    # don't raise, because then this would crash.
-                    # logger.exception() will record the full traceback
-                    logger.exception(repr(exc))
-                db.delete(task)
+            # without the session_scope, resetdb doesn't work because it seems to require
+            # all connections to be closed, even in other processes.
+            with session_scope():
+                for task in TaskQueueMessage.objects_filter(
+                    TaskQueueMessage.epoch_time <= time.time()
+                ).order_by('epoch_time'):
+                    try:
+                        getattr(self, task.method)(**task.kwargs())
+                    except Exception as exc:
+                        # don't raise, because then this would crash.
+                        # logger.exception() will record the full traceback
+                        logger.exception(repr(exc))
+                    db.delete(task)
             sleep(3)
 
     def submit_expired_url(self, participant_code, page_index):
