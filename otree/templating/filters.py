@@ -71,7 +71,7 @@ def json(val):
 
 @register
 def to0(val):
-    return round(val, 0)
+    return int(round(val, 0))
 
 
 @register
