@@ -113,13 +113,13 @@ def execute_from_command_line(*args, **kwargs):
 
 
 MSG_V5_WELCOME = """
-Welcome to oTree 5!
-To ensure this project runs properly on oTree 5:
+Welcome to oTree Lite!
+To ensure this project runs properly on oTree Lite:
 
 1)   Run "otree update_my_code" and fix any warning messages.
 2)   Delete the folder '__temp_migrations'.
 
-oTree 5 is compatible with previous versions but internally it does not use Django.
+oTree Lite is compatible with oTree 3.x but internally it does not use Django.
 """
 
 
