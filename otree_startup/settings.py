@@ -270,7 +270,7 @@ def augment_settings(settings: dict):
     for unmaintained_extension in UNMAINTAINED_APPS:
         if unmaintained_extension in EXTENSION_APPS:
             msg = (
-                f'{unmaintained_extension} does not work with recent versions of oTree. '
+                f'{unmaintained_extension} uses undocumented APIs and therefore does not work with recent versions of oTree. '
                 'You should remove it from your settings.py.'
             )
             sys.exit(msg)

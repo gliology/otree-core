@@ -173,7 +173,7 @@ _REQS_DEFAULT_FMT = f'''\
 # {OVERWRITE_TOKEN}
 # IF YOU MODIFY THIS FILE, remove these comments. 
 # otherwise, oTree will automatically overwrite it.
-otree%s>={otree_version}
+otree%s>={otree_version},<5
 psycopg2>=2.8.4
 sentry-sdk==0.7.9
 '''

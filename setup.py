@@ -43,7 +43,7 @@ if sys.argv[-1] == 'publish':
     if Path('dist').is_dir():
         shutil.rmtree('dist')
     for cmd in [
-        "python setup.py sdist bdist_wheel",
+        "python setup.py sdist",
         "twine upload dist/*",
         f'git tag -a {version} -m "version {version}"',
         "git push --tags",

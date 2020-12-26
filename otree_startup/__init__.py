@@ -13,6 +13,7 @@ SyncToAsync.__init__ = _thread_sensitive_init
 import logging
 import django.conf
 import os
+import re
 import sys
 from sys import argv
 from pathlib import Path
@@ -167,9 +168,6 @@ def execute_from_command_line(*args, **kwargs):
                 logger.warning(msg)
                 return
             raise
-        warning = check_update_needed(Path('.').resolve().joinpath('requirements.txt'))
-        if warning:
-            logger.warning(warning)
 
     do_django_setup()
 
@@ -240,33 +238,6 @@ def fetch_command(subcommand: str) -> BaseCommand:
     else:
         klass = load_command_class(app_name, subcommand)
     return klass
-
-
-def split_dotted_version(version):
-    return [int(n) for n in version.split('.')]
-
-
-def check_update_needed(
-    requirements_path: Path, current_version=__version__
-) -> Optional[str]:
-    '''rewrote this without pkg_resources since that takes 0.4 seconds just to import'''
-
-    if not requirements_path.exists():
-        return
-
-    for line in requirements_path.read_text('utf8').splitlines():
-        if (not line.startswith('otree')) or ' ' in line or '\t' in line:
-            continue
-        for start in ['otree>=', 'otree[mturk]>=']:
-            if line.startswith(start):
-                version_dotted = line[len(start) :]
-                try:
-                    required_version = split_dotted_version(version_dotted)
-                    installed_version = split_dotted_version(current_version)
-                except ValueError:
-                    return
-                if required_version > installed_version:
-                    return f'''This project requires a newer oTree version. Enter: pip3 install "{line}"'''
 
 
 def highlight(string):
