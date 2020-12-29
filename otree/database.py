@@ -119,14 +119,13 @@ def session_scope():
             db.close()
 
 
-def save_sqlite_db(*args):
+def save_sqlite_db():
     global _dumped
     if _dumped:
         return
     sqlite_mem_conn.cursor().execute(f"PRAGMA user_version = {version_for_pragma()}")
     sqlite_mem_conn.backup(sqlite_disk_conn)
     _dumped = True
-    sys.stdout.write('Database saved\n')
 
 
 DeclarativeBase = declarative_base()
@@ -364,7 +363,92 @@ class RealWorldCurrencyType(BaseCurrencyType):
 class SSPPGModel(AnyModel):
     __abstract__ = True
 
-    # may need this class for special __setattr__ stuff later
+    _is_frozen = False
+
+    @sqlalchemy.orm.reconstructor
+    def init_on_load(self):
+        self._is_frozen = True
+
+    NoneType = type(None)
+
+    _setattr_datatypes = {
+        # first value should be the "recommmended" datatype,
+        # because that's what we recommend in the error message.
+        # it seems the habit of setting boolean values to 0 or 1
+        # is very common. that's even what oTree shows in the "live update"
+        # view, and the data export.
+        st.Boolean: (bool, int, NoneType),
+        # forms seem to save Decimal to CurrencyField
+        CurrencyType: (Currency, NoneType, int, float, Decimal),
+        st.Float: (float, NoneType, int),
+        st.Integer: (int, NoneType),
+        st.String: (str, NoneType),
+        st.Text: (str, NoneType),
+    }
+    _setattr_whitelist = {
+        '_is_frozen',
+    }
+
+    def __setattr__(self, field_name: str, value):
+        if self._is_frozen and hasattr(self, '_setattr_fields'):
+
+            if field_name in self._setattr_fields:
+                # hasattr() cannot be used inside
+                # a Django model's setattr, as I discovered.
+                field = self.__table__.columns[field_name]
+
+                field_type_name = type(field.type)
+
+                if field_type_name in self._setattr_datatypes:
+                    allowed_types = self._setattr_datatypes[field_type_name]
+                    if (
+                        isinstance(value, allowed_types)
+                        # numpy uses its own datatypes, e.g. numpy._bool,
+                        # which doesn't inherit from python bool.
+                        or 'numpy' in str(type(value))
+                    ):
+                        pass
+                    else:
+                        msg = ('{} should be set to {}, not {}.').format(
+                            field_name, allowed_types[0].__name__, type(value).__name__,
+                        )
+                        raise TypeError(msg)
+            elif (
+                field_name in self._setattr_attributes
+                or field_name in self._setattr_whitelist
+            ):
+                pass
+            else:
+                msg = ('{} has no field "{}".').format(
+                    self.__class__.__name__, field_name
+                )
+                raise AttributeError(msg)
+            super().__setattr__(field_name, value)
+        else:
+            # super() is a bit slower but only gets run during __init__
+            super().__setattr__(field_name, value)
+
+
+class NullFieldError(Exception):
+    pass
+
+
+class SPGModel(SSPPGModel):
+    __abstract__ = True
+
+    def __getattribute__(self, attr):
+        """just put this on player/group/subsession so as not to disrupt internals.
+        that's where it's needed most"""
+        super_getattr = super().__getattribute__
+        res = super_getattr(attr)
+        if res is None and super_getattr('_is_frozen'):
+            object_name = self.__class__.__name__.lower()
+            msg = (
+                f'{object_name}.{attr} is None. (If you want to access it anyway, you should use '
+                f".__dict__['{attr}'])"
+            )
+            raise NullFieldError(msg)
+        return res
 
 
 class MixinSessionFK:

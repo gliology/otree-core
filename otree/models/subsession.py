@@ -14,7 +14,7 @@ import otree.database
 
 from otree.common import get_models_module, in_round, in_rounds, ResponseForException
 from otree.common import has_group_by_arrival_time
-from otree.database import db, dbq, values_flat, SSPPGModel, MixinSessionFK
+from otree.database import db, dbq, values_flat, SPGModel, MixinSessionFK
 
 
 class GroupMatrixError(ValueError):
@@ -25,7 +25,7 @@ class RoundMismatchError(GroupMatrixError):
     pass
 
 
-class BaseSubsession(SSPPGModel, MixinSessionFK):
+class BaseSubsession(SPGModel, MixinSessionFK):
     __abstract__ = True
 
     round_number = C(st.Integer, index=True,)

@@ -5,11 +5,11 @@ from sqlalchemy.orm import relationship, backref
 import sqlalchemy.orm
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy.sql import sqltypes as st
-from otree.database import db, MixinSessionFK, SSPPGModel, CurrencyType
+from otree.database import db, MixinSessionFK, SPGModel, CurrencyType
 from sqlalchemy.ext.declarative import declared_attr
 
 
-class BasePlayer(SSPPGModel, MixinSessionFK):
+class BasePlayer(SPGModel, MixinSessionFK):
     __abstract__ = True
 
     id_in_group = Column(st.Integer, nullable=True, index=True,)
@@ -19,7 +19,12 @@ class BasePlayer(SSPPGModel, MixinSessionFK):
 
     round_number = Column(st.Integer, index=True)
 
-    _role = Column(st.String, nullable=True)
+    # make it non-nullable so that we don't raise an error with null.
+    # the reason i chose to make this different from ordinary StringFields
+    # is that it's a property. users can't just use .get('role') because
+    # that will just access ._role. So we would need some special-casing
+    # in __getattribute__ for role, which is not desirable.
+    _role = Column(st.String, nullable=False, default='')
 
     # as a property, that means it's overridable
     @property
@@ -45,15 +50,14 @@ class BasePlayer(SSPPGModel, MixinSessionFK):
     def id_in_subsession(self):
         return self.participant.id_in_session
 
-    # TODO: add back in
-    # def __repr__(self):
-    #     id_in_subsession = self.id_in_subsession
-    #     if id_in_subsession < 10:
-    #         # 2 spaces so that it lines up if printing a matrix
-    #         fmt_string = '<Player  {}>'
-    #     else:
-    #         fmt_string = '<Player {}>'
-    #     return fmt_string.format(id_in_subsession)
+    def __repr__(self):
+        id_in_subsession = self.id_in_subsession
+        if id_in_subsession < 10:
+            # 2 spaces so that it lines up if printing a matrix
+            fmt_string = '<Player  {}>'
+        else:
+            fmt_string = '<Player {}>'
+        return fmt_string.format(id_in_subsession)
 
     def in_round(self, round_number):
         return in_round(type(self), round_number, participant=self.participant)

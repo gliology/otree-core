@@ -1,10 +1,8 @@
-import asyncio
 import logging
 import os
-from otree.database import save_sqlite_db
-from .base import BaseCommand
-import sys
 import subprocess
+
+from .base import BaseCommand
 
 logger = logging.getLogger(__name__)
 
@@ -15,16 +13,6 @@ def run_asgi_server(addr, port, *, is_devserver=False):
 
 def run_uvicorn(addr, port, *, is_devserver):
     from uvicorn.main import Config, Server
-
-    class OTreeUvicornServer(Server):
-        def __init__(self, config, *, is_devserver):
-            self.is_devserver = is_devserver
-            super().__init__(config)
-
-        def handle_exit(self, sig, frame):
-            if self.is_devserver:
-                save_sqlite_db()
-            return super().handle_exit(sig, frame)
 
     config = Config(
         'otree.asgi:app',
@@ -39,7 +27,7 @@ def run_uvicorn(addr, port, *, is_devserver):
         ws='websockets',
         # ws='wsproto',
     )
-    server = OTreeUvicornServer(config=config, is_devserver=is_devserver)
+    server = Server(config=config)
     server.run()
 
 

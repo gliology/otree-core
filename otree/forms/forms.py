@@ -80,8 +80,11 @@ def model_form(ModelClass, obj, only):
 
 
 def get_form(instance, field_names, view, formdata):
+    instance._is_frozen = False
     FormClass = model_form(type(instance), obj=instance, only=field_names)
-    return FormClass(formdata=formdata, obj=instance, view=view)
+    form = FormClass(formdata=formdata, obj=instance, view=view)
+    instance._is_frozen = True
+    return form
 
 
 class ModelConverter(wtforms_sqlalchemy.orm.ModelConverterBase):

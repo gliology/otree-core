@@ -5,6 +5,7 @@ from otree.i18n import gettext
 from pathlib import Path
 from typing import List
 from typing import Optional
+from html import escape
 
 from asgiref.sync import async_to_sync
 from starlette.concurrency import run_in_threadpool
@@ -169,7 +170,7 @@ class FormPageOrInGameWaitPage:
         if vars_for_template:
             # use repr() so that we can distinguish strings from numbers
             # and can see currency types, etc.
-            items = [(k, repr(v)) for (k, v) in vars_for_template.items()]
+            items = [(k, escape(repr(v))) for (k, v) in vars_for_template.items()]
             rows = sorted(items)
             tables.append(DebugTable(title='vars_for_template', rows=rows))
 
@@ -510,7 +511,8 @@ class Page(FormPageOrInGameWaitPage):
 
     def get_form(self, instance, formdata=None) -> otree.forms.forms.ModelForm:
         fields = self.get_form_fields()
-        return get_form(instance, field_names=fields, view=self, formdata=formdata)
+        form = get_form(instance, field_names=fields, view=self, formdata=formdata)
+        return form
 
     def form_invalid(self, form):
         context = self.get_context_data(form=form)

@@ -119,7 +119,8 @@ To ensure this project runs properly on oTree Lite:
 1)   Run "otree update_my_code" and fix any warning messages.
 2)   Delete the folder '__temp_migrations'.
 
-oTree Lite is compatible with oTree 3.x but internally it does not use Django.
+oTree Lite is generally compatible with oTree 3.x but there may be small differences. 
+Note that it does not use Django.
 If you want to go back to oTree 3.x, enter: pip3 install -U "otree<5"
 """
 
@@ -143,6 +144,7 @@ def setup():
         gettext.bindtextdomain('messages', localedir='_locale')
         gettext.textdomain('messages')
 
+    check_for_sentry()
     init_orm()
 
     import otree.bots.browser
@@ -196,6 +198,36 @@ def send_termination_notice(PORT) -> int:
         # - URLError may happen if the server didn't even start up yet
         #  (if you stop it right away)
         pass
+
+
+def check_for_sentry():
+    SENTRY_DSN = os.environ.get('SENTRY_DSN')
+    if SENTRY_DSN:
+        try:
+            import sentry_sdk
+        except ModuleNotFoundError:
+            sys.exit(
+                'For Sentry to work, you need to add sentry_sdk to your requirements.txt.'
+            )
+        from sentry_sdk.integrations.django import DjangoIntegration
+
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            integrations=[DjangoIntegration()],
+            # 2018-11-24: breadcrumbs were causing memory leaks when doing queries,
+            # especially when creating sessions, which construct hugely verbose
+            # queries with bulk_create.
+            # however, i could only clearly observe the difference this line makes
+            # when testing
+            # on a script that bulk_created thousands of non-otree models.
+            # when testing on a live server, things are more ambiguous.
+            # maybe just refreshing the page several times after creating a session
+            # is enough to reset memory to reasnoable levels?
+            # disabling also may make things faster...
+            # in anecdotal test, 40 vs 50 seconds
+            max_breadcrumbs=0,
+            release=__version__,
+        )
 
 
 MAIN_HELP_TEXT = '''

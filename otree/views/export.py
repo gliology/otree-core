@@ -9,6 +9,7 @@ from . import cbv
 import otree.common
 import otree.models
 import otree.export
+from otree.export import BOM
 from otree.models.participant import Participant
 from otree.models.session import Session
 from otree.models_concrete import ChatMessage
@@ -62,7 +63,7 @@ class ExportSessionWide(HTTPEndpoint):
         buf = StringIO()
         if bool(request.GET.get('excel')):
             # BOM
-            buf.write('\ufeff')
+            buf.write(BOM)
         otree.export.export_wide(buf, session_code=code)
         return get_csv_http_response(buf, 'all_apps_wide')
 

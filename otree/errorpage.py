@@ -1,16 +1,20 @@
+import asyncio
 import html
 import inspect
-import traceback
 import os
-from otree.templating.compiler import Token
+import traceback
+from pathlib import Path
+
+from starlette.concurrency import run_in_threadpool
+from starlette.middleware.errors import ServerErrorMiddleware, STYLES, JS
+from starlette.requests import Request
+from starlette.types import Message, Receive, Scope, Send
+
 from otree.templating.errors import (
-    TemplateError,
     TemplateRenderingError,
     TemplateLexingError,
     ErrorWithToken,
 )
-from starlette.middleware.errors import ServerErrorMiddleware, STYLES, JS
-from pathlib import Path
 from otree.templating.loader import ibis_loader
 
 CWD_PATH = Path(os.getcwd())
@@ -167,7 +171,10 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
                 locals = []
                 for k, v in frame.frame.f_locals.items():
                     if k not in ['self']:
-                        locals.append(f'<tr><th>{k}</th><td>{repr(v)[:50]}</td></tr>')
+                        # need to escape, e.g. if it's <player id=1>
+                        locals.append(
+                            f'<tr><th>{k}</th><td>{html.escape(repr(v)[:50])}</td></tr>'
+                        )
                 locals_table = (
                     '<table class="locals-table source-code">'
                     + ''.join(locals)
@@ -191,3 +198,42 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
             "locals_table": locals_table,
         }
         return FRAME_TEMPLATE.format(**values)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """oTree just removed the 'from None'. everything else is the same
+        Need this until https://github.com/encode/starlette/issues/1114 is fixed"""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        response_started = False
+
+        async def _send(message: Message) -> None:
+            nonlocal response_started, send
+
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, _send)
+        except Exception as exc:
+            if not response_started:
+                request = Request(scope)
+                if self.debug:
+                    # In debug mode, return traceback responses.
+                    response = self.debug_response(request, exc)
+                elif self.handler is None:
+                    # Use our default 500 error handler.
+                    response = self.error_response(request, exc)
+                else:
+                    # Use an installed 500 error handler.
+                    if asyncio.iscoroutinefunction(self.handler):
+                        response = await self.handler(request, exc)
+                    else:
+                        response = await run_in_threadpool(self.handler, request, exc)
+
+                await response(scope, receive, send)
+
+            # oTree modified this line
+            raise exc  # from None

@@ -3,10 +3,11 @@ from . import settings
 from .urls import routes
 from .middleware import middlewares
 from starlette.middleware import Middleware
-from starlette.exceptions import ExceptionMiddleware
 from .errorpage import OTreeServerErrorMiddleware
 from starlette.routing import NoMatchFound
 from starlette.responses import HTMLResponse
+from otree.database import save_sqlite_db
+from .patch import ExceptionMiddleware
 
 
 class OTreeStarlette(Starlette):
@@ -49,6 +50,7 @@ app = OTreeStarlette(
     routes=routes,
     middleware=middlewares,
     exception_handlers={ERR_500: server_error},
+    on_shutdown=[save_sqlite_db],
 )
 
 # alias like django reverse()

@@ -11,10 +11,10 @@ from otree.common import (
     InvalidRoundError,
 )
 from otree.constants import BaseConstants, get_role, get_roles
-from otree.database import db, NoResultFound, MixinSessionFK, SSPPGModel
+from otree.database import db, NoResultFound, MixinSessionFK, SPGModel
 
 
-class BaseGroup(SSPPGModel, MixinSessionFK):
+class BaseGroup(SPGModel, MixinSessionFK):
     __abstract__ = True
 
     id_in_subsession = C(st.Integer, index=True)

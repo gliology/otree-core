@@ -444,3 +444,6 @@ def export_page_times(fp):
     fp.write(','.join(TIME_SPENT_COLUMNS) + '\n')
     for batch in batches:
         fp.write(batch)
+
+
+BOM = '\ufeff'

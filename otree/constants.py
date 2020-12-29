@@ -66,6 +66,7 @@ def get_role(roles, id_in_group):
     '''this is split apart from get_roles_ as a perf optimization'''
     if roles and len(roles) >= id_in_group:
         return roles[id_in_group - 1]
+    return ''
 
 
 get_param_truth_value = '1'

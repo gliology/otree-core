@@ -23,7 +23,7 @@ from otree.currency import json_dumps
 from otree.database import NoResultFound
 from otree.database import db, session_scope
 from otree.database import dbq
-from otree.export import export_wide, export_app, custom_export_app
+from otree.export import export_wide, export_app, custom_export_app, BOM
 from otree.live import live_payload_function
 from otree.models import Participant, Session
 from otree.models_concrete import (
@@ -626,7 +626,7 @@ class WSExportData(_OTreeAsyncJsonWebsocketConsumer):
         with io.StringIO() as fp:
             # Excel requires BOM; otherwise non-english characters are garbled
             if content.get('for_excel'):
-                fp.write('\ufeff')
+                fp.write(BOM)
             if app_name:
                 if is_custom:
                     fxn = custom_export_app
