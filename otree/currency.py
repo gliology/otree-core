@@ -78,25 +78,25 @@ class BaseCurrency(Decimal):
         return float(Decimal(self))
 
     def __unicode__(self):
-        return self._format_currency(Decimal(self))
+        return self._format_currency()
 
     def __str__(self):
-        string = self._format_currency(Decimal(self))
+        string = self._format_currency()
         return string
 
-    @classmethod
-    def _format_currency(cls, number):
-
+    def _format_currency(self, places=None):
+        number = Decimal(self)
         LANGUAGE_CODE = settings.LANGUAGE_CODE
         if '-' in LANGUAGE_CODE:
             lc, LO = LANGUAGE_CODE.split('-')
         else:
             lc, LO = LANGUAGE_CODE, ''
         return format_currency(
-            number, lc=lc, LO=LO, CUR=settings.REAL_WORLD_CURRENCY_CODE
+            number, lc=lc, LO=LO, CUR=settings.REAL_WORLD_CURRENCY_CODE, places=places
         )
 
     def __format__(self, format_spec):
+        """needed if you use eg. f-strings in .py code"""
         if format_spec in {'', 's'}:
             formatted = str(self)
         else:
@@ -179,7 +179,8 @@ class Currency(BaseCurrency):
         else:
             return self
 
-    def _format_currency(cls, number):
+    def _format_currency(self, places=None):
+        number = Decimal(self)
         if settings.USE_POINTS:
 
             formatted_number = f'{number:n}'
@@ -197,7 +198,7 @@ class Currency(BaseCurrency):
             # don't forget to include it in your translation
             return ngettext('{} point', '{} points', number).format(formatted_number)
         else:
-            return super()._format_currency(number)
+            return super()._format_currency(places=places)
 
 
 class RealWorldCurrency(BaseCurrency):
@@ -218,14 +219,13 @@ def to_dec(value):
     return Decimal(value) if isinstance(value, Currency) else value
 
 
-def format_currency(number, lc, LO, CUR):
-
+def format_currency(number, lc, LO, CUR, places):
     symbol = CURRENCY_SYMBOLS.get(CUR, CUR)
     c_format = get_currency_format(lc, LO, CUR)
-    formatted_abs = format_number(abs(number))
-    retval = c_format.replace('¤', symbol).replace('#', formatted_abs)
+    number_part = format_number(abs(number), places=places)
+    retval = c_format.replace('¤', symbol).replace('#', number_part)
     if number < 0:
-        retval = '-{}'.format(retval)
+        return '-' + retval
     return retval
 
 

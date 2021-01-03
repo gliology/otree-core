@@ -1,14 +1,13 @@
+import logging
 import os
 import re
-from sys import argv
 import sys
-from pathlib import Path
-from typing import Optional
-from importlib import import_module
-import logging
 from logging.config import dictConfig
-from otree import __version__
+from pathlib import Path
+from sys import argv
+from typing import Optional
 
+from otree import __version__
 
 # adapted from uvicorn
 LOGGING_CONFIG = {
@@ -131,18 +130,9 @@ def setup():
 
     from otree import settings
 
-    os.environ['LANGUAGE'] = settings.LANGUAGE_CODE_ISO
+    init_i18n(settings.LANGUAGE_CODE_ISO)
 
     from otree.database import init_orm  # noqa
-    import gettext
-    import locale
-
-    # because the files are called django.mo
-    gettext.textdomain('django')
-    gettext.bindtextdomain('django', localedir=str(Path(__file__).parent / 'locale'))
-    if Path('_locale').is_dir():
-        gettext.bindtextdomain('messages', localedir='_locale')
-        gettext.textdomain('messages')
 
     check_for_sentry()
     init_orm()
@@ -150,6 +140,18 @@ def setup():
     import otree.bots.browser
 
     otree.bots.browser.browser_bot_worker = otree.bots.browser.BotWorker()
+
+
+def init_i18n(LANGUAGE_CODE_ISO):
+    os.environ['LANGUAGE'] = LANGUAGE_CODE_ISO
+    import gettext
+
+    # because the files are called django.mo
+    gettext.textdomain('django')
+    gettext.bindtextdomain('django', localedir=str(Path(__file__).parent / 'locale'))
+    if Path('_locale').is_dir():
+        gettext.bindtextdomain('messages', localedir='_locale')
+        gettext.textdomain('messages')
 
 
 def split_dotted_version(version):
@@ -209,11 +211,9 @@ def check_for_sentry():
             sys.exit(
                 'For Sentry to work, you need to add sentry_sdk to your requirements.txt.'
             )
-        from sentry_sdk.integrations.django import DjangoIntegration
 
         sentry_sdk.init(
             dsn=SENTRY_DSN,
-            integrations=[DjangoIntegration()],
             # 2018-11-24: breadcrumbs were causing memory leaks when doing queries,
             # especially when creating sessions, which construct hugely verbose
             # queries with bulk_create.

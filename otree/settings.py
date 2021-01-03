@@ -69,7 +69,13 @@ def get_locale_name(language_code):
 
 LANGUAGE_CODE_ISO = get_locale_name(LANGUAGE_CODE)
 
-if LANGUAGE_CODE[:2] in ['en', 'ja', 'ko', 'ms', 'th', 'zh']:
-    DECIMAL_SEPARATOR = '.'
-else:
-    DECIMAL_SEPARATOR = ','
+
+def get_decimal_separator(lc):
+
+    if lc in ['en', 'ja', 'ko', 'ms', 'th', 'zh']:
+        return '.'
+    else:
+        return ','
+
+
+DECIMAL_SEPARATOR = get_decimal_separator(LANGUAGE_CODE[:2])

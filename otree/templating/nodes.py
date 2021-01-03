@@ -720,12 +720,10 @@ class CloseBlock(Node):
         return '%}'
 
 
-NEXT_BTN_TEXT = gettext('Next')
-
-
 @register('next_button')
 class NextButton(Node):
     def wrender(self, context):
+        NEXT_BTN_TEXT = gettext('Next')
         return f'''
         <p>
             <button class="otree-btn-next btn btn-primary">{NEXT_BTN_TEXT}</button>

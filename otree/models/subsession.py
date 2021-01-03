@@ -51,7 +51,7 @@ class BaseSubsession(SPGModel, MixinSessionFK):
     def get_players(self):
         return list(self.player_set.order_by('id'))
 
-    def _get_group_matrix(self, ids_only=False):
+    def _get_group_matrix(self, objects):
         Player = self._PlayerClass()
         Group = self._GroupClass()
         players = (
@@ -62,14 +62,11 @@ class BaseSubsession(SPGModel, MixinSessionFK):
         )
         d = defaultdict(list)
         for p in players:
-            d[p.group.id_in_subsession].append(p.id_in_subsession if ids_only else p)
+            d[p.group.id_in_subsession].append(p if objects else p.id_in_subsession)
         return list(d.values())
 
-    def get_group_matrix(self):
-        return self._get_group_matrix()
-
-    def get_group_matrix_ids(self):
-        return self._get_group_matrix(ids_only=True)
+    def get_group_matrix(self, objects=False):
+        return self._get_group_matrix(objects=objects)
 
     def set_group_matrix(self, matrix):
         """
@@ -77,56 +74,23 @@ class BaseSubsession(SPGModel, MixinSessionFK):
         """
 
         try:
-            players_flat = [p for g in matrix for p in g]
+            sample_item = matrix[0][0]
         except TypeError:
             raise GroupMatrixError('Group matrix must be a list of lists.') from None
-        try:
-            matrix_pks = sorted(p.id for p in players_flat)
-        except AttributeError:
-            # if integers, it's OK
-            if isinstance(players_flat[0], int):
-                # deep copy so that we don't modify the input arg
-                matrix = copy.deepcopy(matrix)
-                players_flat = sorted(players_flat)
-                players_from_db = self.get_players()
-                if players_flat == list(range(1, len(players_from_db) + 1)):
-                    for i, row in enumerate(matrix):
-                        for j, val in enumerate(row):
-                            matrix[i][j] = players_from_db[val - 1]
-                else:
-                    msg = (
-                        'If you pass a matrix of integers to this function, '
-                        'It must contain all integers from 1 to '
-                        'the number of players in the subsession.'
-                    )
-                    raise GroupMatrixError(msg) from None
-            else:
-                msg = (
-                    'The elements of the group matrix '
-                    'must either be Player objects, or integers.'
-                )
-                raise GroupMatrixError(msg) from None
-        else:
-            existing_pks = values_flat(self.player_set.order_by('id'), 'id')
-            if matrix_pks != existing_pks:
-                wrong_round_numbers = [
-                    p.round_number
-                    for p in players_flat
-                    if p.round_number != self.round_number
-                ]
-                if wrong_round_numbers:
-                    msg = (
-                        'You are setting the groups for round {}, '
-                        'but the matrix contains players from round {}.'.format(
-                            self.round_number, wrong_round_numbers[0]
-                        )
-                    )
-                    raise GroupMatrixError(msg)
-                msg = (
-                    'The group matrix must contain each player '
-                    'in the subsession exactly once.'
-                )
-                raise GroupMatrixError(msg)
+
+        if isinstance(sample_item, SPGModel):
+            matrix = [[p.id_in_subsession for p in row] for row in matrix]
+
+        ids_flat = [iis for row in matrix for iis in row]
+
+        ids_flat = sorted(ids_flat)
+        players_from_db = self.get_players()
+
+        if not ids_flat == list(range(1, len(players_from_db) + 1)):
+            msg = 'The matrix of integers either has duplicate or missing elements.'
+            raise GroupMatrixError(msg) from None
+
+        matrix = [[players_from_db[iis - 1] for iis in row] for row in matrix]
 
         self.player_set.update({self._PlayerClass().group_id: None})
         self.group_set.delete()
@@ -143,7 +107,7 @@ class BaseSubsession(SPGModel, MixinSessionFK):
 
     def group_like_round(self, round_number):
         previous_round: BaseSubsession = self.in_round(round_number)
-        group_matrix = previous_round._get_group_matrix(ids_only=True)
+        group_matrix = previous_round.get_group_matrix()
         self.set_group_matrix(group_matrix)
 
     @property
