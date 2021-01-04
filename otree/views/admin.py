@@ -464,7 +464,7 @@ class Sessions(AdminView):
 class ToggleArchivedSessions(AdminView):
     url_pattern = '/ToggleArchivedSessions'
 
-    async def post(self, request):
+    def post(self, request):
         post_data = self.get_post_data()
         code_list = post_data.getlist('session')
         for session in Session.objects_filter(Session.code.in_(code_list)):

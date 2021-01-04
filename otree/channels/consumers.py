@@ -597,7 +597,9 @@ class WSChat(_OTreeAsyncJsonWebsocketConsumer):
 
 class WSDeleteSessions(_OTreeAsyncJsonWebsocketConsumer):
     async def post_receive_json(self, content):
-        Session.objects_filter(Session.code.in_(content)).delete()
+        Session.objects_filter(Session.code.in_(content)).delete(
+            synchronize_session=False
+        )
         await self.send_json('ok')
 
     def group_name(self, **kwargs):
