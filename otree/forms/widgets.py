@@ -31,6 +31,16 @@ class BaseWidget:
         return html_params(name=self.field.name, **self.render_kw)
 
 
+class CheckboxInput(BaseWidget):
+    def __call__(self, field, **render_kw):
+        if getattr(field, 'checked', field.data):
+            render_kw['checked'] = True
+        return super().__call__(field, **render_kw)
+
+    def get_html_fragments(self):
+        yield ('<input type="checkbox" class="form-check-input" %s>' % (self.attrs()))
+
+
 class IntegerWidget(BaseWidget):
     """
     better to use number input when we can, because:

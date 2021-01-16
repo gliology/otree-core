@@ -190,7 +190,7 @@ class BaseSubsession:
     round_number: int
     def get_groups(self) -> List[BaseGroup]:
         pass
-    def get_group_matrix(self) -> List[List[BasePlayer]]:
+    def get_group_matrix(self) -> List[List[int]]:
         pass
     def set_group_matrix(
         self, group_matrix: Union[List[List[BasePlayer]], List[List[int]]]
@@ -202,8 +202,6 @@ class BaseSubsession:
         pass
     def in_all_rounds(self) -> List[BaseSubsession]:
         pass
-    def creating_session(self):
-        pass
     def in_round(self, round_number) -> BaseSubsession:
         pass
     def in_rounds(self, first, last) -> List[BaseSubsession]:
@@ -211,10 +209,6 @@ class BaseSubsession:
     def group_like_round(self, round_number: int):
         pass
     def group_randomly(self, fixed_id_in_group: bool = False):
-        pass
-    def vars_for_admin_report(self):
-        pass
-    def group_by_arrival_time_method(self, waiting_players):
         pass
     # this is so PyCharm doesn't flag attributes that are only defined on the app's Subsession,
     # not on the BaseSubsession
@@ -253,8 +247,6 @@ class BasePlayer:
     subsession: BaseSubsession
     round_number: int
     role: str
-    def start(self):
-        pass
     def in_previous_rounds(self) -> List[BasePlayer]:
         pass
     def in_all_rounds(self) -> List[BasePlayer]:
@@ -274,25 +266,28 @@ class ExtraModel:
     pass
 
 class WaitPage:
+
     wait_for_all_groups = False
     group_by_arrival_time = False
     title_text: str
     body_text: str
     template_name: str
     after_all_players_arrive: str
+
     round_number: int
     participant: Participant
     session: Session
-    def is_displayed(self):
+    def is_displayed(player: Player):
         pass
-    def js_vars(self):
+    def js_vars(player: Player):
         pass
-    def vars_for_template(self):
+    def vars_for_template(player: Player):
         pass
-    def app_after_this_page(self, upcoming_apps):
+    def app_after_this_page(player: Player, upcoming_apps):
         pass
 
 class Page:
+
     round_number: int
     template_name: str
     timeout_seconds: int
@@ -302,22 +297,42 @@ class Page:
     session: Session
     form_model: str
     form_fields: List[str]
-    live_method: str
-    def get_form_fields(self):
+
+    @staticmethod
+    def live_method(player: Player):
         pass
-    def vars_for_template(self):
+
+
+    @staticmethod
+    def get_form_fields(player: Player):
         pass
-    def js_vars(self):
+
+    @staticmethod
+    def vars_for_template(player: Player):
         pass
-    def before_next_page(self):
+
+    @staticmethod
+    def js_vars(player: Player):
         pass
-    def is_displayed(self):
+
+    @staticmethod
+    def before_next_page(player: Player, timeout_happened):
         pass
-    def error_message(self, values):
+
+    @staticmethod
+    def is_displayed(player: Player):
         pass
-    def get_timeout_seconds(self):
+
+    @staticmethod
+    def error_message(player: Player, values):
         pass
-    def app_after_this_page(self, upcoming_apps):
+
+    @staticmethod
+    def get_timeout_seconds(player: Player):
+        pass
+
+    @staticmethod
+    def app_after_this_page(player: Player, upcoming_apps):
         pass
 
 

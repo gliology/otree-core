@@ -1,9 +1,7 @@
-import re
-import sys
 from pathlib import Path
+
 import otree
 from .base import BaseCommand
-from itertools import chain
 
 item_index = 1
 
@@ -79,11 +77,6 @@ def scan():
             yield (
                 f'{pth} uses widgets.Slider. This widget has been removed from oTree. '
                 'You should instead remove this widget and use an <input type="range"> in the template (see the docs).'
-            )
-        if 'widgets.CheckboxInput' in txt:
-            yield (
-                f'{pth} uses widgets.CheckboxInput. This widget has been removed from oTree. '
-                'You should instead remove this widget and use an <input type="checkbox"> in the template (see the docs).'
             )
         if 'models.DecimalField' in txt:
             yield (

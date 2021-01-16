@@ -10,6 +10,8 @@ import urllib.parse
 from collections import OrderedDict
 from importlib import import_module
 from typing import Iterable, Tuple
+from pathlib import Path
+from functools import lru_cache
 
 from itsdangerous import Signer
 
@@ -46,20 +48,27 @@ def random_chars_10():
     return random_chars(10)
 
 
+@lru_cache()
 def get_models_module(app_name):
-    '''shouldn't rely on app registry because the app might have been removed
-    from SESSION_CONFIGS, especially if the session was created a long time
-    ago and you want to export it'''
-    return import_module(f'{app_name}.models')
+    module_name = ['models', 'app'][is_noself(app_name)]
+    return import_module(f'{app_name}.{module_name}')
+
+
+@lru_cache()
+def is_noself(app_name):
+    return Path(f'{app_name}/app.py').exists()
 
 
 def get_bots_module(app_name):
     return import_module(f'{app_name}.tests')
 
 
+@lru_cache()
 def get_pages_module(app_name):
+    module_name = ['pages', 'app'][is_noself(app_name)]
+
     try:
-        return import_module(f'{app_name}.pages')
+        return import_module(f'{app_name}.{module_name}')
     except Exception as exc:
         # to give a smaller traceback on startup
         import traceback
@@ -103,6 +112,7 @@ def make_hash(s):
 def get_admin_secret_code():
     s = _SECRET
     return hashlib.sha224(s.encode()).hexdigest()[:8]
+
 
 ADMIN_SECRET_CODE = get_admin_secret_code()
 
@@ -191,13 +201,6 @@ def participant_start_url(code):
     return '/InitializeParticipant/{}'.format(code)
 
 
-class ResponseForException(Exception):
-    '''
-    allows us to show a much simplified traceback without
-    framework code.
-    '''
-
-    pass
 
 
 def _group_by_rank(ranked_list, players_per_group):
@@ -239,5 +242,3 @@ AUTH_COOKIE_VALUE = signer_sign(AUTH_COOKIE_NAME)
 
 
 lock = asyncio.Lock()
-
-

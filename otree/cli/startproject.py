@@ -66,7 +66,7 @@ def download_from_github(dest: Path):
     from urllib.request import urlopen
     import zipfile
 
-    resp = urlopen("https://github.com/oTree-org/oTree/archive/master.zip")
+    resp = urlopen("https://github.com/oTree-org/oTree/archive/lite.zip")
     f = BytesIO()
     f.write(resp.read())
     f.seek(0)

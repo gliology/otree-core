@@ -12,7 +12,7 @@ from sqlalchemy.sql.functions import func
 import otree.common
 import otree.database
 
-from otree.common import get_models_module, in_round, in_rounds, ResponseForException
+from otree.common import get_models_module, in_round, in_rounds
 from otree.common import has_group_by_arrival_time
 from otree.database import db, dbq, values_flat, SPGModel, MixinSessionFK
 
@@ -155,10 +155,10 @@ class BaseSubsession(SPGModel, MixinSessionFK):
             )
         )
 
-        try:
-            players_for_group = self.group_by_arrival_time_method(waiting_players)
-        except:
-            raise  #  ResponseForException
+        target = self.get_user_defined_target()
+        # user may not have defined it
+        func = getattr(target, 'group_by_arrival_time_method', type(self).group_by_arrival_time_method)
+        players_for_group = func(self, waiting_players)
 
         if not players_for_group:
             return None
@@ -228,11 +228,9 @@ class BaseSubsession(SPGModel, MixinSessionFK):
 
         if Constants.players_per_group is None:
             msg = (
-                'Page "{}": if using group_by_arrival_time, you must either set '
+                'If using group_by_arrival_time, you must either set '
                 'Constants.players_per_group to a value other than None, '
-                'or define group_by_arrival_time_method.'.format(
-                    self.__class__.__name__
-                )
+                'or define group_by_arrival_time_method.'
             )
             raise AssertionError(msg)
 

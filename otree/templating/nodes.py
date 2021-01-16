@@ -9,6 +9,7 @@ import wtforms.fields as wtfields
 from otree.chat import chat_template_tag
 from otree.common import CSRF_TOKEN_NAME
 from otree.i18n import format_number, gettext
+from otree.forms.fields import CheckboxField
 
 from . import errors
 from . import filters
@@ -643,7 +644,13 @@ class FormFieldNode(Node):
             label = fld.label
         # if not label.endswith(':'):
         #    label += ':'
-        classes = 'mb-3 _formfield'
+
+        is_checkbox = isinstance(fld, CheckboxField)
+
+        if is_checkbox:
+            classes = 'form-check'
+        else:
+            classes = 'mb-3 _formfield'
 
         if fld.errors:
             classes += ' has-errors'
@@ -651,14 +658,23 @@ class FormFieldNode(Node):
         return Template(
             '''
 <div class="{{classes}}">
-    <label class="col-form-label" for="id_{{fld.name}}">{{label}}</label>
-    <div class="controls">
-        {{fld}}
-    </div>
+    {% if is_checkbox %}
+      {{fld}}
+      <label class="form-check-label">
+        {{label}}
+      </label>
+    {% else %}
+        <label class="col-form-label" for="id_{{fld.name}}">{{label}}</label>
+        <div class="controls">
+            {{fld}}
+        </div>
+    {% endif %}
     {% if fld.description %}
+        <p>
         <small>
             <p class="form-text text-muted">{{ fld.description }}</p>
         </small>
+        </p>
     {% endif %}
     {% if errors %}
         <div class="form-control-errors">
@@ -667,7 +683,13 @@ class FormFieldNode(Node):
     {% endif %}
 </div>'''
         ).render(
-            dict(fld=fld, label=label, classes=classes, errors=fld.errors),
+            dict(
+                fld=fld,
+                label=label,
+                classes=classes,
+                errors=fld.errors,
+                is_checkbox=is_checkbox,
+            ),
             strict_mode=True,
         )
 

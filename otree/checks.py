@@ -43,10 +43,6 @@ class AppCheckHelper:
 
 
 def files(helper: AppCheckHelper, app_name):
-    # don't check pages.py because it might be views.py
-    for fn in ['models.py']:
-        if not helper.get_path(fn).exists():
-            helper.add_error('No "%s" file found in app folder' % fn, numeric_id=102)
 
     templates_dir = helper.get_path('templates')
     if templates_dir.is_dir():
@@ -123,50 +119,43 @@ def model_classes(helper: AppCheckHelper, app_name):
     for Model in [Player, Group, Subsession]:
         for attr_name in dir(Model):
             if attr_name not in base_model_attrs[Model.__name__]:
-                try:
-                    attr_value = getattr(Model, attr_name)
-                    _type = type(attr_value)
-                except AttributeError:
-                    # I got "The 'q_country' attribute can only be accessed
-                    # from Player instances."
-                    # can just filter/ignore these.
-                    pass
-                else:
-                    if _type in model_field_substitutes.keys():
-                        msg = (
-                            'NonModelFieldAttr: '
-                            '{model} has attribute "{attr}", which is not a model field, '
-                            'and will therefore not be saved '
-                            'to the database.'
-                            'Consider changing to "{attr} = models.{FieldType}(initial={attr_value})"'
-                        ).format(
-                            model=Model.__name__,
-                            attr=attr_name,
-                            FieldType=model_field_substitutes[_type],
-                            attr_value=repr(attr_value),
-                        )
-                        helper.add_error(msg, numeric_id=111)
+                attr_value = getattr(Model, attr_name)
+                _type = type(attr_value)
+                if _type in model_field_substitutes.keys():
+                    msg = (
+                        'NonModelFieldAttr: '
+                        '{model} has attribute "{attr}", which is not a model field, '
+                        'and will therefore not be saved '
+                        'to the database. '
+                        'Consider changing to "{attr} = models.{FieldType}(initial={attr_value})"'
+                    ).format(
+                        model=Model.__name__,
+                        attr=attr_name,
+                        FieldType=model_field_substitutes[_type],
+                        attr_value=repr(attr_value),
+                    )
+                    helper.add_error(msg, numeric_id=111)
 
-                    # if people just need an iterable of choices for a model field,
-                    # they should use a tuple, not list or dict
-                    elif _type in {list, dict, set}:
-                        warning = (
-                            'MutableModelClassAttr: '
-                            '{ModelName}.{attr} is a {type_name}. '
-                            'Modifying it during a session (e.g. appending or setting values) '
-                            'will have unpredictable results; '
-                            'you should use '
-                            'session.vars or participant.vars instead. '
-                            'Or, if this {type_name} is read-only, '
-                            "then it's recommended to move it outside of this class "
-                            '(e.g. put it in Constants).'
-                        ).format(
-                            ModelName=Model.__name__,
-                            attr=attr_name,
-                            type_name=_type.__name__,
-                        )
+                # if people just need an iterable of choices for a model field,
+                # they should use a tuple, not list or dict
+                elif _type in {list, dict, set}:
+                    warning = (
+                        'MutableModelClassAttr: '
+                        '{ModelName}.{attr} is a {type_name}. '
+                        'Modifying it during a session (e.g. appending or setting values) '
+                        'will have unpredictable results; '
+                        'you should use '
+                        'session.vars or participant.vars instead. '
+                        'Or, if this {type_name} is read-only, '
+                        "then it's recommended to move it outside of this class "
+                        '(e.g. put it in Constants).'
+                    ).format(
+                        ModelName=Model.__name__,
+                        attr=attr_name,
+                        type_name=_type.__name__,
+                    )
 
-                        helper.add_error(warning, numeric_id=112)
+                    helper.add_error(warning, numeric_id=112)
 
 
 def constants(helper: AppCheckHelper, app_name):
@@ -262,6 +251,7 @@ def pages_function(helper: AppCheckHelper, app_name):
             else:
                 msg = '"{}" is not a valid page'.format(ViewCls)
                 helper.add_error(msg, numeric_id=26)
+
 
 def get_checks_output(app_names=None):
     app_names = app_names or settings.OTREE_APPS

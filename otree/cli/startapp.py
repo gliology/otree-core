@@ -37,9 +37,17 @@ class Command(BaseCommand):
                 "another name."
             )
 
-        src = Path(otree.__file__).parent / 'app_template'
-        shutil.copytree(src, dest)
-        dest.joinpath('templates/app_name').rename(dest.joinpath('templates/', name))
-        models_path = dest.joinpath('models.py')
+        app_py_exists = bool(list(Path('.').glob('*/app.py')))
+        if app_py_exists:
+            src = Path(otree.__file__).parent / 'app_template_lite'
+            shutil.copytree(src, dest)
+            models_path = dest.joinpath('app.py')
+        else:
+            src = Path(otree.__file__).parent / 'app_template'
+            shutil.copytree(src, dest)
+            dest.joinpath('templates/app_name').rename(
+                dest.joinpath('templates/', name)
+            )
+            models_path = dest.joinpath('models.py')
         models_path.write_text(models_path.read_text().replace("{{ app_name }}", name))
         print_function('Created app folder')

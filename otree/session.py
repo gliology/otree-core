@@ -405,7 +405,10 @@ def create_session(
     # so that session.save() below doesn't overwrite everything
     # set earlier
     for subsession in session.get_subsessions():
-        subsession.creating_session()
+        target = subsession.get_user_defined_target()
+        func = getattr(target, 'creating_session', None)
+        if func:
+            func(subsession)
 
     # 2017-09-27: moving this inside the transaction
     session._set_admin_report_app_names()

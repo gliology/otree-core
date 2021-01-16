@@ -357,7 +357,13 @@ class AdminReport(AdminSessionPage):
             session=self.session, round_number=form.round_number.data
         )
 
-        vars_for_admin_report = subsession.vars_for_admin_report() or {}
+        target = subsession.get_user_defined_target()
+        func = getattr(target, 'vars_for_admin_report', None)
+        if func:
+            vars_for_admin_report = func(subsession)
+        else:
+            vars_for_admin_report = {}
+
         self.debug_tables = [
             DebugTable(
                 title='vars_for_admin_report', rows=vars_for_admin_report.items()

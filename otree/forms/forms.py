@@ -28,13 +28,16 @@ def model_form(ModelClass, obj, only):
         if 'label' in field_props:
             fa['label'] = field_props['label']
 
-        if hasattr(obj, f'{name}_min'):
-            min = getattr(obj, f'{name}_min')()
+        target = obj.get_user_defined_target()
+        func = getattr(target, f'{name}_min', None)
+        if func:
+            min = func(obj)
         else:
             min = field_props.get('min')
 
-        if hasattr(obj, f'{name}_max'):
-            max = getattr(obj, f'{name}_max')()
+        func = getattr(target, f'{name}_max', None)
+        if func:
+            max = func(obj)
         else:
             max = field_props.get('max')
 
@@ -50,8 +53,9 @@ def model_form(ModelClass, obj, only):
 
         fa['description'] = field_props.get('help_text')
 
-        if hasattr(obj, f'{name}_choices'):
-            fa['choices'] = getattr(obj, f'{name}_choices')()
+        func = getattr(target, f'{name}_choices', None)
+        if func:
+            fa['choices'] = func(obj)
         elif 'choices' in field_props:
             fa['choices'] = field_props['choices']
 
@@ -111,6 +115,8 @@ class ModelConverter(wtforms_sqlalchemy.orm.ModelConverterBase):
     @converts("Boolean")
     def conv_Boolean(self, field_args, **extra):
         field_args.setdefault('widget', widgets.RadioSelect())
+        if isinstance(field_args['widget'], widgets.CheckboxInput):
+            return fields.CheckboxField(**field_args)
         fld = get_choices_field(field_args, FormDataTypes.bool)
         return fld
 
@@ -225,22 +231,14 @@ class ModelForm(wtforms.Form):
                 msg = otree.constants.field_required_msg
                 field.errors.append(msg)
 
-            error_message_method = self._get_method_from_page_or_model(
-                f'{name}_error_message'
+            error_string = self.instance.call_user_defined(
+                f'{name}_error_message', field.data, missing_ok=True
             )
-            if error_message_method:
-                try:
-                    error_string = error_message_method(field.data)
-                except:
-                    raise  #  ResponseForException
-                if error_string:
-                    field.errors.append(error_string)
+            if error_string:
+                field.errors.append(error_string)
 
         if not self.errors and hasattr(self.view, 'error_message'):
-            try:
-                error = self.view.error_message(self.data)
-            except:
-                raise  #  ResponseForException
+            error = self.view.call_user_defined('error_message', self.data)
             if error:
                 if isinstance(error, dict):
                     for k, v in error.items():

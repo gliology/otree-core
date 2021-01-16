@@ -24,7 +24,6 @@ async def live_payload_function(participant_code, page_name, payload):
             f'they are on page {PageClass.__name__}, not {page_name}.'
         )
         return
-    live_method_name = PageClass.live_method
 
     player = models_module.Player.objects_get(
         round_number=lookup.round_number, participant=participant
@@ -37,17 +36,17 @@ async def live_payload_function(participant_code, page_name, payload):
     # also, we need this 'group' object anyway.
     # and this is a good place to show the deprecation warning.
     group = player.group
-    if hasattr(group, live_method_name):
-        method = getattr(group, live_method_name)
-        retval = method(player.id_in_group, payload)
+    if isinstance(PageClass.live_method, str):
+        method = getattr(player, PageClass.live_method)
     else:
-        method = getattr(player, live_method_name)
-        retval = method(payload)
+        # noself style
+        method = PageClass.live_method(player)
+    retval = method(payload)
 
     if not retval:
         return
     if not isinstance(retval, dict):
-        msg = f'{live_method_name} must return a dict'
+        msg = f'live method must return a dict'
         raise LiveMethodBadReturnValue(msg)
 
     Player: BasePlayer = models_module.Player

@@ -27,8 +27,9 @@ from sqlalchemy.sql import sqltypes as st
 from starlette.exceptions import HTTPException
 
 from otree import __version__
-from otree.common import expand_choice_tuples
+from otree.common import expand_choice_tuples, get_models_module
 from otree.currency import Currency, RealWorldCurrency
+from otree import common
 
 logger = logging.getLogger(__name__)
 DB_FILE = 'db.sqlite3'
@@ -227,7 +228,7 @@ def init_orm():
     # import all models so it's loaded into the engine?
     for app in OTREE_APPS:
         try:
-            models = import_module(f'{app}.models')
+            models = get_models_module(app)
         except Exception as exc:
             # to produce a smaller traceback
             import traceback
@@ -238,11 +239,17 @@ def init_orm():
         # make get_FIELD_display
         from time import time
 
+        is_noself = common.is_noself(app)
         for cls in [models.Player, models.Group, models.Subsession]:
+            cls._is_frozen = False
+            cls.is_noself = is_noself
+            # don't set _is_frozen back because this is just on startup
+
+            target = cls.get_user_defined_target()
             for field in cls.__table__.columns:
                 if isinstance(field, OTreeColumn):
                     name = field.name
-                    if hasattr(cls, name + '_choices'):
+                    if hasattr(target, name + '_choices'):
                         method = make_get_display_dynamic(name)
                     elif field.form_props.get('choices'):
                         method = make_get_display_static(
@@ -435,6 +442,7 @@ class NullFieldError(Exception):
 
 class SPGModel(SSPPGModel):
     __abstract__ = True
+    is_noself = True
 
     def __getattribute__(self, attr):
         """just put this on player/group/subsession so as not to disrupt internals.
@@ -449,6 +457,24 @@ class SPGModel(SSPPGModel):
             )
             raise NullFieldError(msg)
         return res
+
+    def call_user_defined(self, funcname, *args, missing_ok=False, **kwargs):
+        target = self.get_user_defined_target()
+        func = getattr(target, funcname, None)
+        if func is None and missing_ok:
+            return
+        return func(self, *args, **kwargs)
+
+    @classmethod
+    def get_user_defined_target(cls):
+        if cls.is_noself:
+            app_name = cls.get_folder_name()
+            return get_models_module(app_name)
+        return cls
+
+
+class UndefinedUserFunction(Exception):
+    pass
 
 
 class MixinSessionFK:
@@ -507,7 +533,8 @@ def make_get_display_static(name, choices):
 
 def make_get_display_dynamic(name):
     def get_FIELD_display(self):
-        choices = getattr(self, name + '_choices')()
+        target = self.get_user_defined_target()
+        choices = getattr(target, name + '_choices')(self)
         value = getattr(self, name)
         return dict(expand_choice_tuples(choices))[value]
 

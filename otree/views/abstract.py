@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List
 from typing import Optional
 from html import escape
+import inspect
 
 from asgiref.sync import async_to_sync
 from starlette.concurrency import run_in_threadpool
@@ -78,6 +79,15 @@ class FormPageOrInGameWaitPage:
     def __await__(self) -> typing.Generator:
         return self.dispatch().__await__()
 
+    def call_user_defined(self, method_name, *args, **kwargs):
+        """
+        the default user-defined methods should not reference self, so they can work
+        both as Player methods and Page methods.
+        """
+        if self.is_noself:
+            return getattr(type(self), method_name)(self.player, *args, **kwargs)
+        return getattr(self, method_name)(*args, **kwargs)
+
     async def dispatch(self) -> None:
         self.request = request = Request(self.scope, receive=self.receive)
         participant_code = request.path_params['participant_code']
@@ -144,8 +154,8 @@ class FormPageOrInGameWaitPage:
 
         vars_for_template = {}
 
-        user_vars = self.vars_for_template()
-        context['js_vars'] = self.js_vars()
+        user_vars = self.call_user_defined('vars_for_template')
+        context['js_vars'] = self.call_user_defined('js_vars')
 
         vars_for_template.update(user_vars or {})
 
@@ -193,10 +203,7 @@ class FormPageOrInGameWaitPage:
         return tables
 
     def _is_displayed(self):
-        try:
-            return self.is_displayed()
-        except:
-            raise  #  ResponseForException
+            return self.call_user_defined('is_displayed')
 
     @property
     def group(self) -> BaseGroup:
@@ -337,8 +344,7 @@ class FormPageOrInGameWaitPage:
         # has app_after_this_page? does it override the first one?
         if not self._is_displayed():
             return
-        app_after_this_page = getattr(self, 'app_after_this_page', None)
-        if not app_after_this_page:
+        if not hasattr(self, 'app_after_this_page'):
             return
 
         current_app = self.participant._current_app_name
@@ -346,7 +352,7 @@ class FormPageOrInGameWaitPage:
         current_app_index = app_sequence.index(current_app)
         upcoming_apps = app_sequence[current_app_index + 1 :]
 
-        app_to_skip_to = app_after_this_page(upcoming_apps)
+        app_to_skip_to = self.call_user_defined('app_after_this_page', upcoming_apps)
         if app_to_skip_to:
             if app_to_skip_to not in upcoming_apps:
                 msg = f'"{app_to_skip_to}" is not in the upcoming_apps list'
@@ -493,9 +499,11 @@ class Page(FormPageOrInGameWaitPage):
         )
 
     def has_form(self):
-        return bool(self.get_form_fields())
+        return bool(self._get_form_fields())
 
-    def get_form_fields(self):
+    def _get_form_fields(self):
+        if hasattr(self, 'get_form_fields'):
+            return self.call_user_defined('get_form_fields')
         return self.form_fields
 
     def get_object(self):
@@ -510,7 +518,7 @@ class Page(FormPageOrInGameWaitPage):
         }[self.form_model]
 
     def get_form(self, instance, formdata=None) -> otree.forms.forms.ModelForm:
-        fields = self.get_form_fields()
+        fields = self._get_form_fields()
         form = get_form(instance, field_names=fields, view=self, formdata=formdata)
         return form
 
@@ -626,15 +634,15 @@ class Page(FormPageOrInGameWaitPage):
             resp = self.post_handle_form(post_data)
             if resp:
                 return resp
-        try:
-            self.before_next_page()
-        except Exception as exc:
-            raise  #  ResponseForException
+        extra_args = (
+            dict(timeout_happened=self.timeout_happened) if self.is_noself else {}
+        )
+        self.call_user_defined('before_next_page', **extra_args)
         self._record_page_completion_time()
         self._increment_index_in_pages()
         return self._redirect_to_page_the_user_should_be_on()
 
-    def before_next_page(self):
+    def before_next_page(self, timeout_happened=False):
         pass
 
     def socket_url(self):
@@ -648,7 +656,7 @@ class Page(FormPageOrInGameWaitPage):
     def _get_timeout_submission(self):
         '''timeout_submission is deprecated'''
         timeout_submission = self.timeout_submission or {}
-        for field_name in self.get_form_fields():
+        for field_name in self._get_form_fields():
             if field_name not in timeout_submission:
                 # get default value for datatype if the user didn't specify
                 ModelClass = type(self.get_object())
@@ -675,7 +683,9 @@ class Page(FormPageOrInGameWaitPage):
         if form.errors and not has_non_field_error:
             if hasattr(self, 'error_message'):
                 try:
-                    has_non_field_error = bool(self.error_message(form.data))
+                    has_non_field_error = bool(
+                        self.call_user_defined('error_message', form.data)
+                    )
                 except:
                     has_non_field_error = True
 
@@ -719,10 +729,10 @@ class Page(FormPageOrInGameWaitPage):
             if participant._timeout_expiration_time is None:
                 return None
             return participant._timeout_expiration_time - current_time
-        try:
-            timeout_seconds = self.get_timeout_seconds()
-        except:
-            raise  #  ResponseForException
+        if hasattr(self, 'get_timeout_seconds'):
+            timeout_seconds = self.call_user_defined('get_timeout_seconds')
+        else:
+            timeout_seconds = self.timeout_seconds
         participant._timeout_page_index = participant._index_in_pages
         if timeout_seconds is None:
             participant._timeout_expiration_time = None
@@ -751,9 +761,6 @@ class Page(FormPageOrInGameWaitPage):
                     delay=timeout_seconds + 6,
                 )
         return timeout_seconds
-
-    def get_timeout_seconds(self):
-        return self.timeout_seconds
 
     timeout_seconds = None
     timeout_submission = None
@@ -859,17 +866,18 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         else:
             group = group_or_subsession
 
-        if isinstance(self.after_all_players_arrive, str):
-            aapa_method = getattr(group_or_subsession, self.after_all_players_arrive)
-        else:
+        aapa = type(self).after_all_players_arrive
+        if isinstance(aapa, str):
+            group_or_subsession.call_user_defined(aapa)
+        # old format; it's a regular method
+        elif str(inspect.signature(aapa)) == '(self)':
             wp: WaitPage = type(self)({'type': 'http'}, None, None)
             wp.set_attributes_waitpage_clone(original_view=self)
             wp._group_for_wp_clone = group
-            aapa_method = wp.after_all_players_arrive
-        try:
-            aapa_method()
-        except:
-            raise  #  ResponseForException
+            wp.after_all_players_arrive()
+        else:
+            # noself
+            aapa(group_or_subsession)
         self._mark_completed_and_notify(group=group)
 
     def inner_dispatch_group(self):

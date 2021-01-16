@@ -55,9 +55,12 @@ class FileReloader(FileLoader):
 
 def get_ibis_loader():
     loader_class = FileReloader if settings.DEBUG else FileLoader
-    dirs = [Path(otree.__file__).parent.joinpath('templates'), Path('_templates'),] + [
-        Path(app_name, 'templates') for app_name in settings.OTREE_APPS
-    ]
+
+    dirs = [
+        Path('.'),  # for noself
+        Path(otree.__file__).parent.joinpath('templates'),
+        Path('_templates'),
+    ] + [Path(app_name, 'templates') for app_name in settings.OTREE_APPS]
     return loader_class(*dirs)
 
 
