@@ -38,10 +38,10 @@ async def live_payload_function(participant_code, page_name, payload):
     group = player.group
     if isinstance(PageClass.live_method, str):
         method = getattr(player, PageClass.live_method)
+        retval = method(payload)
     else:
         # noself style
-        method = PageClass.live_method(player)
-    retval = method(payload)
+        retval = PageClass.live_method(player, payload)
 
     if not retval:
         return

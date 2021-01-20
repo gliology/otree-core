@@ -1,14 +1,20 @@
 from .base import BaseCommand
 from pathlib import Path
 import re
-import rope.base.codeanalyze
-import rope.refactor.occurrences
-from rope.refactor import rename, move
-from rope.refactor.rename import Rename
-from rope.base.project import Project
-from rope.base.libutils import path_to_resource
-import black
-from otree import settings
+
+try:
+
+    import rope.base.codeanalyze
+    import rope.refactor.occurrences
+    from rope.refactor import rename, move
+    from rope.refactor.rename import Rename
+    from rope.base.project import Project
+    from rope.base.libutils import path_to_resource
+    import black
+except ModuleNotFoundError:
+    import sys
+
+    sys.exit('Before running this command, you need to run "pip3 install black rope" ')
 from rope.refactor.importutils import ImportTools
 from collections import namedtuple
 from typing import Iterable
@@ -25,12 +31,13 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        for app in settings.OTREE_APPS:
-            try:
-                make_noself(app)
-            except CannotConvert as exc:
-                print_function(exc)
-                continue
+        for app in Path('.').iterdir():
+            if app.is_dir() and app.joinpath('models.py').exists():
+                try:
+                    make_noself(app.name)
+                except Exception as exc:
+                    app.joinpath('app.py').unlink(missing_ok=True)
+                    raise
 
 
 class CannotConvert(Exception):
@@ -140,6 +147,11 @@ def make_noself(app_name):
             for start, end, name, _ in reversed(
                 list(get_method_bounds(lines, ClassName, start_index=0))
             ):
+                if name == 'after_all_players_arrive':
+                    print(
+                        f'{app_name}: skipping after_all_players_arrive because it still uses the 2018 format'
+                    )
+                    continue
                 lines.insert(start, f'    @staticmethod')
 
     # return
@@ -268,6 +280,6 @@ def get_method_offsets(txt, ClassName):
     class_end = class_start + m.start()
     return [
         m.start()
-        for m in re.finditer(r'^\s{4}def\s', txt, re.MULTILINE)
+        for m in re.finditer(r'^\s{4}def \w+\(self\b', txt, re.MULTILINE)
         if class_start < m.start() < class_end
     ]

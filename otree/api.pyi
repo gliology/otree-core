@@ -291,7 +291,6 @@ class Page:
     round_number: int
     template_name: str
     timeout_seconds: int
-    timeout_happened: bool
     timer_text: str
     participant: Participant
     session: Session
@@ -299,7 +298,7 @@ class Page:
     form_fields: List[str]
 
     @staticmethod
-    def live_method(player: Player):
+    def live_method(player: Player, data):
         pass
 
 

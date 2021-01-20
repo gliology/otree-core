@@ -95,6 +95,8 @@ def execute_from_command_line(*args, **kwargs):
         'zipserver',
         'devserver',
         'update_my_code',
+        'remove_self',
+        'remove_self_finalize',
     ]:
         # skip full setup.
         pass
