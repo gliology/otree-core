@@ -37,8 +37,7 @@ async def live_payload_function(participant_code, page_name, payload):
     # and this is a good place to show the deprecation warning.
     group = player.group
     if isinstance(PageClass.live_method, str):
-        method = getattr(player, PageClass.live_method)
-        retval = method(payload)
+        retval = player.call_user_defined(PageClass.live_method, payload)
     else:
         # noself style
         retval = PageClass.live_method(player, payload)
