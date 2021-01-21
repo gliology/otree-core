@@ -26,13 +26,13 @@ MethodInfo = namedtuple('MethodInfo', ['start', 'stop', 'name', 'model'])
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
-        parser.add_argument(
-            '--noinput', action='store_false', dest='interactive', default=True,
-        )
+        parser.add_argument('apps', nargs='*')
 
-    def handle(self, *args, **options):
+    def handle(self, *args, apps, **options):
         for app in Path('.').iterdir():
             if app.is_dir() and app.joinpath('models.py').exists():
+                if apps and app.name not in apps:
+                    continue
                 try:
                     make_noself(app.name)
                 except Exception as exc:

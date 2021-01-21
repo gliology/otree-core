@@ -203,7 +203,7 @@ class FormPageOrInGameWaitPage:
         return tables
 
     def _is_displayed(self):
-            return self.call_user_defined('is_displayed')
+        return self.call_user_defined('is_displayed')
 
     @property
     def group(self) -> BaseGroup:
@@ -305,7 +305,7 @@ class FormPageOrInGameWaitPage:
             if not is_skipping_apps:
                 if page._lookup.is_first_in_round:
                     # we have moved to a new round.
-                    page.player.start()
+                    page.player.call_user_defined('start', missing_ok=True)
                 if page._is_displayed():
                     break
 
@@ -863,8 +863,10 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         '''
         if self.wait_for_all_groups:
             group = None
+            noself_kwargs = dict(subsession=group_or_subsession)
         else:
             group = group_or_subsession
+            noself_kwargs = dict(group=group_or_subsession)
 
         aapa = type(self).after_all_players_arrive
         if isinstance(aapa, str):
@@ -877,7 +879,9 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             wp.after_all_players_arrive()
         else:
             # noself
-            aapa(group_or_subsession)
+            # pass kwargs so that we can ensure the user did not use a group method
+            # where a subsession method should have been used
+            aapa(**noself_kwargs)
         self._mark_completed_and_notify(group=group)
 
     def inner_dispatch_group(self):

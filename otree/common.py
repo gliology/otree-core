@@ -201,8 +201,6 @@ def participant_start_url(code):
     return '/InitializeParticipant/{}'.format(code)
 
 
-
-
 def _group_by_rank(ranked_list, players_per_group):
     ppg = players_per_group
     players = ranked_list

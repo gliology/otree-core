@@ -144,7 +144,7 @@ class Participant(otree.database.SSPPGModel, MixinVars):
             pp.time_started = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
             pp._last_page_timestamp = int(time.time())
             player = pp._get_current_player()
-            player.start()
+            player.call_user_defined('start', missing_ok=True)
 
     def _update_monitor_table(self):
         from otree import export
