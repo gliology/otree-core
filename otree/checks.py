@@ -9,8 +9,8 @@ from otree import settings
 from otree.common import get_pages_module, get_models_module
 from collections import namedtuple
 
-Error = namedtuple('Error', ['title', 'id'])
-Warning = namedtuple('Warning', ['title', 'id'])
+Error = namedtuple('Error', ['title', 'id', 'app_name',])
+Warning = namedtuple('Warning', ['title', 'id', 'app_name'])
 
 print_function = print
 
@@ -23,10 +23,10 @@ class AppCheckHelper:
         self.warnings = []
 
     def add_error(self, title, numeric_id: int):
-        self.errors.append(Error(title, id=numeric_id))
+        self.errors.append(Error(title, id=numeric_id, app_name=self.app_name))
 
     def add_warning(self, title, numeric_id: int):
-        self.warnings.append(Warning(title, id=numeric_id))
+        self.warnings.append(Warning(title, id=numeric_id, app_name=self.app_name))
 
     def get_template_names(self):
         templates_dir = self.path / 'templates'
@@ -40,31 +40,6 @@ class AppCheckHelper:
 
     def module_exists(self, module):
         return self.path.joinpath(module + '.py').exists()
-
-
-def files(helper: AppCheckHelper, app_name):
-
-    templates_dir = helper.get_path('templates')
-    if templates_dir.is_dir():
-        # check for files in templates/, but not in templates/<label>
-        misplaced_files = list(templates_dir.glob('*.html'))
-        if misplaced_files:
-            msg = (
-                "Templates files in wrong folder"
-                'Move template files from "{app}/templates/" '
-                'to "{app}/templates/{app}" subfolder'.format(app=app_name)
-            )
-            helper.add_error(msg, numeric_id=103)
-
-        all_subfolders = set(templates_dir.glob('*/'))
-        correctly_named_subfolders = set(templates_dir.glob('{}/'.format(app_name)))
-        other_subfolders = all_subfolders - correctly_named_subfolders
-        if other_subfolders and not correctly_named_subfolders:
-            msg = (
-                "The 'templates' folder has a subfolder called '{}', "
-                "but it should be renamed '{}' to match the name of the app. "
-            ).format(other_subfolders.pop().name, app_name)
-            helper.add_error(msg, numeric_id=104)
 
 
 base_model_attrs = {
@@ -102,21 +77,14 @@ def model_classes(helper: AppCheckHelper, app_name):
         )
         helper.add_error(msg, numeric_id=119)
 
-    player_columns = list(Player.__table__.columns)
-    if any(f.name == 'payoff' for f in player_columns):
-        msg = (
-            'You must remove the field "payoff" from Player, '
-            "because it is already defined on BasePlayer."
-        )
-        helper.add_error(msg, numeric_id=114)
-    if any(f.name == 'role' for f in player_columns):
-        msg = (
-            'You must remove the field "role" from Player, '
-            "because it is already defined on BasePlayer."
-        )
-        helper.add_error(msg, numeric_id=114)
+    FORBIDDEN_COLNAMES = {'payoff', 'role', 'order'}
 
     for Model in [Player, Group, Subsession]:
+        columns = list(Model.__table__.columns)
+        for f in columns:
+            if f.name in FORBIDDEN_COLNAMES:
+                msg = f'You should rename the model field "{f.name}" to something else. This name is reserved.'
+                helper.add_error(msg, numeric_id=114)
         for attr_name in dir(Model):
             if attr_name not in base_model_attrs[Model.__name__]:
                 attr_value = getattr(Model, attr_name)
@@ -257,7 +225,7 @@ def get_checks_output(app_names=None):
     app_names = app_names or settings.OTREE_APPS
     errors = []
     warnings = []
-    for check_function in [model_classes, files, constants, pages_function]:
+    for check_function in [model_classes, constants, pages_function]:
         for app_name in app_names:
             helper = AppCheckHelper(app_name)
             check_function(helper, app_name)

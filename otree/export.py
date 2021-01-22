@@ -142,7 +142,7 @@ def tweak_player_values_dict(player: dict, group_id_in_subsession=None):
 
 
 def sanitize_for_live_update(value):
-    value = escape(sanitize_for_csv(value))
+    value = escape(str(sanitize_for_csv(value)))
     MAX_LENGTH = 30
     if len(value) > MAX_LENGTH:
         return value[:MAX_LENGTH] + '…'
@@ -406,7 +406,7 @@ def get_rows_for_data_tab_app(session, app_name):
                 + [g[fname] for fname in gfields]
                 + [s[fname] for fname in sfields]
             )
-            table.append([sanitize_for_csv(v) for v in row])
+            table.append([sanitize_for_live_update(v) for v in row])
         yield table
 
 
