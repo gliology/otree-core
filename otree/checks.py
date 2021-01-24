@@ -127,25 +127,23 @@ def model_classes(helper: AppCheckHelper, app_name):
 
 
 def constants(helper: AppCheckHelper, app_name):
-    if not helper.module_exists('models'):
-        return
 
     models = get_models_module(app_name)
 
     if not hasattr(models, 'Constants'):
-        helper.add_error('models.py does not contain Constants class', numeric_id=11)
+        helper.add_error('Constants class is missing', numeric_id=11)
         return
 
     Constants = models.Constants
     attrs = ['name_in_url', 'players_per_group', 'num_rounds']
     for attr_name in attrs:
         if not hasattr(Constants, attr_name):
-            msg = "models.py: 'Constants' class needs to define '{}'"
+            msg = "'Constants' class needs to define '{}'"
             helper.add_error(msg.format(attr_name), numeric_id=12)
     ppg = Constants.players_per_group
     if ppg == 0 or ppg == 1:
         helper.add_error(
-            "models.py: Constants.players_per_group cannot be {}. You "
+            "Constants.players_per_group cannot be {}. You "
             "should set it to None, which makes the group "
             "all players in the subsession.".format(ppg),
             numeric_id=13,
@@ -161,9 +159,7 @@ def pages_function(helper: AppCheckHelper, app_name):
     try:
         page_list = pages_module.page_sequence
     except:
-        helper.add_error(
-            'pages.py is missing the variable page_sequence.', numeric_id=21
-        )
+        helper.add_error('The variable page_sequence is missing.', numeric_id=21)
         return
     else:
         for i, ViewCls in enumerate(page_list):

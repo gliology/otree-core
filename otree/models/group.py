@@ -52,6 +52,11 @@ class BaseGroup(SPGModel, MixinSessionFK):
         raise ValueError(msg)
 
     def set_players(self, players_list):
+        """
+        don't allow passing in a list of ints, because there are 2 ways of reading it.
+        Does set_players([2,3,1]) mean that player 1 gets id_in_group 2,
+        or does it mean player 2 gets id_in_group 1?
+        """
         Constants = self._Constants
         roles = get_roles(Constants)
         for i, player in enumerate(players_list, start=1):
@@ -118,4 +123,6 @@ class BaseGroup(SPGModel, MixinSessionFK):
 
     @declared_attr
     def player_set(cls):
-        return relationship(f'{cls.__module__}.Player', back_populates="group", lazy='dynamic')
+        return relationship(
+            f'{cls.__module__}.Player', back_populates="group", lazy='dynamic'
+        )

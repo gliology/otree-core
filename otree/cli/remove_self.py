@@ -178,14 +178,12 @@ def make_noself(app_name):
 
     txt = '\n'.join(non_function_lines).replace(END_OF_MODELS, function_txt)
 
-    txt = (
-        txt.replace('player.player.', 'player.')
-        .replace(
-            'def before_next_page(player):',
-            'def before_next_page(player, timeout_happened):',
-        )
-        .replace('player.timeout_happened', 'timeout_happened')
-    )
+    txt = re.sub('\bplayer\.player\b', 'player', txt)
+
+    txt = txt.replace(
+        'def before_next_page(player):',
+        'def before_next_page(player, timeout_happened):',
+    ).replace('player.timeout_happened', 'timeout_happened')
 
     # add type annotations
     # some functions have multiple args, like error_message

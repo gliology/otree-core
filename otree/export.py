@@ -420,11 +420,25 @@ def export_app(app_name, fp):
     _export_csv(fp, rows)
 
 
+from sqlalchemy.orm import joinedload
+
+
 def custom_export_app(app_name, fp):
     models_module = get_models_module(app_name)
-    qs = models_module.Player.objects.select_related(
-        'participant', 'group', 'subsession', 'session'
-    ).order_by('id')
+    Player = models_module.Player
+    qs = list(
+        dbq(Player)
+        .order_by('id')
+        .options(
+            joinedload(Player.participant, innerjoin=True),
+            joinedload(Player.group, innerjoin=True),
+            joinedload(Player.subsession, innerjoin=True),
+            joinedload(Player.session, innerjoin=True),
+        )
+    )
+    for player in qs:
+        # need this to query null values
+        player._is_frozen = False
     rows = models_module.custom_export(qs)
     # convert to strings so we don't get errors especially for Excel
     str_rows = []

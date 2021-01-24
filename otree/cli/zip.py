@@ -93,22 +93,17 @@ def zip_project(project_path: Path):
         logger.error(str(exc))
         sys.exit(1)
 
-    # once Heroku uses py 3.7 by default, we can remove this runtime stuff.
+    # once Heroku upgrades their default python version, we can remove this runtime stuff.
+    # we should just overwrite the existing runtime. because maybe it has something old.
+    # (e.g. if it was downloaded from otree hub)
     runtime_txt = project_path / 'runtime.txt'
-    runtime_existed = runtime_txt.exists()
-    if not runtime_existed:
-        # don't use sys.version_info because it might be newer than what
-        # heroku supports
-        runtime_txt.write_text(f'python-3.8.7')
-    try:
-        with tarfile.open(archive_name, 'w:gz') as tar:
-            # if i omit arcname, it nests the project 2 levels deep.
-            # if i say arcname=proj, it puts the whole project in a folder.
-            # if i say arcname='', it has 0 levels of nesting.
-            tar.add(project_path, arcname='', filter=filter_func)
-    finally:
-        if not runtime_existed:
-            runtime_txt.unlink()
+    runtime_txt.write_text(f'python-3.8.7')
+    with tarfile.open(archive_name, 'w:gz') as tar:
+        # if i omit arcname, it nests the project 2 levels deep.
+        # if i say arcname=proj, it puts the whole project in a folder.
+        # if i say arcname='', it has 0 levels of nesting.
+        tar.add(project_path, arcname='', filter=filter_func)
+    runtime_txt.unlink()
     logger.info(f'Saved your code into file "{archive_name}"')
 
 
