@@ -44,6 +44,7 @@ class Participant(otree.database.SSPPGModel, MixinVars):
         nullable=False,
         # unique implies DB index
         unique=True,
+        index=True,
     )
 
     # useful when we don't want to load the whole session just to get the code

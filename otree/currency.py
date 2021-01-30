@@ -108,7 +108,7 @@ class BaseCurrency(Decimal):
             return formatted
 
     def __repr__(self):
-        return '{}({})'.format(self.__class__.__name__, Decimal.__str__(self))
+        return f'{Decimal.__str__(self)}cu'
 
     def __eq__(self, other):
         if isinstance(other, BaseCurrency):
@@ -150,13 +150,6 @@ class BaseCurrency(Decimal):
     __divmod__ = _make_binary_operator('__divmod__')
     __rdivmod__ = _make_binary_operator('__rdivmod__')
     __rpow__ = _make_binary_operator('__rpow__')
-
-    def deconstruct(self):
-        return (
-            '{}.{}'.format(self.__module__, self.__class__.__name__),
-            [Decimal.__str__(self)],
-            {},
-        )
 
     @classmethod
     def get_num_decimal_places(cls):

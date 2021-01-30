@@ -128,7 +128,7 @@ class MTurkCreateHIT(AdminSessionPage):
         if isinstance(keywords, (list, tuple)):
             keywords = ', '.join(keywords)
 
-        html_question = ibis_loader('otree/MTurkHTMLQuestion.html').render(
+        html_question = ibis_loader.load('otree/MTurkHTMLQuestion.html').render(
             user_template=mturk_settings.template,
             frame_height=mturk_settings.frame_height,
             start_url=start_url,

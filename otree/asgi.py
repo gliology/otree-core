@@ -1,17 +1,18 @@
 from starlette.applications import Starlette
 from . import settings
 from .urls import routes
-from .middleware import middlewares
 from starlette.middleware import Middleware
 from .errorpage import OTreeServerErrorMiddleware
 from starlette.routing import NoMatchFound
 from starlette.responses import HTMLResponse
 from otree.database import save_sqlite_db
 from .patch import ExceptionMiddleware
+from . import middleware
 
 
 class OTreeStarlette(Starlette):
     def build_middleware_stack(self):
+
         debug = self.debug
         error_handler = None
         exception_handlers = {}
@@ -22,18 +23,19 @@ class OTreeStarlette(Starlette):
             else:
                 exception_handlers[key] = value
 
-        middleware = (
-            [Middleware(OTreeServerErrorMiddleware, handler=error_handler, debug=debug)]
-            + self.user_middleware
-            + [
-                Middleware(
-                    ExceptionMiddleware, handlers=exception_handlers, debug=debug
-                )
-            ]
-        )
+        # By default Starlette puts ServerErrorMiddleware outside of all user middleware,
+        # but I need to reverse that, because if we roll back the transaction before the error page
+        # is displayed, it will show incorrect field values for a model instance's __repr__.
+        middlewares = [
+            Middleware(middleware.CommitTransactionMiddleware),
+            Middleware(OTreeServerErrorMiddleware, handler=error_handler, debug=debug),
+            Middleware(middleware.PerfMiddleware),
+            Middleware(middleware.SessionMiddleware, secret_key=middleware._SECRET),
+            Middleware(ExceptionMiddleware, handlers=exception_handlers, debug=debug),
+        ]
 
         app = self.router
-        for cls, options in reversed(middleware):
+        for cls, options in reversed(middlewares):
             app = cls(app=app, **options)
         return app
 
@@ -48,7 +50,6 @@ async def server_error(request, exc):
 app = OTreeStarlette(
     debug=settings.DEBUG,
     routes=routes,
-    middleware=middlewares,
     exception_handlers={ERR_500: server_error},
     on_shutdown=[save_sqlite_db],
 )

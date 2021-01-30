@@ -49,14 +49,12 @@ def random_chars_10():
 
 
 @lru_cache()
-def get_models_module(app_name):
-    module_name = ['models', 'app'][is_noself(app_name)]
-    return import_module(f'{app_name}.{module_name}')
-
-
-@lru_cache()
 def is_noself(app_name):
-    return Path(f'{app_name}/app.py').exists()
+    return (
+        Path(f'{app_name}/__init__.py').exists()
+        and not Path(f'{app_name}/models.py').exists()
+    )
+    # return Path(f'{app_name}/app.py').exists()
 
 
 def get_bots_module(app_name):
@@ -64,11 +62,17 @@ def get_bots_module(app_name):
 
 
 @lru_cache()
+def get_models_module(app_name):
+    module_name = app_name if is_noself(app_name) else f'{app_name}.models'
+    return import_module(module_name)
+
+
+@lru_cache()
 def get_pages_module(app_name):
-    module_name = ['pages', 'app'][is_noself(app_name)]
+    module_name = [f'{app_name}.pages', app_name][is_noself(app_name)]
 
     try:
-        return import_module(f'{app_name}.{module_name}')
+        return import_module(module_name)
     except Exception as exc:
         # to give a smaller traceback on startup
         import traceback
@@ -86,7 +90,8 @@ def get_dotted_name(Cls):
 
 
 def get_app_label_from_import_path(import_path):
-    return import_path.split('.')[-2]
+    """works for self and no-self"""
+    return import_path.split('.')[0]
 
 
 def expand_choice_tuples(choices):

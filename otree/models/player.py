@@ -50,15 +50,6 @@ class BasePlayer(SPGModel, MixinSessionFK):
     def id_in_subsession(self):
         return self.participant.id_in_session
 
-    def __repr__(self):
-        id_in_subsession = self.id_in_subsession
-        if id_in_subsession < 10:
-            # 2 spaces so that it lines up if printing a matrix
-            fmt_string = '<Player  {}>'
-        else:
-            fmt_string = '<Player {}>'
-        return fmt_string.format(id_in_subsession)
-
     def in_round(self, round_number):
         return in_round(type(self), round_number, participant=self.participant)
 

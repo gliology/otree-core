@@ -1,4 +1,4 @@
-from typing import Union, List, Any, Optional
+from typing import Union, List, Any, Optional, TypeVar
 
 from otree.currency import RealWorldCurrency, Currency
 
@@ -166,7 +166,7 @@ class Session:
     num_participants: int
     def get_participants(self) -> List[Participant]:
         pass
-    def get_subsessions(self) -> List[BaseSubsession]:
+    def get_subsessions(self) -> List[SubsessionTV]:
         pass
 
 class Participant:
@@ -176,7 +176,7 @@ class Participant:
     label: str
     id_in_session: int
     payoff: Currency
-    def get_players(self) -> List[BasePlayer]:
+    def get_players(self) -> List[PlayerTV]:
         pass
     def payoff_plus_participation_fee(self) -> RealWorldCurrency:
         pass
@@ -188,54 +188,58 @@ class BaseSubsession:
 
     session: Session
     round_number: int
-    def get_groups(self) -> List[BaseGroup]:
+    def get_groups(self) -> List[GroupTV]:
         pass
     def get_group_matrix(self) -> List[List[int]]:
         pass
     def set_group_matrix(
-        self, group_matrix: Union[List[List[BasePlayer]], List[List[int]]]
+        self, group_matrix: Union[List[List[PlayerTV]], List[List[int]]]
     ):
         pass
-    def get_players(self) -> List[BasePlayer]:
+    def get_players(self) -> List[PlayerTV]:
         pass
-    def in_previous_rounds(self) -> List[BaseSubsession]:
+    def in_previous_rounds(self) -> List[SubsessionTV]:
         pass
-    def in_all_rounds(self) -> List[BaseSubsession]:
+    def in_all_rounds(self) -> List[SubsessionTV]:
         pass
-    def in_round(self, round_number) -> BaseSubsession:
+    def in_round(self, round_number) -> SubsessionTV:
         pass
-    def in_rounds(self, first, last) -> List[BaseSubsession]:
+    def in_rounds(self, first, last) -> List[SubsessionTV]:
         pass
     def group_like_round(self, round_number: int):
         pass
     def group_randomly(self, fixed_id_in_group: bool = False):
         pass
-    # this is so PyCharm doesn't flag attributes that are only defined on the app's Subsession,
-    # not on the BaseSubsession
-    def __getattribute__(self, item):
-        pass
+
+
+# Using TypeVar instead of the BaseSubsession seems to make PyCharm
+# allow BaseSubsession be passed to a function marked as taking a Subsession arg
+SubsessionTV = TypeVar('SubsessionTV', bound=BaseSubsession)
+
 
 class BaseGroup:
 
     session: Session
     subsession: BaseSubsession
     round_number: int
-    def get_players(self) -> List[BasePlayer]:
+    def get_players(self) -> List[PlayerTV]:
         pass
-    def get_player_by_role(self, role) -> BasePlayer:
+    def get_player_by_role(self, role) -> PlayerTV:
         pass
-    def get_player_by_id(self, id_in_group) -> BasePlayer:
+    def get_player_by_id(self, id_in_group) -> PlayerTV:
         pass
-    def in_previous_rounds(self) -> List[BaseGroup]:
+    def in_previous_rounds(self) -> List[GroupTV]:
         pass
-    def in_all_rounds(self) -> List[BaseGroup]:
+    def in_all_rounds(self) -> List[GroupTV]:
         pass
-    def in_round(self, round_number) -> BaseGroup:
+    def in_round(self, round_number) -> GroupTV:
         pass
-    def in_rounds(self, first: int, last: int) -> List[BaseGroup]:
+    def in_rounds(self, first: int, last: int) -> List[GroupTV]:
         pass
-    def __getattribute__(self, item):
-        pass
+
+
+GroupTV = TypeVar('GroupTV', bound=BaseGroup)
+
 
 class BasePlayer:
 
@@ -243,24 +247,26 @@ class BasePlayer:
     payoff: Currency
     participant: Participant
     session: Session
-    group: BaseGroup
+    group: GroupTV
     subsession: BaseSubsession
     round_number: int
     role: str
-    def in_previous_rounds(self) -> List[BasePlayer]:
+    def in_previous_rounds(self) -> List[PlayerTV]:
         pass
-    def in_all_rounds(self) -> List[BasePlayer]:
+    def in_all_rounds(self) -> List[PlayerTV]:
         pass
-    def get_others_in_group(self) -> List[BasePlayer]:
+    def get_others_in_group(self) -> List[PlayerTV]:
         pass
-    def get_others_in_subsession(self) -> List[BasePlayer]:
+    def get_others_in_subsession(self) -> List[PlayerTV]:
         pass
-    def in_round(self, round_number) -> BasePlayer:
+    def in_round(self, round_number) -> PlayerTV:
         pass
-    def in_rounds(self, first, last) -> List[BasePlayer]:
+    def in_rounds(self, first, last) -> List[PlayerTV]:
         pass
-    def __getattribute__(self, item):
-        pass
+
+
+PlayerTV = TypeVar('PlayerTV', bound=BasePlayer)
+
 
 class ExtraModel:
     pass
@@ -277,12 +283,20 @@ class WaitPage:
     round_number: int
     participant: Participant
     session: Session
+
+    @staticmethod
     def is_displayed(player: Player):
         pass
+
+    @staticmethod
     def js_vars(player: Player):
         pass
+
+    @staticmethod
     def vars_for_template(player: Player):
         pass
+
+    @staticmethod
     def app_after_this_page(player: Player, upcoming_apps):
         pass
 
@@ -342,6 +356,10 @@ class Bot:
     participant: Participant
     session: Participant
     round_number: int
+    player: PlayerTV
+    group: GroupTV
+    subsession: SubsessionTV
+
 
 def Submission(
     PageClass, post_data: dict = {}, *, check_html=True, timeout_happened=False

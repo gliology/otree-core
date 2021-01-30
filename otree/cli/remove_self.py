@@ -30,14 +30,19 @@ class Command(BaseCommand):
 
     def handle(self, *args, apps, **options):
         for app in Path('.').iterdir():
-            if app.is_dir() and app.joinpath('models.py').exists():
+            if app.joinpath('models.py').exists():
                 if apps and app.name not in apps:
                     continue
                 try:
                     make_noself(app.name)
                 except Exception as exc:
-                    app.joinpath('app.py').unlink(missing_ok=True)
+                    app.joinpath('__init__.py').write_text('')
                     raise
+            # convert app.py format
+            elif app.joinpath('app.py').exists():
+                init = app.joinpath('__init__.py')
+                init.unlink(missing_ok=True)
+                app.joinpath('app.py').rename(init)
 
 
 class CannotConvert(Exception):
@@ -47,7 +52,7 @@ class CannotConvert(Exception):
 def make_noself(app_name):
     proj = Project(app_name, ropefolder=None)
     approot = Path(app_name)
-    app_path = approot / 'app.py'
+    app_path = approot / '__init__.py'
     pages_path = approot / 'pages.py'
     models_path = approot / 'models.py'
     if not models_path.exists():
@@ -97,7 +102,7 @@ def make_noself(app_name):
     def resource(pth):
         return path_to_resource(proj, app_name + '/' + pth)
 
-    app_res = resource('app.py')
+    app_res = resource('__init__.py')
 
     app_txt = read()
 
@@ -128,7 +133,7 @@ def make_noself(app_name):
 
     import_tools = ImportTools(proj)
 
-    rope_module = proj.get_module('app')
+    rope_module = proj.get_module('__init__')
     module_with_imports = import_tools.module_imports(rope_module)
     module_with_imports.remove_duplicates()
     module_with_imports.sort_imports()
@@ -148,7 +153,7 @@ def make_noself(app_name):
                 list(get_method_bounds(lines, ClassName, start_index=0))
             ):
                 if name == 'after_all_players_arrive':
-                    print(
+                    print_function(
                         f'{app_name}: skipping after_all_players_arrive because it still uses the 2018 format'
                     )
                     continue
@@ -208,10 +213,10 @@ def make_noself(app_name):
         tests_txt = tests_path.read_text('utf8')
         new_txt = (
             tests_txt.replace('from ._builtin import Bot', 'from otree.api import Bot')
-            .replace('from . import pages', 'from . import app')
-            .replace('from .models import Constants', 'from .app import Constants')
+            .replace('from . import pages', 'from . import *')
+            .replace('from .models import Constants', '')
         )
-        new_txt = re.sub(r'\bpages.(\w)', r'app.\1', new_txt)
+        new_txt = re.sub(r'\bpages\.(\w)', r'\1', new_txt)
         approot.joinpath('tests_noself.py').write_text(new_txt, encoding='utf8')
 
 

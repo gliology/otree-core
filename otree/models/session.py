@@ -36,7 +36,7 @@ class Session(otree.database.SSPPGModel, MixinVars):
     # label of this session instance
     label = Column(st.String, nullable=True)
 
-    code = Column(st.String(16), default=random_chars_8, nullable=False, unique=True,)
+    code = Column(st.String(16), default=random_chars_8, nullable=False, unique=True, index=True)
 
     mturk_HITId = Column(st.String(300), nullable=True)
     mturk_HITGroupId = Column(st.String(300), nullable=True)

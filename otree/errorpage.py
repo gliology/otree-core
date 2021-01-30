@@ -173,7 +173,7 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
                     if k not in ['self']:
                         # need to escape, e.g. if it's <player id=1>
                         locals.append(
-                            f'<tr><th>{k}</th><td>{html.escape(repr(v)[:50])}</td></tr>'
+                            f'<tr><th>{k}</th><td>{html.escape(repr(v)[:100])}</td></tr>'
                         )
                 locals_table = (
                     '<table class="locals-table source-code">'

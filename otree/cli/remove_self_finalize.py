@@ -17,15 +17,17 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        for app in settings.OTREE_APPS:
-            remove_old_format(app)
+        for app in Path('.').iterdir():
+            if app.is_dir() and app.joinpath('models.py').exists():
+                remove_old_format(app)
 
 
 def remove_old_format(app_name):
     approot = Path(app_name)
-    app_path = approot / 'app.py'
-    if not app_path.exists():
+    app_path = approot / '__init__.py'
+    if not 'from otree.api' in app_path.read_text('utf8'):
         return
+    print_function('Removing old files from', app_name)
     pages_path = approot / 'pages.py'
     models_path = approot / 'models.py'
     if pages_path.exists():

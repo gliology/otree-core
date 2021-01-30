@@ -6,10 +6,9 @@ import sqlite3
 import sys
 from contextlib import contextmanager
 from decimal import Decimal
-from importlib import import_module
+from collections import defaultdict
 from pathlib import Path
 from typing import List
-
 import sqlalchemy
 import sqlalchemy.orm
 import sqlalchemy.pool
@@ -236,8 +235,13 @@ def init_orm():
             traceback.print_exc()
             sys.exit(1)
 
+        if not hasattr(models, 'Player'):
+            if Path(app, 'app.py').exists():
+                sys.exit(
+                    'app.py has been replaced by __init__.py. run "otree remove_self" again'
+                )
+
         # make get_FIELD_display
-        from time import time
 
         is_noself = common.is_noself(app)
         for cls in [models.Player, models.Group, models.Subsession]:
@@ -295,8 +299,10 @@ class AnyModel(DeclarativeBase):
 
     @classmethod
     def get_folder_name(cls):
-        name = cls.__module__.split('.')[-2]
-        return name
+        """this works for models.py format and no-self format"""
+        for part in reversed(cls.__module__.split('.')):
+            if part != 'models':
+                return part
 
     def _clone(self):
         return type(self).objects_get(id=self.id)
@@ -367,6 +373,34 @@ class RealWorldCurrencyType(BaseCurrencyType):
     MONEY_CLASS = RealWorldCurrency
 
 
+class MRU:
+    def __init__(self):
+        self._d = defaultdict(int)
+        self._count = 0
+
+    def add(self, item):
+        if (
+            item.startswith('_')
+            or item.endswith('_id')
+            or item in ['id', 'group', 'subsession', 'session', 'participant',]
+        ):
+            return
+        # make it a bit bigger than we need because we will need to throw out methods
+        self._count += 1
+        self._d[item] = self._count
+
+    def most_recent(self):
+        return [
+            attr
+            for attr, count in sorted(
+                self._d.items(), key=lambda ele: ele[1], reverse=True
+            )
+        ]
+
+
+mru_dict = defaultdict(MRU)
+
+
 class SSPPGModel(AnyModel):
     __abstract__ = True
 
@@ -430,6 +464,7 @@ class SSPPGModel(AnyModel):
                     self.__class__.__name__, field_name
                 )
                 raise AttributeError(msg)
+            mru_dict[type(self)].add(field_name)
             super().__setattr__(field_name, value)
         else:
             # super() is a bit slower but only gets run during __init__
@@ -445,18 +480,28 @@ class SPGModel(SSPPGModel):
     is_noself = True
 
     def __getattribute__(self, attr):
-        """just put this on player/group/subsession so as not to disrupt internals.
-        that's where it's needed most"""
-        super_getattr = super().__getattribute__
-        res = super_getattr(attr)
-        if res is None and super_getattr('_is_frozen'):
-            object_name = self.__class__.__name__.lower()
-            msg = (
-                f'{object_name}.{attr} is None. (If you want to access it anyway, you should use '
-                f".__dict__['{attr}'])"
-            )
-            raise NullFieldError(msg)
-        return res
+        # we add to mru dict only on getattr, not on setattr, because a field cannot cause a
+        # failure until it is actually accessed. on the error page when we show local vars,
+        # we want to show the recently accessed attributes.
+        # also, setattr is already defined at the SSPPG level, and we don't want to override it.
+        mru_dict[type(self)].add(attr)
+        return super().__getattribute__(attr)
+
+    def __repr__(self):
+        cls = type(self)
+        colnames = [f.name for f in cls.__table__.columns]
+        items = []
+        # reverse it so that we don't modify the MRU
+        for attr in reversed(mru_dict[cls].most_recent()):
+            if attr in colnames:
+                v = repr(getattr(self, attr))
+                if len(v) > 15:
+                    v = v[:15] + '...'
+                items.append((attr, v))
+                if len(items) >= 5:
+                    break
+        attr_string = ', '.join(reversed(list(f'{k}={v}' for k, v in items)))
+        return f'{cls.__name__}({attr_string})'
 
     def call_user_defined(self, funcname, *args, missing_ok=False, **kwargs):
         target = self.get_user_defined_target()

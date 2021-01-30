@@ -474,7 +474,7 @@ class IncludeNode(Node):
 
         if expr.is_literal:
             if isinstance(expr.literal, str):
-                template = ibis_loader(expr.literal)
+                template = ibis_loader.load(expr.literal)
                 self.children.append(template.root_node)
             else:
                 msg = f"Malformed 'include' tag. "
@@ -491,7 +491,7 @@ class IncludeNode(Node):
         else:
             template_name = self.expr.eval(context)
             if isinstance(template_name, str):
-                template = ibis_loader(template_name)
+                template = ibis_loader.load(template_name)
                 return template.root_node.render(context)
             else:
                 msg = f"Invalid argument for the 'include' tag. "
@@ -520,7 +520,7 @@ class ExtendsNode(Node):
         expr = Expression(arg, token)
 
         if expr.is_literal and isinstance(expr.literal, str):
-            template = ibis_loader(expr.literal)
+            template = ibis_loader.load(expr.literal)
             self.children.append(template.root_node)
         else:
             msg = (
@@ -780,7 +780,9 @@ class ChatNode(Node):
         if self.nickname_expr:
             kwargs['nickname'] = self.nickname_expr.eval(context)
         tag_context = chat_template_tag(context, **kwargs)
-        return ibis_loader('otree/tags/chat.html').render(tag_context, strict_mode=True)
+        return ibis_loader.load('otree/tags/chat.html').render(
+            tag_context, strict_mode=True
+        )
 
 
 class BackslashError(ValueError):

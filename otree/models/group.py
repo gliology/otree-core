@@ -25,9 +25,6 @@ class BaseGroup(SPGModel, MixinSessionFK):
     def _Constants(self) -> BaseConstants:
         return get_models_module(self.get_folder_name()).Constants
 
-    def __unicode__(self):
-        return str(self.id)
-
     def get_players(self):
         return list(self.player_set.order_by('id_in_group'))
 

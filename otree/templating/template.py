@@ -1,12 +1,21 @@
 from . import nodes
 from . import compiler
 from . import context
+from . import ibis_loader
 
 
 class Template:
-
-    def __init__(self, template_string, template_id="UNIDENTIFIED"):
+    def __init__(self, template_string, template_id="UNIDENTIFIED", extends: str = ''):
         self.root_node = compiler.compile(template_string, template_id)
+        children = self.root_node.children
+        # this is so that {% extends 'otree/Page.html' %} can be omitted
+        if extends and children and not isinstance(children[0], nodes.ExtendsNode):
+
+            token = compiler.Token(
+                'INSTRUCTION', f'extends "{extends}"', template_id, 1
+            )
+            self.root_node.children.insert(0, nodes.ExtendsNode(token=token))
+
         self.block_registry = self._register_blocks(self.root_node, {})
 
     def __str__(self):
@@ -22,4 +31,3 @@ class Template:
         for child in node.children:
             self._register_blocks(child, registry)
         return registry
-

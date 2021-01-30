@@ -42,9 +42,6 @@ class BaseSubsession(SPGModel, MixinSessionFK):
     def in_all_rounds(self):
         return self.in_previous_rounds() + [self]
 
-    def __unicode__(self):
-        return str(self.id)
-
     def get_groups(self):
         return list(self.group_set.order_by('id_in_subsession'))
 
