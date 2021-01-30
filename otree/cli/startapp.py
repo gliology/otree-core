@@ -37,11 +37,14 @@ class Command(BaseCommand):
                 "another name."
             )
 
-        app_py_exists = bool(list(Path('.').glob('*/app.py')))
-        if app_py_exists:
+        uses_noself = False
+        for p in Path('.').glob('*/__init__.py'):
+            if 'class Player' in p.read_text('utf8'):
+                uses_noself = True
+        if uses_noself:
             src = Path(otree.__file__).parent / 'app_template_lite'
             shutil.copytree(src, dest)
-            models_path = dest.joinpath('app.py')
+            models_path = dest.joinpath('__init__.py')
         else:
             src = Path(otree.__file__).parent / 'app_template'
             shutil.copytree(src, dest)

@@ -43,6 +43,9 @@ class Command(BaseCommand):
                 init = app.joinpath('__init__.py')
                 init.unlink(missing_ok=True)
                 app.joinpath('app.py').rename(init)
+        print_function(
+            'Done. Check your __init__.py files and then run "otree remove_self_finalize" to finalize'
+        )
 
 
 class CannotConvert(Exception):
