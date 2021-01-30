@@ -124,11 +124,11 @@ class Project:
 
     def unzip_to_tempdir(self):
         self.tmpdir = TemporaryDirectory()
-        unzip(str(self._otreezip), self.tmpdir.name)
+        unzip.unzip(str(self._otreezip), self.tmpdir.name)
 
     def start(self):
         self._proc = subprocess.Popen(
-            [sys.executable, 'manage.py', 'devserver_inner', PORT,],
+            ['otree', 'devserver_inner', PORT,],
             cwd=self.tmpdir.name,
             env=os.environ.copy(),
         )
