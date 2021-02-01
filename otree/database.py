@@ -517,6 +517,16 @@ class SPGModel(SSPPGModel):
             return get_models_module(app_name)
         return cls
 
+    def get_field_display(self, name):
+        value = getattr(self, name)
+        target = self.get_user_defined_target()
+        choices_func = getattr(target, name + '_choices', None)
+        if choices_func:
+            choices = choices_func(self)
+        else:
+            choices = getattr(type(self), name).form_props['choices']
+        return dict(expand_choice_tuples(choices))[value]
+
 
 class UndefinedUserFunction(Exception):
     pass

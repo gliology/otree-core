@@ -1,6 +1,13 @@
 from .base import BaseCommand
+import os
 from pathlib import Path
+from typing import List, Dict, Tuple
 import re
+import shutil
+from collections import namedtuple
+from pathlib import Path
+import sys
+from otree import settings
 
 try:
 
@@ -27,25 +34,32 @@ MethodInfo = namedtuple('MethodInfo', ['start', 'stop', 'name', 'model'])
 class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('apps', nargs='*')
+        parser.add_argument(
+            '--keep', action='store_true', dest='keep_old_files', default=False,
+        )
 
-    def handle(self, *args, apps, **options):
+    def handle(self, *args, apps, keep_old_files, **options):
         for app in Path('.').iterdir():
             if app.joinpath('models.py').exists():
-                if apps and app.name not in apps:
+                app_name = app.name
+                if apps and app_name not in apps:
                     continue
+                if not keep_old_files:
+                    backup(app_name)
                 try:
-                    make_noself(app.name)
+                    make_noself(app_name)
                 except Exception as exc:
                     app.joinpath('__init__.py').write_text('')
                     raise
+                if not keep_old_files:
+                    rearrange_folder(app_name)
             # convert app.py format
             elif app.joinpath('app.py').exists():
                 init = app.joinpath('__init__.py')
                 init.unlink(missing_ok=True)
                 app.joinpath('app.py').rename(init)
-        print_function(
-            'Done. Check your __init__.py files and then run "otree remove_self_finalize" to finalize'
-        )
+
+        print_function('Done.')
 
 
 class CannotConvert(Exception):
@@ -111,7 +125,7 @@ def make_noself(app_name):
 
     # need it to be reversed so we don't shift everything down
     class_names = list(
-        m.group(1)
+        (m.group(1), m.group(2))
         for m in re.finditer(
             r'^class (\w+)\((BasePlayer|BaseGroup|BaseSubsession|Page|WaitPage)',
             app_txt,
@@ -119,12 +133,20 @@ def make_noself(app_name):
         )
     )
 
-    for ClassName in reversed(class_names):
-        offsets = get_method_offsets(app_txt, ClassName)
-        rename_self_to = dict(
-            Player='player', Group='group', Subsession='subsession'
-        ).get(ClassName, 'player')
-        for offset in reversed(offsets):
+    model_methods = set()
+    for class_name, base_class in reversed(class_names):
+        offsets = get_method_offsets(app_txt, class_name)
+        for offset, name in reversed(offsets):
+            if base_class == 'WaitPage' and name == 'after_all_players_arrive':
+                cls_start, cls_end = get_class_bounds(app_txt, class_name)
+                is_subsession = (
+                    'wait_for_all_groups = True' in app_txt[cls_start:cls_end]
+                )
+                rename_self_to = 'subsession' if is_subsession else 'group'
+            else:
+                rename_self_to = dict(
+                    Player='player', Group='group', Subsession='subsession'
+                ).get(class_name, 'player')
             # it might be error_message or app_after_this_page, which take extra args.
             self_offset = offset + app_txt[offset:].index('(self') + 2
             try:
@@ -133,6 +155,20 @@ def make_noself(app_name):
             except Exception:
                 print_function(app_txt[self_offset : self_offset + 30])
                 raise
+            if class_name in ['Player', 'Group', 'Subsession']:
+                model_methods.add(name)
+                template_usage = f'{rename_self_to}.{name}'
+                for tpl in approot.joinpath('templates', app_name).glob('*.html'):
+                    if template_usage in tpl.read_text('utf8'):
+                        print_function(
+                            f"""
+((((((((((((((((((((((((((((((
+"{tpl}" contains the method call {template_usage}, but {name} has been converted to a function.
+You have 2 choices:
+\t(a) call {name}({rename_self_to}) in vars_for_template
+\t(b) manually convert {name} back to a method
+))))))))))))))))))))))))))))))"""
+                        )
 
     import_tools = ImportTools(proj)
 
@@ -142,24 +178,18 @@ def make_noself(app_name):
     module_with_imports.sort_imports()
     write(module_with_imports.get_changed_source())
 
-    lines = read().splitlines()
+    app_txt = read()
+    lines = app_txt.splitlines()
 
     method_bounds = []
-    for ClassName in class_names:
-        if ClassName in ['Player', 'Group', 'Subsession']:
+    for class_name, _ in class_names:
+        if class_name in ['Player', 'Group', 'Subsession']:
             # print_function(ClassName, list(get_method_bounds(lines, ClassName)))
-            method_bounds.extend(get_method_bounds(lines, ClassName, start_index=0))
+            method_bounds.extend(get_method_bounds(lines, class_name, start_index=0))
         else:
-            # rename page methods to something unique and set the attribute,
-            # e.g. is_displayed = is_displayed1
             for start, end, name, _ in reversed(
-                list(get_method_bounds(lines, ClassName, start_index=0))
+                list(get_method_bounds(lines, class_name, start_index=0))
             ):
-                if name == 'after_all_players_arrive':
-                    print_function(
-                        f'{app_name}: skipping after_all_players_arrive because it still uses the 2018 format'
-                    )
-                    continue
                 lines.insert(start, f'    @staticmethod')
 
     # return
@@ -186,7 +216,11 @@ def make_noself(app_name):
 
     txt = '\n'.join(non_function_lines).replace(END_OF_MODELS, function_txt)
 
-    txt = re.sub('\bplayer\.player\b', 'player', txt)
+    txt = re.sub(r'\bplayer\.player\b', 'player', txt)
+    # for AAPA
+
+    txt = re.sub(r'\bgroup\.group\b', 'group', txt)
+    txt = re.sub(r'\bsubsession\.subsession\b', 'subsession', txt)
 
     txt = txt.replace(
         'def before_next_page(player):',
@@ -198,6 +232,8 @@ def make_noself(app_name):
     txt = re.sub(r'def (\w+)\(player\b', r'def \1(player: Player', txt)
     txt = re.sub(r'def (\w+)\(group\b', r'def \1(group: Group', txt)
     txt = re.sub(r'def (\w+)\(subsession\b', r'def \1(subsession: Subsession', txt)
+
+    txt = fix_method_calls(txt, model_methods)
 
     lines = txt.splitlines(keepends=False)
 
@@ -221,6 +257,17 @@ def make_noself(app_name):
         )
         new_txt = re.sub(r'\bpages\.(\w)', r'\1', new_txt)
         approot.joinpath('tests_noself.py').write_text(new_txt, encoding='utf8')
+
+
+def fix_method_calls(txt, model_methods):
+    """this doesn't work for functions that take args. too complicated."""
+    # change player.group.my_method() to my_method(player.group)
+    def repl(m):
+        if m.group(3) in model_methods:
+            return m.group(3) + '(' + m.group(1) + m.group(2) + ')'
+        return m.group()
+
+    return re.sub(r'([\.\w]*)\b(player|group|subsession)\.(\w+)\(\)', repl, txt)
 
 
 def dedent(line):
@@ -278,14 +325,68 @@ def is_module_level_statement(line):
     return line[:1].strip() and not line[:1].strip().startswith('#')
 
 
-def get_method_offsets(txt, ClassName):
-    import re
+def get_method_offsets(txt, ClassName) -> List[Tuple[int, str]]:
+    class_start, class_end = get_class_bounds(txt, ClassName)
+    return [
+        (m.start(), m.group(1))
+        for m in re.finditer(r'^\s{4}def (\w+)\(self\b', txt, re.MULTILINE)
+        if class_start < m.start() < class_end
+    ]
 
+
+def get_class_bounds(txt, ClassName):
     class_start = txt.index(f'\nclass {ClassName}(')
     m = list(re.finditer(r'^\w', txt[class_start:], re.MULTILINE))[1]
     class_end = class_start + m.start()
-    return [
-        m.start()
-        for m in re.finditer(r'^\s{4}def \w+\(self\b', txt, re.MULTILINE)
-        if class_start < m.start() < class_end
-    ]
+    return class_start, class_end
+
+
+def backup(app_name):
+    approot = Path(app_name)
+    old_folder = Path('_REMOVE_SELF_BACKUP')
+    if not old_folder.exists():
+        old_folder.mkdir()
+    app_backup_dest = old_folder.joinpath(app_name)
+    if not app_backup_dest.exists():
+        shutil.copytree(approot, app_backup_dest)
+
+
+def rearrange_folder(app_name):
+    approot = Path(app_name)
+    app_path = approot / '__init__.py'
+    if not 'from otree.api' in app_path.read_text('utf8'):
+        return
+    print_function('Removing old files from', app_name)
+    pages_path = approot / 'pages.py'
+    models_path = approot / 'models.py'
+    app_py_path = approot / 'app.py'
+    if pages_path.exists():
+        pages_path.unlink()
+    if models_path.exists():
+        models_path.unlink()
+    if app_py_path.exists():
+        app_py_path.unlink()
+    _builtin = approot.joinpath('_builtin')
+    if _builtin.exists():
+        shutil.rmtree(_builtin)
+    templates = approot.joinpath('templates', app_name)
+    if templates.exists():
+        copytree_py37_compat(templates, approot)
+        shutil.rmtree(approot.joinpath('templates'))
+    tests_noself = approot.joinpath('tests_noself.py')
+    tests_path = approot.joinpath('tests.py')
+    if tests_noself.exists():
+        if tests_path.exists():
+            tests_path.unlink()
+        tests_noself.rename(tests_path)
+
+
+def copytree_py37_compat(src, dst, symlinks=False, ignore=None):
+    """replacement for shutil.copytree(templates, approot, dirs_exist_ok=True)"""
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            shutil.copytree(s, d, symlinks, ignore)
+        else:
+            shutil.copy2(s, d)
