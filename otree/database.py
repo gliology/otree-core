@@ -471,7 +471,7 @@ class SSPPGModel(AnyModel):
             super().__setattr__(field_name, value)
 
 
-class NullFieldError(Exception):
+class NullFieldError(TypeError):
     pass
 
 
@@ -480,12 +480,24 @@ class SPGModel(SSPPGModel):
     is_noself = True
 
     def __getattribute__(self, attr):
+
         # we add to mru dict only on getattr, not on setattr, because a field cannot cause a
         # failure until it is actually accessed. on the error page when we show local vars,
         # we want to show the recently accessed attributes.
         # also, setattr is already defined at the SSPPG level, and we don't want to override it.
         mru_dict[type(self)].add(attr)
-        return super().__getattribute__(attr)
+        res = super().__getattribute__(attr)
+        if res is None and super().__getattribute__('_is_frozen'):
+            object_name = self.__class__.__name__.lower()
+            # 2 ways for users to work around this:
+            # - set the initial value to something other than None
+            # - catch the TypeError
+            msg = (
+                f'{object_name}.{attr} is None. '
+                f'Accessing a null field is considered an error. '
+            )
+            raise TypeError(msg)
+        return res
 
     def __repr__(self):
         cls = type(self)
@@ -494,7 +506,10 @@ class SPGModel(SSPPGModel):
         # reverse it so that we don't modify the MRU
         for attr in reversed(mru_dict[cls].most_recent()):
             if attr in colnames:
-                v = repr(getattr(self, attr))
+                try:
+                    v = repr(getattr(self, attr))
+                except TypeError:
+                    v = 'None'
                 if len(v) > 15:
                     v = v[:15] + '...'
                 items.append((attr, v))

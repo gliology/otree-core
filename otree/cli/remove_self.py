@@ -21,7 +21,9 @@ try:
 except ModuleNotFoundError:
     import sys
 
-    sys.exit('Before running this command, you need to run "pip3 install black rope" ')
+    sys.exit(
+        'Before running this command, you need to run "pip3 install -U black rope" '
+    )
 from rope.refactor.importutils import ImportTools
 from collections import namedtuple
 from typing import Iterable
@@ -341,14 +343,18 @@ def get_class_bounds(txt, ClassName):
     return class_start, class_end
 
 
+BACKUP_FOLDER = '_REMOVE_SELF_BACKUP'
+
+
 def backup(app_name):
     approot = Path(app_name)
-    old_folder = Path('_REMOVE_SELF_BACKUP')
+    old_folder = Path(BACKUP_FOLDER)
     if not old_folder.exists():
         old_folder.mkdir()
     app_backup_dest = old_folder.joinpath(app_name)
     if not app_backup_dest.exists():
         shutil.copytree(approot, app_backup_dest)
+    print_function(f'Your old files were saved to {BACKUP_FOLDER}/.')
 
 
 def rearrange_folder(app_name):

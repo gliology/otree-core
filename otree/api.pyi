@@ -2,11 +2,14 @@ from typing import Union, List, Any, Optional, TypeVar
 
 from otree.currency import RealWorldCurrency, Currency
 
+
 class Currency(Currency):
     '''
     PyCharm autocomplete seems to require that I explicitly define the class in this file
     (if I import, it says the reference to Currency is not found)
     '''
+
+c = Currency
 
 def currency_range(first, last, increment) -> List[Currency]:
     pass
@@ -222,6 +225,7 @@ class BaseGroup:
     session: Session
     subsession: BaseSubsession
     round_number: int
+    id_in_subsession: int
     def get_players(self) -> List[PlayerTV]:
         pass
     def get_player_by_role(self, role) -> PlayerTV:

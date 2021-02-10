@@ -436,6 +436,9 @@ def custom_export_app(app_name, fp):
             joinedload(Player.session, innerjoin=True),
         )
     )
+    for player in qs:
+        # need this to query null values
+        player._is_frozen = False
     rows = models_module.custom_export(qs)
     # convert to strings so we don't get errors especially for Excel
     str_rows = []

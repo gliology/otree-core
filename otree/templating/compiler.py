@@ -135,8 +135,6 @@ class Parser:
         for token in Lexer(self.template_string, self.template_id).tokenize():
             if token.type == "TEXT":
                 stack[-1].children.append(nodes.TextNode(token))
-            elif token.type == "PRINT":
-                stack[-1].children.append(nodes.PrintNode(token))
             elif token.keyword in nodes.instruction_keywords:
                 node_class, endword = nodes.instruction_keywords[token.keyword]
                 node = node_class(token)
@@ -162,8 +160,7 @@ class Parser:
                 msg = f"Empty instruction tag"
                 raise errors.TemplateSyntaxError(msg, token)
             else:
-                msg = f"Unrecognised instruction tag"
-                raise errors.TemplateSyntaxError(msg, token)
+                stack[-1].children.append(nodes.PrintNode(token))
 
         if expecting:
             token = stack[-1].token

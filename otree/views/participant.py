@@ -295,12 +295,11 @@ class BrowserBotStartLink(GenericWaitPageMixin, HTTPEndpoint):
     because the rest of these views are accessible without password login.
     '''
 
-    url_pattern = '/browser_bot_start/{admin_secret_code}'
+    # remote CLI browser bots won't work if this takes an admin_secret_code param because
+    # SECRET_KEY might be different on the server.
+    url_pattern = '/browser_bot_start'
 
     def get(self, request):
-        admin_secret_code = request.path_params['admin_secret_code']
-        if admin_secret_code != otree.common.get_admin_secret_code():
-            return Response('Incorrect code', status_code=404)
 
         session_code = GlobalState.browser_bots_launcher_session_code
         if session_code:

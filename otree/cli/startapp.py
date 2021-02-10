@@ -37,11 +37,14 @@ class Command(BaseCommand):
                 "another name."
             )
 
-        uses_noself = False
+        use_noself = False
         for p in Path('.').glob('*/__init__.py'):
             if 'class Player' in p.read_text('utf8'):
-                uses_noself = True
-        if uses_noself:
+                use_noself = True
+        # if it's an empty project, we should default to noself.
+        if not list(Path('.').glob('*/models.py')):
+            use_noself = True
+        if use_noself:
             src = Path(otree.__file__).parent / 'app_template_lite'
             shutil.copytree(src, dest)
             models_path = dest.joinpath('__init__.py')

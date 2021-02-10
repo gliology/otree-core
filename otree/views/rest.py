@@ -1,11 +1,14 @@
 import json
-from otree.common import GlobalState
-import otree.views.cbv
+import time
+
 from starlette.responses import Response
-from otree.database import db, dbq
+
 import otree
-from otree.channels import utils as channel_utils
 import otree.bots.browser
+import otree.views.cbv
+from otree.channels import utils as channel_utils
+from otree.common import GlobalState
+from otree.database import db
 from otree.models_concrete import ParticipantVarsFromREST
 from otree.room import ROOM_DICT
 from otree.session import create_session

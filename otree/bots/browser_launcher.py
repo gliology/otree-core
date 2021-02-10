@@ -284,10 +284,7 @@ class Launcher:
             raise AssertionError(msg)
 
     def launch_browser(self, num_participants, secret_code):
-        wait_room_url = urljoin(
-            self.server_url,
-            reverse('BrowserBotStartLink', admin_secret_code=secret_code),
-        )
+        wait_room_url = urljoin(self.server_url, reverse('BrowserBotStartLink'),)
 
         for browser_cmd in self.browser_cmds:
             args = [browser_cmd]
