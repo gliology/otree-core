@@ -6,7 +6,7 @@ recursive-include otree/static *
 recursive-include otree/templates *
 recursive-include otree/project_template *
 recursive-include otree/app_template *
-recursive-include otree/app_template_lite *
+recursive-include otree/app_template_lite *.html
 recursive-include otree/locale *
 recursive-include otree *.pyi
 recursive-exclude tests *
