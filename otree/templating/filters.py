@@ -51,6 +51,7 @@ def length(seq):
 
 
 @register('c')
+@register('cu')
 def currency_filter(val):
     return Currency(val)
 
