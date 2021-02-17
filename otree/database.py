@@ -548,13 +548,22 @@ class UndefinedUserFunction(Exception):
 
 
 class MixinSessionFK:
+    """can this be combined with SPGModel? maybe there was a specific reason it needed
+    to be a mixin."""
+
     @declared_attr
     def session_id(cls):
         return Column(st.Integer, ForeignKey(f'otree_session.id'))
 
     @declared_attr
     def session(cls):
-        return relationship(f'Session')
+        # just some random name
+        backref_name = f'{cls.get_folder_name()}_{cls.__name__}'
+        # backref needed to ensure all objects are deleted with the session.
+        return relationship(
+            f'Session',
+            backref=sqlalchemy.orm.backref(backref_name, cascade="all, delete-orphan"),
+        )
 
 
 class VarsError(Exception):

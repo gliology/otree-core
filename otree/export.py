@@ -287,7 +287,7 @@ def get_rows_for_wide_csv_round(app_name, round_number, sessions: List[Session])
                     f"but round {round_number} of app '{app_name}' "
                     f"has {len(players)} players. The number of players in the subsession "
                     "should always match the number of players in the session. "
-                    "Reset the database and examine your code."
+                    "Please report this issue and then reset the database."
                 )
                 raise AssertionError(msg)
 

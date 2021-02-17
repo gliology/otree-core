@@ -13,6 +13,7 @@ from otree.database import MixinVars, CurrencyType
 from otree.lookup import url_i_should_be_on, get_page_lookup
 import otree.channels.utils as channel_utils
 
+
 class Participant(otree.database.SSPPGModel, MixinVars):
     __tablename__ = 'otree_participant'
 
@@ -149,6 +150,7 @@ class Participant(otree.database.SSPPGModel, MixinVars):
 
     def _update_monitor_table(self):
         from otree import export
+
         channel_utils.sync_group_send(
             group=channel_utils.session_monitor_group_name(self._session_code),
             data=dict(rows=export.get_rows_for_monitor([self])),

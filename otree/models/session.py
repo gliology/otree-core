@@ -32,11 +32,20 @@ class Session(otree.database.SSPPGModel, MixinVars):
 
     config: dict = Column(otree.database._PickleField, default=dict)
 
-    pp_set = relationship("Participant", back_populates="session", lazy='dynamic')
+    # should i also set cascade on all other models?
+    # i should check what is deleted.
+    pp_set = relationship(
+        "Participant",
+        back_populates="session",
+        lazy='dynamic',
+        cascade="all, delete-orphan",
+    )
     # label of this session instance
     label = Column(st.String, nullable=True)
 
-    code = Column(st.String(16), default=random_chars_8, nullable=False, unique=True, index=True)
+    code = Column(
+        st.String(16), default=random_chars_8, nullable=False, unique=True, index=True
+    )
 
     mturk_HITId = Column(st.String(300), nullable=True)
     mturk_HITGroupId = Column(st.String(300), nullable=True)

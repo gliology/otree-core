@@ -1,12 +1,10 @@
-import otree.database
-from otree.common import in_round, in_rounds
-
-from sqlalchemy.orm import relationship, backref
-import sqlalchemy.orm
 from sqlalchemy import Column, ForeignKey
-from sqlalchemy.sql import sqltypes as st
-from otree.database import db, MixinSessionFK, SPGModel, CurrencyType
 from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import sqltypes as st
+
+from otree.common import in_round, in_rounds
+from otree.database import db, MixinSessionFK, SPGModel, CurrencyType
 
 
 class BasePlayer(SPGModel, MixinSessionFK):

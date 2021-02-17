@@ -282,146 +282,151 @@ def create_session(
         is_mturk=is_mturk,
     )
     db.add(session)
+
+    # i think the .commit() is necessary for the object to have a PK, so that FKs can work,
+    # etc.
     db.commit()
 
-    session_code = session.code
-
-    participants = [
-        Participant(
-            id_in_session=id_in_session, session=session, _session_code=session_code,
-        )
-        for id_in_session in list(range(1, num_participants + 1))
-    ]
-
-    db.add_all(participants)
-    db.commit()
-
-    # participant_values = (
-    #     db.query(Participant)
-    #     .filter(Session.id == session.id)
-    #     .order_by('id')
-    #     .with_entities(Participant.id, Participant.code)
-    # ).all()
-
-    participant_values = (
-        db.query(Participant)
-        .join(Session)
-        .filter(Session.id == session.id)
-        .order_by(Participant.id)
-        .with_entities(Participant.id, Participant.code)
-    ).all()
-
-    num_pages = 0
-
-    for app_name in session_config['app_sequence']:
-
-        views_module = common.get_pages_module(app_name)
-        models_module = get_models_module(app_name)
-        Constants: BaseConstants = models_module.Constants
-        num_subsessions += Constants.num_rounds
-
-        round_numbers = list(range(1, Constants.num_rounds + 1))
-
-        num_pages += Constants.num_rounds * len(views_module.page_sequence)
-
-        Subsession = models_module.Subsession
-        Group = models_module.Group
-        Player = models_module.Player
-
-        subsessions = [
-            Subsession(round_number=round_number, session=session)
-            for round_number in round_numbers
+    try:
+        session_code = session.code
+        participants = [
+            Participant(
+                id_in_session=id_in_session,
+                session=session,
+                _session_code=session_code,
+            )
+            for id_in_session in list(range(1, num_participants + 1))
         ]
 
-        db.add_all(subsessions)
+        db.add_all(participants)
         db.commit()
 
-        subsessions = (
-            dbq(Subsession)
-            .filter_by(session=session)
-            .order_by('round_number')
-            .with_entities('id', 'round_number')
-        )
+        # participant_values = (
+        #     db.query(Participant)
+        #     .filter(Session.id == session.id)
+        #     .order_by('id')
+        #     .with_entities(Participant.id, Participant.code)
+        # ).all()
 
-        ppg = Constants.players_per_group
-        if ppg is None or Subsession._has_group_by_arrival_time():
-            ppg = num_participants
-
-        num_groups_per_round = int(num_participants / ppg)
-
-        groups_to_create = []
-        for ss_id, ss_rd in subsessions:
-            for id_in_subsession in range(1, num_groups_per_round + 1):
-                groups_to_create.append(
-                    Group(
-                        session=session,
-                        subsession_id=ss_id,
-                        round_number=ss_rd,
-                        id_in_subsession=id_in_subsession,
-                    )
-                )
-
-        db.add_all(groups_to_create)
-
-        groups = (
-            dbq(Group).filter_by(session=session).order_by('id_in_subsession')
+        participant_values = (
+            db.query(Participant)
+            .join(Session)
+            .filter(Session.id == session.id)
+            .order_by(Participant.id)
+            .with_entities(Participant.id, Participant.code)
         ).all()
 
-        groups_lookup = defaultdict(list)
+        num_pages = 0
 
-        for group in groups:
+        for app_name in session_config['app_sequence']:
 
-            groups_lookup[group.subsession_id].append(group.id)
+            views_module = common.get_pages_module(app_name)
+            models_module = get_models_module(app_name)
+            Constants: BaseConstants = models_module.Constants
+            num_subsessions += Constants.num_rounds
 
-        players_to_create = []
+            round_numbers = list(range(1, Constants.num_rounds + 1))
 
-        for ss_id, ss_rd in subsessions:
-            roles = get_roles(Constants)
-            participant_index = 0
-            for group_id in groups_lookup[ss_id]:
-                for id_in_group in range(1, ppg + 1):
-                    participant = participant_values[participant_index]
-                    players_to_create.append(
-                        Player(
+            num_pages += Constants.num_rounds * len(views_module.page_sequence)
+
+            Subsession = models_module.Subsession
+            Group = models_module.Group
+            Player = models_module.Player
+
+            subsessions = [
+                Subsession(round_number=round_number, session=session)
+                for round_number in round_numbers
+            ]
+
+            db.add_all(subsessions)
+            db.commit()
+
+            subsessions = (
+                dbq(Subsession)
+                .filter_by(session=session)
+                .order_by('round_number')
+                .with_entities('id', 'round_number')
+            )
+
+            ppg = Constants.players_per_group
+            if ppg is None or Subsession._has_group_by_arrival_time():
+                ppg = num_participants
+
+            num_groups_per_round = int(num_participants / ppg)
+
+            groups_to_create = []
+            for ss_id, ss_rd in subsessions:
+                for id_in_subsession in range(1, num_groups_per_round + 1):
+                    groups_to_create.append(
+                        Group(
                             session=session,
                             subsession_id=ss_id,
                             round_number=ss_rd,
-                            participant_id=participant[0],
-                            group_id=group_id,
-                            id_in_group=id_in_group,
-                            _role=get_role(roles, id_in_group),
+                            id_in_subsession=id_in_subsession,
                         )
                     )
-                    participant_index += 1
 
-        # Create players
-        db.add_all(players_to_create)
+            db.add_all(groups_to_create)
 
-    dbq(Participant).filter_by(session=session).update(
-        {Participant._max_page_index: num_pages}
-    )
+            groups = (
+                dbq(Group).filter_by(session=session).order_by('id_in_subsession')
+            ).all()
 
-    # make creating_session use the current session,
-    # so that session.save() below doesn't overwrite everything
-    # set earlier
-    for subsession in session.get_subsessions():
-        target = subsession.get_user_defined_target()
-        func = getattr(target, 'creating_session', None)
-        if func:
-            func(subsession)
+            groups_lookup = defaultdict(list)
 
-    # 2017-09-27: moving this inside the transaction
-    session._set_admin_report_app_names()
+            for group in groups:
 
-    if room_name is not None:
-        from otree.room import ROOM_DICT
+                groups_lookup[group.subsession_id].append(group.id)
 
-        room = ROOM_DICT[room_name]
-        room.set_session(session)
+            players_to_create = []
 
-    db.commit()
+            for ss_id, ss_rd in subsessions:
+                roles = get_roles(Constants)
+                participant_index = 0
+                for group_id in groups_lookup[ss_id]:
+                    for id_in_group in range(1, ppg + 1):
+                        participant = participant_values[participant_index]
+                        players_to_create.append(
+                            Player(
+                                session=session,
+                                subsession_id=ss_id,
+                                round_number=ss_rd,
+                                participant_id=participant[0],
+                                group_id=group_id,
+                                id_in_group=id_in_group,
+                                _role=get_role(roles, id_in_group),
+                            )
+                        )
+                        participant_index += 1
 
-    return session
+            # Create players
+            db.add_all(players_to_create)
+
+        dbq(Participant).filter_by(session=session).update(
+            {Participant._max_page_index: num_pages}
+        )
+
+        for subsession in session.get_subsessions():
+            target = subsession.get_user_defined_target()
+            func = getattr(target, 'creating_session', None)
+            if func:
+                func(subsession)
+
+        session._set_admin_report_app_names()
+
+        if room_name is not None:
+            from otree.room import ROOM_DICT
+
+            room = ROOM_DICT[room_name]
+            room.set_session(session)
+
+        db.commit()
+        return session
+    except Exception:
+        # another way would be to look into nested transactions,
+        # but this seems simpler.
+        db.delete(session)
+        raise
 
 
 class CreateSessionError(Exception):
