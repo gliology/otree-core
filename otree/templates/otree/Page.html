@@ -47,7 +47,7 @@ i removed many linebreaks to make output HTML cleaner
 {% endblock %}
 
 {% block live %}
-  {% if view.live_method %}
+  {% if view.live_method %}{# if live_method is a function reference, we don't want to call it #}
     <form id="liveform"></form>
     <script src="{% static 'otree/js/live.js' %}" id="otree-live" data-socket-url="{{ view.live_url() }}"></script>
   {% endif %}

@@ -30,9 +30,14 @@ class Export(cbv.AdminView):
 
         custom_export_apps = []
         for app_name in app_names_with_data:
-            models_module = otree.common.get_models_module(app_name)
-            if getattr(models_module, 'custom_export', None):
-                custom_export_apps.append(app_name)
+            try:
+                models_module = otree.common.get_models_module(app_name)
+            except ModuleNotFoundError:
+                # maybe the app was removed from the project.
+                pass
+            else:
+                if getattr(models_module, 'custom_export', None):
+                    custom_export_apps.append(app_name)
 
         return dict(
             db_is_empty=not bool(dbq(Participant).first()),
@@ -61,7 +66,7 @@ class ExportSessionWide(HTTPEndpoint):
     def get(self, request):
         code = request.path_params['code']
         buf = StringIO()
-        if bool(request.GET.get('excel')):
+        if bool(request.query_params.get('excel')):
             # BOM
             buf.write(BOM)
         otree.export.export_wide(buf, session_code=code)

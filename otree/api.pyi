@@ -1,5 +1,7 @@
 from typing import Union, List, Any, Optional, TypeVar
-
+# this will show up as an error here, but it's OK since it's just a .pyi file.
+# this file may be defined in the user's project, if they want better type hints.
+import shared_out
 from otree.currency import RealWorldCurrency, Currency
 
 
@@ -9,7 +11,7 @@ class Currency(Currency):
     (if I import, it says the reference to Currency is not found)
     '''
 
-c = Currency
+c = cu = Currency
 
 def currency_range(first, last, increment) -> List[Currency]:
     pass
@@ -164,8 +166,8 @@ class widgets:
 
 class Session:
 
-    config: dict
-    vars: dict
+    config: shared_out.SessionConfig
+    vars: shared_out.SessionVars
     num_participants: int
     def get_participants(self) -> List[Participant]:
         pass
@@ -175,7 +177,7 @@ class Session:
 class Participant:
 
     session: Session
-    vars: dict
+    vars: shared_out.ParticipantVars
     label: str
     id_in_session: int
     payoff: Currency
