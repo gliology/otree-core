@@ -14,6 +14,7 @@ from otree.common import get_models_module
 from otree.common2 import TIME_SPENT_COLUMNS, write_page_completion_buffer
 from otree.currency import Currency, RealWorldCurrency
 from otree.database import dbq, values_flat
+from otree import database
 from otree.models.group import BaseGroup
 from otree.models.participant import Participant
 from otree.models.player import BasePlayer

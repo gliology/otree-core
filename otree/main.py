@@ -118,7 +118,7 @@ Welcome to oTree Lite!
 To ensure this project runs properly on oTree Lite:
 
 1)   Run "otree update_my_code" and fix any warning messages.
-2)   Delete the folder '__temp_migrations'.
+2)   Delete 'db.sqlite3' and the folder '__temp_migrations'.
 
 oTree Lite is generally compatible with oTree 3.x but there may be small differences. 
 Note that it does not use Django.

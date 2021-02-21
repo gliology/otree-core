@@ -150,14 +150,18 @@ class FormPageOrInGameWaitPage:
             Constants=self._Constants,
             timer_text=getattr(self, 'timer_text', None),
             current_page_name=self.__class__.__name__,
+            has_live_method=bool(getattr(self, 'live_method', None)),
         )
 
         vars_for_template = {}
 
         user_vars = self.call_user_defined('vars_for_template')
+        user_vars = user_vars or {}
+        if not isinstance(user_vars, dict):
+            raise Exception('vars_for_template did not return a dict')
         context['js_vars'] = self.call_user_defined('js_vars')
 
-        vars_for_template.update(user_vars or {})
+        vars_for_template.update(user_vars)
 
         context.update(vars_for_template)
 
@@ -254,8 +258,6 @@ class FormPageOrInGameWaitPage:
         participant._last_request_timestamp = int(time.time())
         participant._round_number = lookup.round_number
 
-        self._is_frozen = True
-
     def set_attributes_waitpage_clone(self, *, original_view: 'WaitPage'):
         '''put it here so it can be compared with set_attributes...
         but this is really just a method on wait pages'''
@@ -304,12 +306,8 @@ class FormPageOrInGameWaitPage:
             ).page_class.instantiate_without_request()
 
             page.set_attributes(self.participant)
-            if not is_skipping_apps:
-                if page._lookup.is_first_in_round:
-                    # we have moved to a new round.
-                    page.player.call_user_defined('start', missing_ok=True)
-                if page._is_displayed():
-                    break
+            if not is_skipping_apps and page._is_displayed():
+                break
 
             # if it's a wait page, record that they visited
             if isinstance(page, WaitPage):
@@ -377,34 +375,6 @@ class FormPageOrInGameWaitPage:
         )
 
         participant._last_page_timestamp = now
-
-    _is_frozen = False
-
-    _setattr_whitelist = {
-        '_is_frozen',
-        '_form_data',
-        'object',
-        'form',
-        'timeout_happened',
-        # i should send some of these through context
-        '_remaining_timeout_seconds',
-        'first_field_with_errors',
-        'other_fields_with_errors',
-        'debug_tables',
-        '_round_number',
-        'request',  # this is just used in a test case mock.
-    }
-
-    def __setattr__(self, attr: str, value):
-        if self._is_frozen and not attr in self._setattr_whitelist:
-            msg = (
-                'You set the attribute "{}" on the page {}. '
-                'Setting attributes on page instances is not permitted. '
-            ).format(attr, self.__class__.__name__)
-            raise AttributeError(msg)
-        else:
-            # super() is a bit slower but only gets run during __init__
-            super().__setattr__(attr, value)
 
     def live_url(self):
         return channel_utils.live_path(

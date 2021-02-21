@@ -17,7 +17,8 @@ POINTS_CUSTOM_NAME = None  # define it so we can patch it
 ADMIN_PASSWORD = os.environ.get('OTREE_ADMIN_PASSWORD', '')
 MTURK_NUM_PARTICIPANTS_MULTIPLE = 2
 BOTS_CHECK_HTML = True
-
+PARTICIPANT_FIELDS = []
+SESSION_FIELDS = []
 
 # Add the current directory to sys.path so that Python can find
 # the settings module.

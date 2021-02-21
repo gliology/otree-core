@@ -6,5 +6,6 @@ from otree.bots import Bot, Submission, SubmissionMustFail, expect  # noqa
 from otree import database as models  # noqa
 from otree.forms import widgets  # noqa
 from otree.i18n import extract_otreetemplate  # noqa
+from otree.database import ExtraModel  # noqa
 
-cu = c = Currency
+cu = Currency

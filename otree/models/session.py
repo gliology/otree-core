@@ -21,13 +21,14 @@ from otree.models_concrete import RoomToSession
 from otree.templating import get_template_name_if_exists
 from otree.templating.loader import TemplateLoadError
 
+
 logger = logging.getLogger('otree')
 
 
 ADMIN_SECRET_CODE = get_admin_secret_code()
 
 
-class Session(otree.database.SSPPGModel, MixinVars):
+class Session(MixinVars, otree.database.SSPPGModel):
     __tablename__ = 'otree_session'
 
     config: dict = Column(otree.database._PickleField, default=dict)

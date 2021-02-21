@@ -1,29 +1,23 @@
-from typing import Union, List, Any, Optional, TypeVar
-# this will show up as an error here, but it's OK since it's just a .pyi file.
-# this file may be defined in the user's project, if they want better type hints.
-import shared_out
+from typing import Union, List, Any, Optional, TypeVar, Type
 from otree.currency import RealWorldCurrency, Currency
 
-
 class Currency(Currency):
-    '''
+    """
     PyCharm autocomplete seems to require that I explicitly define the class in this file
     (if I import, it says the reference to Currency is not found)
-    '''
+    """
 
-c = cu = Currency
+cu = Currency
 
 def currency_range(first, last, increment) -> List[Currency]:
     pass
-
 
 # mocking the public API for PyCharm autocomplete.
 # one downside is that PyCharm doesn't seem to fully autocomplete arguments
 # in the .pyi. It gives the yellow pop-up, but doesn't complete what you
 # are typing. (2017-07-01: seems to work in PyCharm 2017.1.4?)
 class models:
-
-    '''
+    """
     The code in this class has nothing to do with implementation,
     but rather defines the interface for model fields,
     so that pyCharm autocompletes them properly.
@@ -56,7 +50,7 @@ class models:
     'Expected type "int", got "CurrencyField" instead'
 
 
-    '''
+    """
 
     def __getattr__(self, item):
         pass
@@ -68,7 +62,7 @@ class models:
             widget=None,
             initial=None,
             label=None,
-            doc='',
+            doc="",
             blank=False,
             **kwargs
         ):
@@ -81,7 +75,7 @@ class models:
             widget=None,
             initial=None,
             label=None,
-            doc='',
+            doc="",
             max_length=10000,
             blank=False,
             **kwargs
@@ -93,7 +87,7 @@ class models:
             *,
             initial=None,
             label=None,
-            doc='',
+            doc="",
             max_length=None,
             blank=False,
             **kwargs
@@ -111,7 +105,7 @@ class models:
             widget=None,
             initial=None,
             label=None,
-            doc='',
+            doc="",
             min=None,
             max=None,
             blank=False,
@@ -126,7 +120,7 @@ class models:
             widget=None,
             initial=None,
             label=None,
-            doc='',
+            doc="",
             min=None,
             max=None,
             blank=False,
@@ -141,7 +135,7 @@ class models:
             widget=None,
             initial=None,
             label=None,
-            doc='',
+            doc="",
             min=None,
             max=None,
             blank=False,
@@ -164,34 +158,13 @@ class widgets:
     class RadioSelectHorizontal:
         pass
 
-class Session:
-
-    config: shared_out.SessionConfig
-    vars: shared_out.SessionVars
-    num_participants: int
-    def get_participants(self) -> List[Participant]:
-        pass
-    def get_subsessions(self) -> List[SubsessionTV]:
-        pass
-
-class Participant:
-
-    session: Session
-    vars: shared_out.ParticipantVars
-    label: str
-    id_in_session: int
-    payoff: Currency
-    def get_players(self) -> List[PlayerTV]:
-        pass
-    def payoff_plus_participation_fee(self) -> RealWorldCurrency:
-        pass
 
 class BaseConstants:
     pass
 
 class BaseSubsession:
-
-    session: Session
+    # mark it as Any so that PyCharm can infer custom fields based on usage instead
+    session: Any
     round_number: int
     def get_groups(self) -> List[GroupTV]:
         pass
@@ -216,15 +189,12 @@ class BaseSubsession:
     def group_randomly(self, fixed_id_in_group: bool = False):
         pass
 
-
 # Using TypeVar instead of the BaseSubsession seems to make PyCharm
 # allow BaseSubsession be passed to a function marked as taking a Subsession arg
-SubsessionTV = TypeVar('SubsessionTV', bound=BaseSubsession)
-
+SubsessionTV = TypeVar("SubsessionTV", bound=BaseSubsession)
 
 class BaseGroup:
-
-    session: Session
+    session: Any
     subsession: BaseSubsession
     round_number: int
     id_in_subsession: int
@@ -243,16 +213,13 @@ class BaseGroup:
     def in_rounds(self, first: int, last: int) -> List[GroupTV]:
         pass
 
-
-GroupTV = TypeVar('GroupTV', bound=BaseGroup)
-
+GroupTV = TypeVar("GroupTV", bound=BaseGroup)
 
 class BasePlayer:
-
     id_in_group: int
     payoff: Currency
-    participant: Participant
-    session: Session
+    participant: Any
+    session: Any
     group: GroupTV
     subsession: BaseSubsession
     round_number: int
@@ -270,15 +237,23 @@ class BasePlayer:
     def in_rounds(self, first, last) -> List[PlayerTV]:
         pass
 
+PlayerTV = TypeVar("PlayerTV", bound=BasePlayer)
 
-PlayerTV = TypeVar('PlayerTV', bound=BasePlayer)
-
+T_extramodel = TypeVar('T_extramodel')
 
 class ExtraModel:
-    pass
+
+    @classmethod
+    def where(cls: Type[T_extramodel], **kwargs) -> List[T_extramodel]:
+        pass
+
+    @classmethod
+    def create(cls: Type[T_extramodel], **kwargs) -> T_extramodel:
+        pass
+
+    id: int
 
 class WaitPage:
-
     wait_for_all_groups = False
     group_by_arrival_time = False
     title_text: str
@@ -287,85 +262,64 @@ class WaitPage:
     after_all_players_arrive: str
 
     round_number: int
-    participant: Participant
-    session: Session
-
     @staticmethod
     def is_displayed(player: Player):
         pass
-
     @staticmethod
     def js_vars(player: Player):
         pass
-
     @staticmethod
     def vars_for_template(player: Player):
         pass
-
     @staticmethod
     def app_after_this_page(player: Player, upcoming_apps):
         pass
 
 class Page:
-
     round_number: int
     template_name: str
     timeout_seconds: int
     timer_text: str
-    participant: Participant
-    session: Session
     form_model: str
     form_fields: List[str]
-
     @staticmethod
     def live_method(player: Player, data):
         pass
-
-
     @staticmethod
     def get_form_fields(player: Player):
         pass
-
     @staticmethod
     def vars_for_template(player: Player):
         pass
-
     @staticmethod
     def js_vars(player: Player):
         pass
-
     @staticmethod
     def before_next_page(player: Player, timeout_happened):
         pass
-
     @staticmethod
     def is_displayed(player: Player):
         pass
-
     @staticmethod
     def error_message(player: Player, values):
         pass
-
     @staticmethod
     def get_timeout_seconds(player: Player):
         pass
-
     @staticmethod
     def app_after_this_page(player: Player, upcoming_apps):
         pass
-
 
 class Bot:
     html: str
     case: Any
     cases: List
-    participant: Participant
-    session: Participant
+    participant: Any
+    session: Any
     round_number: int
     player: PlayerTV
     group: GroupTV
     subsession: SubsessionTV
-
 
 def Submission(
     PageClass, post_data: dict = {}, *, check_html=True, timeout_happened=False
@@ -379,3 +333,22 @@ def SubmissionMustFail(
 
 def expect(*args):
     pass
+
+
+__all__ = [
+    "Currency",
+    "cu",
+    "models",
+    "widgets",
+    "BaseConstants",
+    "BaseSubsession",
+    "BaseGroup",
+    "BasePlayer",
+    "ExtraModel",
+    "WaitPage",
+    "Page",
+    "Bot",
+    "Submission",
+    "SubmissionMustFail",
+    "expect",
+]

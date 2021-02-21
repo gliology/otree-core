@@ -95,8 +95,6 @@ def url_patterns_from_app_pages(app_name, name_in_url):
 
     page_urls = []
     for ViewCls in pages_module.page_sequence:
-        # to work around is_frozen
-        ViewCls._is_frozen = False
         ViewCls.is_noself = is_noself
         # don't set it back because this just happens on startup
 

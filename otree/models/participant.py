@@ -12,9 +12,10 @@ import otree.constants
 from otree.database import MixinVars, CurrencyType
 from otree.lookup import url_i_should_be_on, get_page_lookup
 import otree.channels.utils as channel_utils
+from otree import settings
 
 
-class Participant(otree.database.SSPPGModel, MixinVars):
+class Participant(MixinVars, otree.database.SSPPGModel):
     __tablename__ = 'otree_participant'
 
     session_id = Column(st.Integer, ForeignKey('otree_session.id'))
@@ -145,8 +146,6 @@ class Participant(otree.database.SSPPGModel, MixinVars):
             # default to Central European Time
             pp.time_started = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
             pp._last_page_timestamp = int(time.time())
-            player = pp._get_current_player()
-            player.call_user_defined('start', missing_ok=True)
 
     def _update_monitor_table(self):
         from otree import export
@@ -172,7 +171,6 @@ class Participant(otree.database.SSPPGModel, MixinVars):
         if isinstance(page, Page):
             from starlette.datastructures import FormData
 
-            page._is_frozen = False
             page._form_data = FormData(
                 {
                     otree.constants.admin_secret_code: ADMIN_SECRET_CODE,
@@ -200,3 +198,5 @@ class Participant(otree.database.SSPPGModel, MixinVars):
             resp = page.get()
             if not str(resp.status_code).startswith('3'):
                 return
+
+    _VARS_FIELDS = settings.PARTICIPANT_FIELDS

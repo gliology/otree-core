@@ -41,7 +41,7 @@ IBIS_TEMPLATE = """
 
 FRAME_TEMPLATE = """
 <div>
-    <p class="frame-title">File <span class="frame-filename">{frame_filename}</span>,
+    <p class="frame-title {faded}">File <span class="frame-filename">{frame_filename}</span>,
     line <i>{frame_lineno}</i>,
     in <b>{frame_name}</b>
     <span class="collapse-btn" data-frame-id="{frame_filename}-{frame_lineno}" onclick="collapse(this)">{collapse_button}</span>
@@ -84,6 +84,10 @@ OTREE_STYLES = """
   border: 1px solid #999;
   padding: 0.5rem;
   text-align: left;
+}
+
+.faded {
+    color: #888888;
 }
 """
 
@@ -137,12 +141,7 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
 
         exc_html = ""
         for frame in reversed(frames):
-            # if it's in the user's project, except for a venv folder
-            is_expanded = (
-                CWD_PATH in Path(frame.filename).parents
-                and not 'site-packages' in frame.filename
-            )
-            exc_html += self.generate_frame_html(frame, is_expanded)
+            exc_html += self.generate_frame_html(frame)
 
         # escape error class and text
         error = (
@@ -159,22 +158,25 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
             otree_styles=OTREE_STYLES,
         )
 
-    def generate_frame_html(self, frame: inspect.FrameInfo, is_expanded: bool) -> str:
+    def generate_frame_html(self, frame: inspect.FrameInfo) -> str:
         code_context = "".join(
             self.format_line(index, line, frame.lineno, frame.index)  # type: ignore
             for index, line in enumerate(frame.code_context or [])
         )
+
+        path = Path(frame.filename)
+        # if it's in the user's project, except for a venv folder
+        is_expanded = CWD_PATH in path.parents and not 'site-packages' in frame.filename
 
         # only show locals if is expanded. reduces the risk of issues happening during __repr__
         if is_expanded:
             try:
                 locals = []
                 for k, v in frame.frame.f_locals.items():
-                    if k not in ['self']:
-                        # need to escape, e.g. if it's <player id=1>
-                        locals.append(
-                            f'<tr><th>{k}</th><td>{html.escape(repr(v)[:100])}</td></tr>'
-                        )
+                    # need to escape, e.g. if it's <player id=1>
+                    locals.append(
+                        f'<tr><th>{k}</th><td>{html.escape(repr(v)[:100])}</td></tr>'
+                    )
                 locals_table = (
                     '<table class="locals-table source-code">'
                     + ''.join(locals)
@@ -182,18 +184,21 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
                 )
             except Exception:
                 locals_table = ''
+            path = path.relative_to(CWD_PATH)
         else:
             locals_table = ''
+
         values = {
             # HTML escape - filename could contain < or >, especially if it's a virtual
             # file e.g. <stdin> in the REPL
-            "frame_filename": html.escape(frame.filename),
+            "frame_filename": html.escape(str(path)),
             "frame_lineno": frame.lineno,
             # HTML escape - if you try very hard it's possible to name a function with <
             # or >
             "frame_name": html.escape(frame.function),
             "code_context": code_context,
             "collapsed": "" if is_expanded else "collapsed",
+            "faded": "" if is_expanded else "faded",
             "collapse_button": "&#8210;" if is_expanded else "+",
             "locals_table": locals_table,
         }

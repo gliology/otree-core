@@ -4,31 +4,34 @@ import os
 import pickle
 import sqlite3
 import sys
+from collections import defaultdict
 from contextlib import contextmanager
 from decimal import Decimal
-from collections import defaultdict
 from pathlib import Path
-from typing import List
+
 import sqlalchemy
 import sqlalchemy.orm
 import sqlalchemy.pool
-from sqlalchemy import Column
-from sqlalchemy import ForeignKey
-from sqlalchemy import create_engine
+from sqlalchemy import Column, ForeignKey, create_engine
+from sqlalchemy import event
 from sqlalchemy import types
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.mutable import Mutable
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import (
+    mapper,
+    relationship,
+)
+from sqlalchemy.orm import sessionmaker, configure_mappers
 from sqlalchemy.orm.exc import NoResultFound  # noqa
 from sqlalchemy.sql import sqltypes as st
 from starlette.exceptions import HTTPException
 
 from otree import __version__
+from otree import common
+from otree import settings
 from otree.common import expand_choice_tuples, get_models_module
 from otree.currency import Currency, RealWorldCurrency
-from otree import common
 
 logger = logging.getLogger(__name__)
 DB_FILE = 'db.sqlite3'
@@ -217,8 +220,18 @@ engine = get_engine()
 
 DBSession = sessionmaker(bind=engine)
 
-
 ephemeral_connection = None
+
+
+class VarsDescriptor:
+    def __init__(self, attr):
+        self.attr = attr
+
+    def __get__(self, obj, objtype=None):
+        return obj.vars[self.attr]
+
+    def __set__(self, obj, value):
+        obj.vars[self.attr] = value
 
 
 def init_orm():
@@ -267,11 +280,21 @@ def init_orm():
             cls.freeze_setattr()
     from otree.models import Participant, Session
 
-    Participant.freeze_setattr()
-    Session.freeze_setattr()
+    for cls, setting_name in [
+        (Session, 'SESSION_FIELDS'),
+        (Participant, 'PARTICIPANT_FIELDS'),
+    ]:
+        for attr in getattr(settings, setting_name):
+            if hasattr(cls, attr):
+                msg = f'{setting_name} cannot contain "{attr}" because that name is reserved.'
+                sys.exit(msg)
+            setattr(cls, attr, VarsDescriptor(attr))
+        cls.freeze_setattr()
 
+    # just ensure it gets created
     import otree.models_concrete  # noqa
 
+    configure_mappers()
     AnyModel.metadata.create_all(engine)
 
     if (
@@ -349,7 +372,6 @@ class AnyModel(DeclarativeBase):
 
 
 class BaseCurrencyType(types.TypeDecorator):
-
     impl = types.Text()
 
     def process_bind_param(self, value, dialect):
@@ -408,6 +430,9 @@ class SSPPGModel(AnyModel):
 
     @sqlalchemy.orm.reconstructor
     def init_on_load(self):
+        # nonexistent fields can be set in creating_session because the Participant
+        # was just created, and init_on_load did not get run yet.
+        # but that's OK because anywhere else, users will be told.
         self._is_frozen = True
 
     NoneType = type(None)
@@ -723,3 +748,82 @@ def version_for_pragma() -> int:
     # e.g. '3.0.25b1' -> 3025
     # not perfect but as long as it works 95% of the time it's good enough
     return int(''.join(c for c in __version__ if c in '0123456789'))
+
+
+class Link:
+    """A class attribute that generates a mapped attribute
+    after mappers are configured."""
+
+    def __init__(self, target_cls):
+        self.target_cls = target_cls
+
+    def _config(self, cls, key):
+        target_cls = self.target_cls
+        pk_table = target_cls.__table__
+        pk_col = list(pk_table.primary_key)[0]
+
+        fk_colname = f'{key}_id'
+
+        # zzeeek's example passed the string name as first arg
+        fk_col = Column(fk_colname, pk_col.type, ForeignKey(pk_col))
+        setattr(cls, fk_colname, fk_col)
+
+        rel = relationship(
+            target_cls, primaryjoin=fk_col == pk_col, collection_class=set,
+        )
+        setattr(cls, key, rel)
+
+
+class ExtraModel(AnyModel):
+    __abstract__ = True
+
+    @classmethod
+    def where(cls, **kwargs):
+        # prevent people from absent-minded queries like Bid.where(amount=10)
+        # that forgot to filter to the current session.
+        # this allows querying .where() without any args for custom_export,
+        # but not in normal circumstances.
+        if kwargs and not any(isinstance(v, AnyModel) for v in kwargs.values()):
+            raise ValueError(
+                "At least one argument to .where() must be a model instance, e.g. player=player or group=group"
+            )
+        return list(cls.objects_filter(**kwargs).order_by('id'))
+
+    @classmethod
+    def create(cls, **kwargs):
+        obj = cls(**kwargs)
+        db.add(obj)
+        return obj
+
+    def delete(self):
+        db.delete(self)
+
+    def __repr__(self):
+        cls = type(self)
+        items = []
+        # a bit more complex to get all foreign keys, in case we want to
+        # show which player it relates to.
+        for col in cls.__table__.columns:
+            name = col.name
+            if not (col.primary_key or col.foreign_keys):
+                items.append((name, repr(getattr(self, name))))
+        attr_string = ', '.join(list(f'{k}={v}' for k, v in items))
+        return f'{cls.__name__}({attr_string})'
+
+
+@event.listens_for(mapper, "instrument_class")
+def prevent_forbidden_colnames(mapper, cls):
+    if not cls.id.primary_key:
+        sys.exit(
+            f'"id" cannot be used as a field name on model {cls.__name__} because this name is reserved'
+        )
+
+
+@event.listens_for(mapper, "mapper_configured")
+def _setup_deferred_properties(mapper, class_):
+    """Listen for finished mappers and apply DeferredProp
+    configurations."""
+
+    for key, value in list(class_.__dict__.items()):
+        if isinstance(value, Link):
+            value._config(class_, key)

@@ -1,13 +1,10 @@
-from .base import BaseCommand
 import os
-from pathlib import Path
-from typing import List, Dict, Tuple
 import re
 import shutil
-from collections import namedtuple
 from pathlib import Path
-import sys
-from otree import settings
+from typing import List, Tuple
+
+from .base import BaseCommand
 
 try:
 
@@ -243,6 +240,7 @@ You have 2 choices:
     lines2 = []
     for i in range(len(lines)):
         lines2.append(lines[i])
+        # this will fail if the class only contains comments, but i don't see any easy solution for that.
         if lines[i].startswith('class ') and not lines[i + 1].startswith(' '):
             lines2.append(' ' * 4 + 'pass')
 
