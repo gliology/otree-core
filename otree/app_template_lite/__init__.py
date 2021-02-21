@@ -1,5 +1,6 @@
 from otree.api import *
 
+c = Currency
 
 doc = """
 Your app description
