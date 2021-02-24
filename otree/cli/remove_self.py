@@ -87,6 +87,7 @@ def make_noself(app_name):
     END_OF_MODELS = '"""endofmodels"""'
     lines = [
         'from otree.api import Page, WaitPage',
+        'from otree.api import *',
         *models_path.read_text('utf8').splitlines(),
         END_OF_MODELS,
     ]

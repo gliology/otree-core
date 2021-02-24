@@ -244,7 +244,7 @@ T_extramodel = TypeVar('T_extramodel')
 class ExtraModel:
 
     @classmethod
-    def where(cls: Type[T_extramodel], **kwargs) -> List[T_extramodel]:
+    def filter(cls: Type[T_extramodel], **kwargs) -> List[T_extramodel]:
         pass
 
     @classmethod

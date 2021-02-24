@@ -778,14 +778,14 @@ class ExtraModel(AnyModel):
     __abstract__ = True
 
     @classmethod
-    def where(cls, **kwargs):
-        # prevent people from absent-minded queries like Bid.where(amount=10)
+    def filter(cls, **kwargs):
+        # prevent people from absent-minded queries like Bid.filter(amount=10)
         # that forgot to filter to the current session.
-        # this allows querying .where() without any args for custom_export,
+        # this allows querying .filter() without any args for custom_export,
         # but not in normal circumstances.
         if kwargs and not any(isinstance(v, AnyModel) for v in kwargs.values()):
             raise ValueError(
-                "At least one argument to .where() must be a model instance, e.g. player=player or group=group"
+                "At least one argument to .filter() must be a model instance, e.g. player=player or group=group"
             )
         return list(cls.objects_filter(**kwargs).order_by('id'))
 
