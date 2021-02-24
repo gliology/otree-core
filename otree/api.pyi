@@ -171,18 +171,18 @@ class BaseSubsession:
     def get_group_matrix(self) -> List[List[int]]:
         pass
     def set_group_matrix(
-        self, group_matrix: Union[List[List[PlayerTV]], List[List[int]]]
+        self, group_matrix: List[List[int]]
     ):
         pass
     def get_players(self) -> List[PlayerTV]:
         pass
-    def in_previous_rounds(self) -> List[SubsessionTV]:
+    def in_previous_rounds(self: SubsessionTV) -> List[SubsessionTV]:
         pass
-    def in_all_rounds(self) -> List[SubsessionTV]:
+    def in_all_rounds(self: SubsessionTV) -> List[SubsessionTV]:
         pass
-    def in_round(self, round_number) -> SubsessionTV:
+    def in_round(self: SubsessionTV, round_number) -> SubsessionTV:
         pass
-    def in_rounds(self, first, last) -> List[SubsessionTV]:
+    def in_rounds(self: SubsessionTV, first, last) -> List[SubsessionTV]:
         pass
     def group_like_round(self, round_number: int):
         pass
@@ -204,13 +204,13 @@ class BaseGroup:
         pass
     def get_player_by_id(self, id_in_group) -> PlayerTV:
         pass
-    def in_previous_rounds(self) -> List[GroupTV]:
+    def in_previous_rounds(self: GroupTV) -> List[GroupTV]:
         pass
-    def in_all_rounds(self) -> List[GroupTV]:
+    def in_all_rounds(self: GroupTV) -> List[GroupTV]:
         pass
-    def in_round(self, round_number) -> GroupTV:
+    def in_round(self: GroupTV, round_number) -> GroupTV:
         pass
-    def in_rounds(self, first: int, last: int) -> List[GroupTV]:
+    def in_rounds(self: GroupTV, first: int, last: int) -> List[GroupTV]:
         pass
 
 GroupTV = TypeVar("GroupTV", bound=BaseGroup)
@@ -224,17 +224,17 @@ class BasePlayer:
     subsession: BaseSubsession
     round_number: int
     role: str
-    def in_previous_rounds(self) -> List[PlayerTV]:
+    def in_previous_rounds(self: PlayerTV) -> List[PlayerTV]:
         pass
-    def in_all_rounds(self) -> List[PlayerTV]:
+    def in_all_rounds(self: PlayerTV) -> List[PlayerTV]:
         pass
-    def get_others_in_group(self) -> List[PlayerTV]:
+    def get_others_in_group(self: PlayerTV) -> List[PlayerTV]:
         pass
-    def get_others_in_subsession(self) -> List[PlayerTV]:
+    def get_others_in_subsession(self: PlayerTV) -> List[PlayerTV]:
         pass
-    def in_round(self, round_number) -> PlayerTV:
+    def in_round(self: PlayerTV, round_number) -> PlayerTV:
         pass
-    def in_rounds(self, first, last) -> List[PlayerTV]:
+    def in_rounds(self: PlayerTV, first, last) -> List[PlayerTV]:
         pass
 
 PlayerTV = TypeVar("PlayerTV", bound=BasePlayer)
