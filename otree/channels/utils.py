@@ -5,6 +5,7 @@ from collections import defaultdict
 from typing import Set, DefaultDict, Dict
 from starlette.websockets import WebSocket
 import asyncio
+from otree.currency import json_dumps
 
 
 class ChannelLayer:
@@ -25,7 +26,7 @@ class ChannelLayer:
 
     async def send(self, group, data):
         for socket in self._get_sockets(group):
-            await socket.send_json(data)
+            await socket.send_text(json_dumps(data))
 
     def sync_send(self, group, data):
         asyncio.run(self.send(group, data))
