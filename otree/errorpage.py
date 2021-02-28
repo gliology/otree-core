@@ -135,15 +135,13 @@ class OTreeServerErrorMiddleware(ServerErrorMiddleware):
         traceback_obj = traceback.TracebackException.from_exception(
             exc, capture_locals=True
         )
-        # on 2021-02-25 someone got 'TracebackException has no attribute exc_traceback'
-        # not sure how
-        frames = inspect.getinnerframes(
-            traceback_obj.exc_traceback, limit  # type: ignore
-        )
 
         exc_html = ""
-        for frame in reversed(frames):
-            exc_html += self.generate_frame_html(frame)
+        exc_traceback = exc.__traceback__
+        if exc_traceback is not None:
+            frames = inspect.getinnerframes(exc_traceback, limit)
+            for frame in reversed(frames):
+                exc_html += self.generate_frame_html(frame)
 
         # escape error class and text
         error = (
