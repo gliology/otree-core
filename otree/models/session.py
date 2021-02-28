@@ -80,6 +80,8 @@ class Session(MixinVars, otree.database.SSPPGModel):
 
     num_participants = Column(st.Integer)
 
+    _SETATTR_NO_FIELD_HINT = ' You can define it in the SESSION_FIELDS setting.'
+
     def __unicode__(self):
         return self.code
 

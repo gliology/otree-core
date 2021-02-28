@@ -1,10 +1,12 @@
-from asgiref.sync import async_to_sync
-from otree.common import signer_sign, signer_unsign
-from urllib.parse import urlencode
-from collections import defaultdict
-from typing import Set, DefaultDict, Dict
-from starlette.websockets import WebSocket
+from otree.common import signer_sign
 import asyncio
+from collections import defaultdict
+from typing import DefaultDict, Dict
+from urllib.parse import urlencode
+
+from starlette.websockets import WebSocket
+
+from otree.common import signer_sign
 from otree.currency import json_dumps
 
 

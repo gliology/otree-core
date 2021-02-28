@@ -167,8 +167,13 @@ def scan():
                     f'{custom_css_pth}: you should delete the styling for "input" (or just delete all file contents)'
                 )
 
-    print_function('Done. all files checked.')
+    print_function(DONE_MSG)
 
+
+DONE_MSG = """
+Done. all files checked.
+(If you want, you can also run "otree remove_self" to switch to the new 'no self' format) 
+"""
 
 VARS_FOR_ALL_TEMPLATES_MSG = """
 ****************************************************************************************************************

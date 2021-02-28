@@ -487,13 +487,15 @@ class SSPPGModel(AnyModel):
             else:
                 msg = ('{} has no field "{}".').format(
                     self.__class__.__name__, field_name
-                )
+                ) + self._SETATTR_NO_FIELD_HINT
                 raise AttributeError(msg)
             mru_dict[type(self)].add(field_name)
             super().__setattr__(field_name, value)
         else:
             # super() is a bit slower but only gets run during __init__
             super().__setattr__(field_name, value)
+
+    _SETATTR_NO_FIELD_HINT = ''
 
 
 class NullFieldError(TypeError):

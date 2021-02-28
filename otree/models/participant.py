@@ -73,6 +73,8 @@ class Participant(MixinVars, otree.database.SSPPGModel):
 
     _max_page_index = Column(st.Integer,)
 
+    _SETATTR_NO_FIELD_HINT = ' You can define it in the PARTICIPANT_FIELDS setting.'
+
     _is_bot = Column(st.Boolean, default=False)
     # can't start with an underscore because used in template
     # can't end with underscore because it's a django field (fields.E001)
@@ -198,5 +200,3 @@ class Participant(MixinVars, otree.database.SSPPGModel):
             resp = page.get()
             if not str(resp.status_code).startswith('3'):
                 return
-
-    _VARS_FIELDS = settings.PARTICIPANT_FIELDS

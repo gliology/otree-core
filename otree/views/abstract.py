@@ -1,14 +1,12 @@
+import inspect
 import logging
 import time
 import typing
-from otree.i18n import gettext
+from html import escape
 from pathlib import Path
 from typing import List
 from typing import Optional
-from html import escape
-import inspect
 
-from asgiref.sync import async_to_sync
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData as StarletteFormData
 from starlette.requests import Request
@@ -25,7 +23,6 @@ import otree.forms
 import otree.models
 import otree.tasks
 import otree.views.cbv
-from otree import export
 from otree import settings
 from otree.bots.bot import bot_prettify_post_data
 from otree.common import (
@@ -38,6 +35,7 @@ from otree.common import (
 )
 from otree.database import db, dbq
 from otree.forms.forms import get_form
+from otree.i18n import gettext
 from otree.lookup import get_min_idx_for_app, get_page_lookup
 from otree.models import Participant, Session, BaseGroup, BaseSubsession
 from otree.models_concrete import (
@@ -105,6 +103,9 @@ class FormPageOrInGameWaitPage:
             response = RedirectResponse(url_should_be_on, status_code=302)
         else:
             self.set_attributes(participant)
+            # need to await the form from async function, otherwise run into complicated RuntimeError
+            if request.method == 'POST':
+                self._form_data = await self.request.form()
             response = await run_in_threadpool(self.inner_dispatch, request)
             # response = self.inner_dispatch(request)
         await response(self.scope, self.receive, self.send)
@@ -574,14 +575,8 @@ class Page(FormPageOrInGameWaitPage):
 
     _form_data = None
 
-    def get_post_data(self):
-        """in a separate function so that we can do advance_last_place_participants"""
-        if not self._form_data:
-            self._form_data = async_to_sync(self.request.form)()
-        return self._form_data
-
     def post(self):
-        post_data = self.get_post_data()
+        post_data = self._form_data
         auto_submitted = post_data.get(otree.constants.timeout_happened)
         # if the page doesn't have a timeout_seconds, only the timeoutworker
         # should be able to auto-submit it.
