@@ -1,5 +1,4 @@
 aiofiles==0.6.0  # starlette StaticFiles
-asgiref==3.3.1  # maybe can use asyncio.run instead?
 itsdangerous==1.1.0
 markupsafe==1.1.1
 python-multipart==0.0.5
