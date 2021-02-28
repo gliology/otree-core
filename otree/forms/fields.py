@@ -1,29 +1,80 @@
-from django import forms
-from otree.currency import to_dec
-from . import widgets
+import wtforms.fields as wtfields
+from otree.currency import Currency, to_dec
+from otree.i18n import format_number
+
+from . import widgets as wg
 
 
-__all__ = ('CurrencyField', 'CurrencyChoiceField', 'RealWorldCurrencyField')
+def handle_localized_number_input(val):
+    if val is None:
+        return val
+    return val.replace(',', '.')
 
 
-class BaseCurrencyField(forms.DecimalField):
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault('widget', self.widget)
-        super().__init__(*args, **kwargs)
+class FloatField(wtfields.FloatField):
+    widget = wg.FloatWidget()
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            try:
+                self.data = float(handle_localized_number_input(valuelist[0]))
+            except ValueError:
+                self.data = None
+                raise ValueError(self.gettext('Not a valid float value'))
+
+    def _value(self):
+        if self.data is None:
+            return ''
+        return format_number(self.data)
 
 
-class CurrencyField(BaseCurrencyField):
-    widget = widgets._CurrencyInput
+class CurrencyField(wtfields.Field):
+    widget = wg.CurrencyWidget()
+
+    def process_formdata(self, valuelist):
+        if valuelist and valuelist[0]:
+            data = Currency(handle_localized_number_input(valuelist[0]))
+        else:
+            data = None
+        self.data = data
+
+    def _value(self):
+        if self.data is None:
+            return ''
+        return format_number(to_dec(self.data))
 
 
-class RealWorldCurrencyField(BaseCurrencyField):
-    widget = widgets._RealWorldCurrencyInput
+class StringField(wtfields.StringField):
+    widget = wg.TextInput()
 
 
-class CurrencyChoiceField(forms.TypedChoiceField):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.choices = [(to_dec(k), v) for k, v in self.choices]
+class IntegerField(wtfields.IntegerField):
+    widget = wg.IntegerWidget()
 
-    def prepare_value(self, value):
-        return to_dec(value)
+
+class RadioField(wtfields.RadioField):
+    widget = wg.RadioSelect()
+    option_widget = wg.RadioOption()
+
+
+class RadioFieldHorizontal(wtfields.RadioField):
+    widget = wg.RadioSelectHorizontal()
+    option_widget = wg.RadioOption()
+
+
+class DropdownField(wtfields.SelectField):
+    widget = wg.Select()
+    option_widget = wg.SelectOption()
+
+
+class TextAreaField(StringField):
+    """
+    This field represents an HTML ``<textarea>`` and can be used to take
+    multi-line input.
+    """
+
+    widget = wg.TextArea()
+
+
+class CheckboxField(wtfields.BooleanField):
+    widget = wg.CheckboxInput()

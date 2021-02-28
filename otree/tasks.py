@@ -1,10 +1,11 @@
 import json
 from logging import getLogger
-from time import time, sleep
+import time
+from time import sleep
 from urllib import request, parse
 from urllib.error import URLError
 from urllib.parse import urljoin
-
+from otree.database import db, session_scope
 import otree.constants
 from otree.models_concrete import TaskQueueMessage
 
@@ -37,25 +38,31 @@ class Worker:
     def __init__(self, port):
         self.base_url = f'http://127.0.0.1:{port}'
         # delete all old stuff
-        TaskQueueMessage.objects.filter(epoch_time__lt=time() - 60).delete()
+
+        TaskQueueMessage.objects_filter(
+            TaskQueueMessage.epoch_time < time.time() - 60
+        ).delete()
 
     def listen(self):
         print_function('timeoutworker is listening for messages through DB')
 
         while True:
-            for task in TaskQueueMessage.objects.order_by('epoch_time').filter(
-                epoch_time__lte=time()
-            ):
-                try:
-                    getattr(self, task.method)(**task.kwargs())
-                except Exception as exc:
-                    # don't raise, because then this would crash.
-                    # logger.exception() will record the full traceback
-                    logger.exception(repr(exc))
-                task.delete()
+            # without the session_scope, resetdb doesn't work because it seems to require
+            # all connections to be closed, even in other processes.
+            with session_scope():
+                for task in TaskQueueMessage.objects_filter(
+                    TaskQueueMessage.epoch_time <= time.time()
+                ).order_by('epoch_time'):
+                    try:
+                        getattr(self, task.method)(**task.kwargs())
+                    except Exception as exc:
+                        # don't raise, because then this would crash.
+                        # logger.exception() will record the full traceback
+                        logger.exception(repr(exc))
+                    db.delete(task)
             sleep(3)
 
-    def submit_expired_url(self, participant_code, path):
+    def submit_expired_url(self, participant_code, page_index):
         from otree.models.participant import Participant
 
         # if the participant exists in the DB,
@@ -71,15 +78,16 @@ class Worker:
         # we filter by _current_form_page_url (which is set in GET,
         # AFTER the next page's timeout is scheduled.)
 
-        if Participant.objects.filter(
-            code=participant_code, _current_form_page_url=path
-        ).exists():
+        pp = Participant.objects_filter(
+            code=participant_code, _index_in_pages=page_index
+        ).first()
+        if pp:
             post(
-                urljoin(self.base_url, path),
+                urljoin(self.base_url, pp._url_i_should_be_on()),
                 data={otree.constants.timeout_happened: True},
             )
 
-    def ensure_pages_visited(self, participant_pks):
+    def ensure_pages_visited(self, participant_pks, page_index):
         """This is necessary when a wait page is followed by a timeout page.
         We can't guarantee the user's browser will properly continue to poll
         the wait page and get redirected, so after a grace period we load the page
@@ -90,7 +98,12 @@ class Worker:
 
         # we used to filter by _index_in_pages, but that is not reliable,
         # because of the race condition described above.
-        unvisited_participants = Participant.objects.filter(pk__in=participant_pks)
+        unvisited_participants = Participant.objects_filter(
+            Participant.id.in_(participant_pks),
+            # the +1 is just a buffer for any edge cases
+            # (as we saw with advance_slowest)
+            Participant._index_in_pages <= page_index + 1,
+        )
         for participant in unvisited_participants:
 
             # if the wait page is the first page,
@@ -103,8 +116,10 @@ class Worker:
 
 
 def _db_enqueue(method, delay, kwargs):
-    TaskQueueMessage.objects.create(
-        method=method, epoch_time=delay + round(time()), kwargs_json=json.dumps(kwargs),
+    TaskQueueMessage.objects_create(
+        method=method,
+        epoch_time=delay + round(time.time()),
+        kwargs_json=json.dumps(kwargs),
     )
 
 

@@ -1,24 +1,26 @@
 import logging
 import time
-import random
 
-from django.template import TemplateDoesNotExist
-from django.template.loader import select_template
-from django.conf import settings
+from sqlalchemy import Column
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import sqltypes as st
+from starlette.responses import Response
 
 import otree.common
 import otree.constants
+import otree.database
+from otree import settings
 from otree.channels.utils import auto_advance_group
 from otree.common import (
     random_chars_8,
     random_chars_10,
     get_admin_secret_code,
-    get_app_label_from_name,
 )
-from otree.db import models
+from otree.database import NoResultFound, MixinVars
 from otree.models_concrete import RoomToSession
-from otree.db import idmap
-from otree.db.idmap import SessionIDMapMixin
+from otree.templating import get_template_name_if_exists
+from otree.templating.loader import TemplateLoadError
+
 
 logger = logging.getLogger('otree')
 
@@ -26,77 +28,59 @@ logger = logging.getLogger('otree')
 ADMIN_SECRET_CODE = get_admin_secret_code()
 
 
-class Session(models.OTreeModel, models.VarsMixin, SessionIDMapMixin):
-    class Meta:
-        app_label = "otree"
-        # if i don't set this, it could be in an unpredictable order
-        ordering = ['pk']
+class Session(MixinVars, otree.database.SSPPGModel):
+    __tablename__ = 'otree_session'
 
-    vars: dict = models._PickleField(default=dict)
-    config: dict = models._PickleField(default=dict, null=True)
+    config: dict = Column(otree.database._PickleField, default=dict)
 
+    # should i also set cascade on all other models?
+    # i should check what is deleted.
+    pp_set = relationship(
+        "Participant",
+        back_populates="session",
+        lazy='dynamic',
+        cascade="all, delete-orphan",
+    )
     # label of this session instance
-    label = models.CharField(
-        max_length=300, null=True, blank=True, help_text='For internal record-keeping'
+    label = Column(st.String, nullable=True)
+
+    code = Column(
+        st.String(16), default=random_chars_8, nullable=False, unique=True, index=True
     )
 
-    code = models.CharField(
-        default=random_chars_8,
-        max_length=16,
-        null=False,
-        unique=True,
-        doc="Randomly generated unique identifier for the session.",
-    )
+    mturk_HITId = Column(st.String(300), nullable=True)
+    mturk_HITGroupId = Column(st.String(300), nullable=True)
 
-    mturk_HITId = models.CharField(
-        max_length=300,
-        null=True,
-        blank=True,
-        help_text='Hit id for this session on MTurk',
-    )
-    mturk_HITGroupId = models.CharField(
-        max_length=300,
-        null=True,
-        blank=True,
-        help_text='Hit id for this session on MTurk',
-    )
-    is_mturk = models.BooleanField(default=False)
+    is_mturk = Column(st.Boolean, default=False)
 
     def mturk_num_workers(self):
         assert self.is_mturk
         return int(self.num_participants / settings.MTURK_NUM_PARTICIPANTS_MULTIPLE)
 
-    mturk_use_sandbox = models.BooleanField(
-        default=True, help_text="Should this session be created in mturk sandbox?"
-    )
+    mturk_use_sandbox = Column(st.Boolean, default=True)
 
     # use Float instead of DateTime because DateTime
     # is a pain to work with (e.g. naive vs aware datetime objects)
     # and there is no need here for DateTime
-    mturk_expiration = models.FloatField(null=True)
-    mturk_qual_id = models.CharField(default='', max_length=50)
+    mturk_expiration = Column(st.Float, nullable=True)
+    mturk_qual_id = Column(st.String(50), default='')
 
-    archived = models.BooleanField(
-        default=False,
-        db_index=True,
-        doc=(
-            "If set to True the session won't be visible on the "
-            "main ViewList for sessions"
-        ),
+    archived = Column(st.Boolean, default=False, index=True,)
+
+    comment = Column(st.Text)
+
+    _anonymous_code = Column(
+        st.String(20), default=random_chars_10, nullable=False, index=True,
     )
 
-    comment = models.TextField(blank=True)
+    is_demo = Column(st.Boolean, default=False)
 
-    _anonymous_code = models.CharField(
-        default=random_chars_10, max_length=10, null=False, db_index=True
-    )
+    _admin_report_app_names = Column(st.Text, default='')
+    _admin_report_num_rounds = Column(st.String(255), default='')
 
-    is_demo = models.BooleanField(default=False)
+    num_participants = Column(st.Integer)
 
-    _admin_report_app_names = models.TextField(default='')
-    _admin_report_num_rounds = models.CharField(default='', max_length=255)
-
-    num_participants = models.PositiveIntegerField()
+    _SETATTR_NO_FIELD_HINT = ' You can define it in the SESSION_FIELDS setting.'
 
     def __unicode__(self):
         return self.code
@@ -127,25 +111,21 @@ class Session(models.OTreeModel, models.VarsMixin, SessionIDMapMixin):
         if self.config.get('mock_exogenous_data'):
             import shared_out as user_utils
 
-            with idmap.use_cache():
-                user_utils.mock_exogenous_data(self)
-
-                # need to save self because it's not in the idmap cache
-                self.save()
+            user_utils.mock_exogenous_data(self)
 
     def get_subsessions(self):
         lst = []
         app_sequence = self.config['app_sequence']
         for app in app_sequence:
             models_module = otree.common.get_models_module(app)
-            subsessions = models_module.Subsession.objects.filter(
+            subsessions = models_module.Subsession.objects_filter(
                 session=self
             ).order_by('round_number')
             lst.extend(list(subsessions))
         return lst
 
     def get_participants(self):
-        return list(self.participant_set.order_by('id_in_session'))
+        return list(self.pp_set.order_by('id_in_session'))
 
     def mturk_worker_url(self):
         # different HITs
@@ -178,23 +158,23 @@ class Session(models.OTreeModel, models.VarsMixin, SessionIDMapMixin):
         return self.mturk_HITId and not self.mturk_is_expired()
 
     def advance_last_place_participants(self):
-        # django.test takes 0.5 sec to import,
-        # if this is done globally then it adds to each startup
-        # it's only used here, and often isn't used at all.
-        # so best to do it only here
-        # it gets cached
-        import django.test
-
-        client = django.test.Client()
+        """the problem with using the test client to make get/post requests is
+        (1) this request already has the global asyncio.lock
+        (2) there are apparently some issues with async/await and event loops.
+        """
+        from otree.lookup import get_page_lookup
+        from otree.api import Page
 
         participants = self.get_participants()
 
         # in case some participants haven't started
-        unvisited_participants = []
+        unvisited_participants = False
         for p in participants:
             if p._index_in_pages == 0:
-                unvisited_participants.append(p)
-                client.get(p._start_url(), follow=True)
+                p.initialize(None)
+                # need this in order to kick off any timeout, update the admin
+                p._visit_current_page()
+                unvisited_participants = True
 
         if unvisited_participants:
             # that's it -- just visit the start URL, advancing by 1
@@ -204,58 +184,26 @@ class Session(models.OTreeModel, models.VarsMixin, SessionIDMapMixin):
         last_place_participants = [
             p for p in participants if p._index_in_pages == last_place_page_index
         ]
-
         for p in last_place_participants:
-            try:
-                current_form_page_url = p._current_form_page_url
-                if current_form_page_url:
-                    resp = client.post(
-                        current_form_page_url,
-                        data={
-                            otree.constants.timeout_happened: True,
-                            otree.constants.admin_secret_code: ADMIN_SECRET_CODE,
-                        },
-                        follow=True,
-                    )
-                    # not sure why, but many users are getting HttpResponseNotFound
-                    if resp.status_code >= 400:
-                        msg = (
-                            'Submitting page {} failed, '
-                            'returned HTTP status code {}.'.format(
-                                current_form_page_url, resp.status_code
-                            )
-                        )
-                        content = resp.content
-                        if len(content) < 600:
-                            msg += ' response content: {}'.format(content)
-                        raise AssertionError(msg)
+            p._submit_current_page()
+            # need to do this to update the monitor table, set any timeouts, etc.
+            p._visit_current_page()
 
-                else:
-                    # it's possible that the slowest user is on a wait page,
-                    # especially if their browser is closed.
-                    # because they were waiting for another user who then
-                    # advanced past the wait page, but they were never
-                    # advanced themselves.
-                    start_url = p._start_url()
-                    resp = client.get(start_url, follow=True)
-            except:
-                logging.exception("Failed to advance participants.")
-                raise
-
+            # 2020-12-20: this is needed.
             # do the auto-advancing here,
             # rather than in increment_index_in_pages,
             # because it's only needed here.
-            otree.channels.utils.sync_group_send_wrapper(
-                type='auto_advanced', group=auto_advance_group(p.code), event={}
+            otree.channels.utils.sync_group_send(
+                group=auto_advance_group(p.code), data={'auto_advanced': True}
             )
 
     def get_room(self):
         from otree.room import ROOM_DICT
 
         try:
-            room_name = RoomToSession.objects.get(session=self).room_name
+            room_name = RoomToSession.objects_get(session=self).room_name
             return ROOM_DICT[room_name]
-        except RoomToSession.DoesNotExist:
+        except NoResultFound:
             return None
 
     def _get_payoff_plus_participation_fee(self, payoff):
@@ -272,12 +220,11 @@ class Session(models.OTreeModel, models.VarsMixin, SessionIDMapMixin):
         num_rounds_list = []
         for app_name in self.config['app_sequence']:
             models_module = otree.common.get_models_module(app_name)
-            app_label = get_app_label_from_name(app_name)
             try:
-                select_template(
-                    [f'{app_label}/admin_report.html', f'{app_label}/AdminReport.html']
+                get_template_name_if_exists(
+                    [f'{app_name}/admin_report.html', f'{app_name}/AdminReport.html']
                 )
-            except TemplateDoesNotExist:
+            except TemplateLoadError:
                 pass
             else:
                 admin_report_app_names.append(app_name)

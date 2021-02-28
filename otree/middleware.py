@@ -1,25 +1,48 @@
-from django.http import HttpResponseServerError
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware import Middleware
+from starlette.middleware.sessions import SessionMiddleware
 import time
-from otree.common import missing_db_tables
+from starlette.requests import Request
 import logging
+from otree.database import db, NEW_IDMAP_EACH_REQUEST
+from otree.common import _SECRET, lock
+import asyncio
+import threading
 
 logger = logging.getLogger('otree.perf')
 
 
-def perf_middleware(get_response):
-    # One-time configuration and initialization.
+lock2 = asyncio.Lock()
 
-    def middleware(request):
+
+class CommitTransactionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        async with lock2:
+            if NEW_IDMAP_EACH_REQUEST:
+                db.new_session()
+            response = await call_next(request)
+            if response.status_code < 500:
+                db.commit()
+            else:
+                # it's necessary to roll back. if i don't, the values get saved to DB
+                # (even though i don't commit, not sure...)
+                db.rollback()
+            # closing seems to interfere with errors middleware, which tries to get the value of local vars
+            # and therefore queries the db
+            # maybe it's not necessary to close since we just overwrite.
+            # finally:
+            #     db.close()
+            return response
+
+
+class PerfMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
         start = time.time()
 
-        response = get_response(request)
+        response = await call_next(request)
 
-        # Code to be executed for each request/response after
-        # the view is called.
-
-        # heroku has 'X-Request-ID', which Django translates to
-        # the following:
-        request_id = request.META.get('HTTP_X_REQUEST_ID')
+        # heroku has 'X-Request-ID'
+        request_id = request.headers.get('X-Request-ID')
         if request_id:
             # only log this info on Heroku
             elapsed = time.time() - start
@@ -28,28 +51,3 @@ def perf_middleware(get_response):
             logger.info(msg)
 
         return response
-
-    return middleware
-
-
-class CheckDBMiddleware:
-    synced = None
-
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        if not CheckDBMiddleware.synced:
-            # very fast, 0.01-0.02 seconds for the whole check
-            missing_tables = missing_db_tables()
-            if missing_tables:
-                listed_tables = missing_tables[:3]
-                unlisted_tables = missing_tables[3:]
-                msg = (
-                    "Your database is not ready. Try resetting the database "
-                    "(Missing tables for {}, and {} other models). "
-                ).format(', '.join(listed_tables), len(unlisted_tables))
-                return HttpResponseServerError(msg)
-            else:
-                CheckDBMiddleware.synced = True
-        return self.get_response(request)

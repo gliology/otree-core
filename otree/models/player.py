@@ -1,49 +1,28 @@
+from sqlalchemy import Column, ForeignKey
+from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import sqltypes as st
+
 from otree.common import in_round, in_rounds
-
-from otree.db import models
-from django.db import models as djmodels
-from otree.db.idmap import PlayerIDMapMixin
+from otree.database import db, MixinSessionFK, SPGModel, CurrencyType
 
 
-class BasePlayer(models.OTreeModel, PlayerIDMapMixin):
-    """
-    Base class for all players.
-    """
+class BasePlayer(SPGModel, MixinSessionFK):
+    __abstract__ = True
 
-    class Meta:
-        abstract = True
-        index_together = ['participant', 'round_number']
-        ordering = ['pk']
-
-    id_in_group = models.PositiveIntegerField(
-        null=True,
-        db_index=True,
-        doc=(
-            "Index starting from 1. In multiplayer games, "
-            "indicates whether this is player 1, player 2, etc."
-        ),
-    )
+    id_in_group = Column(st.Integer, nullable=True, index=True,)
 
     # don't modify this directly! Set player.payoff instead
-    _payoff = models.CurrencyField(
-        null=True, doc="""The payoff the player made in this subsession""", default=0
-    )
+    _payoff = Column(CurrencyType, default=0)
 
-    participant = djmodels.ForeignKey(
-        'otree.Participant',
-        related_name='%(app_label)s_%(class)s',
-        on_delete=models.CASCADE,
-    )
+    round_number = Column(st.Integer, index=True)
 
-    session = djmodels.ForeignKey(
-        'otree.Session',
-        related_name='%(app_label)s_%(class)s',
-        on_delete=models.CASCADE,
-    )
-
-    round_number = models.PositiveIntegerField(db_index=True)
-
-    _role = models.StringField()
+    # make it non-nullable so that we don't raise an error with null.
+    # the reason i chose to make this different from ordinary StringFields
+    # is that it's a property. users can't just use .get('role') because
+    # that will just access ._role. So we would need some special-casing
+    # in __getattribute__ for role, which is not desirable.
+    _role = Column(st.String, nullable=False, default='')
 
     # as a property, that means it's overridable
     @property
@@ -63,20 +42,11 @@ class BasePlayer(models.OTreeModel, PlayerIDMapMixin):
         self.participant.payoff += delta
         # should save it because it may not be obvious that modifying
         # player.payoff also changes a field on a different model
-        self.participant.save()
+        db.commit()
 
     @property
     def id_in_subsession(self):
         return self.participant.id_in_session
-
-    def __repr__(self):
-        id_in_subsession = self.id_in_subsession
-        if id_in_subsession < 10:
-            # 2 spaces so that it lines up if printing a matrix
-            fmt_string = '<Player  {}>'
-        else:
-            fmt_string = '<Player {}>'
-        return fmt_string.format(id_in_subsession)
 
     def in_round(self, round_number):
         return in_round(type(self), round_number, participant=self.participant)
@@ -97,25 +67,32 @@ class BasePlayer(models.OTreeModel, PlayerIDMapMixin):
     def get_others_in_subsession(self):
         return [p for p in self.subsession.get_players() if p != self]
 
-    @classmethod
-    def _ensure_required_fields(cls):
-        """
-        Every ``Player`` model requires a foreign key to the ``Subsession`` and
-        ``Group`` model of the same app.
-        """
-        subsession_model = '{app_label}.Subsession'.format(
-            app_label=cls._meta.app_label
-        )
-        subsession_field = djmodels.ForeignKey(
-            subsession_model, on_delete=models.CASCADE
-        )
-        subsession_field.contribute_to_class(cls, 'subsession')
-
-        group_model = '{app_label}.Group'.format(app_label=cls._meta.app_label)
-        group_field = djmodels.ForeignKey(
-            group_model, null=True, on_delete=models.CASCADE
-        )
-        group_field.contribute_to_class(cls, 'group')
-
     def start(self):
         pass
+
+    @declared_attr
+    def subsession_id(cls):
+        app_name = cls.get_folder_name()
+        return Column(st.Integer, ForeignKey(f'{app_name}_subsession.id'))
+
+    @declared_attr
+    def subsession(cls):
+        return relationship(f'{cls.__module__}.Subsession', back_populates='player_set')
+
+    @declared_attr
+    def group_id(cls):
+        app_name = cls.get_folder_name()
+        # needs to be nullable so re-grouping can happen
+        return Column(st.Integer, ForeignKey(f'{app_name}_group.id'), nullable=True)
+
+    @declared_attr
+    def group(cls):
+        return relationship(f'{cls.__module__}.Group', back_populates='player_set')
+
+    @declared_attr
+    def participant_id(cls):
+        return Column(st.Integer, ForeignKey('otree_participant.id'))
+
+    @declared_attr
+    def participant(cls):
+        return relationship("Participant")
