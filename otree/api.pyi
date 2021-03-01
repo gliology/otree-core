@@ -338,6 +338,7 @@ def expect(*args):
 __all__ = [
     "Currency",
     "cu",
+    "currency_range",
     "models",
     "widgets",
     "BaseConstants",

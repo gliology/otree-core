@@ -793,6 +793,8 @@ class ExtraModel(AnyModel):
 
     @classmethod
     def create(cls, **kwargs):
+        # we could automatically convert the type here, but maybe not worth
+        # the hassle, since we also need to think about None, empty string, etc.
         obj = cls(**kwargs)
         db.add(obj)
         return obj
