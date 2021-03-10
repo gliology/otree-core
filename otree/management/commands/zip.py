@@ -54,11 +54,6 @@ class Command(BaseCommand):
     help = "Zip into an archive"
 
     def handle(self, **options):
-        # remove these lines after a month or so
-        legacy_filename = 'zipped.otreezip'
-        if os.path.exists(legacy_filename):
-            self.stdout.write('removing zipped.otreezip, this should only happen once')
-            os.remove(legacy_filename)
         zip_project(PROJECT_PATH)
 
     def run_from_argv(self, argv):
@@ -104,7 +99,7 @@ def zip_project(project_path: Path):
     if not runtime_existed:
         # don't use sys.version_info because it might be newer than what
         # heroku supports
-        runtime_txt.write_text(f'python-3.7.7')
+        runtime_txt.write_text(f'python-3.7.9')
     try:
         with tarfile.open(archive_name, 'w:gz') as tar:
             # if i omit arcname, it nests the project 2 levels deep.
@@ -178,7 +173,7 @@ _REQS_DEFAULT_FMT = f'''\
 # {OVERWRITE_TOKEN}
 # IF YOU MODIFY THIS FILE, remove these comments. 
 # otherwise, oTree will automatically overwrite it.
-otree%s>={otree_version}
+otree%s>={otree_version},<5
 psycopg2>=2.8.4
 sentry-sdk==0.7.9
 '''

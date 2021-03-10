@@ -1,18 +1,23 @@
 import json
 
-import vanilla
-from django.http import HttpResponse, JsonResponse, HttpResponseNotFound
+from django.conf import settings
+from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
+from django.shortcuts import reverse, get_object_or_404
+from django.template.loader import get_template
+
 
 import otree
-from otree.channels import utils as channel_utils
 import otree.bots.browser
+from otree.channels import utils as channel_utils
+from otree.models import Session
 from otree.models_concrete import (
     ParticipantVarsFromREST,
     BrowserBotsLauncherSessionCode,
 )
 from otree.room import ROOM_DICT
-from otree.session import create_session
+from otree.session import create_session, SESSION_CONFIGS_DICT
 from otree.views.abstract import BaseRESTView
+from otree.common import json_dumps
 
 
 class PostParticipantVarsThroughREST(BaseRESTView):
@@ -37,7 +42,7 @@ class PostParticipantVarsThroughREST(BaseRESTView):
             room_name=room_name,
             defaults=dict(_json_data=json.dumps(vars)),
         )
-        return HttpResponse('ok')
+        return JsonResponse({})
 
 
 class RESTSessionVars(BaseRESTView):
@@ -52,7 +57,26 @@ class RESTSessionVars(BaseRESTView):
             return HttpResponseNotFound(f'No current session in room {room_name}')
         session.vars.update(vars)
         session.save()
-        return HttpResponse('ok')
+        return JsonResponse({})
+
+
+def get_session_urls(session: Session, request) -> dict:
+    build_uri = request.build_absolute_uri
+    d = dict(
+        session_wide_url=build_uri(
+            reverse(
+                'JoinSessionAnonymously',
+                kwargs=dict(anonymous_code=session._anonymous_code),
+            )
+        ),
+        admin_url=build_uri(
+            reverse('SessionStartLinks', kwargs=dict(code=session.code))
+        ),
+    )
+    room = session.get_room()
+    if room:
+        d['room_url'] = room.get_room_wide_url(request)
+    return d
 
 
 class RESTCreateSession(BaseRESTView):
@@ -75,7 +99,70 @@ class RESTCreateSession(BaseRESTView):
                 group=channel_utils.room_participants_group_name(room_name),
                 event={},
             )
-        return HttpResponse(session.code)
+
+        response_payload = dict(
+            code=session.code, **get_session_urls(session, self.request)
+        )
+
+        return JsonResponse(response_payload)
+
+
+class RESTGetSessionInfo(BaseRESTView):
+    url_pattern = 'api/session'
+
+    def inner_get(self, code, participant_labels=None):
+        session = get_object_or_404(Session, code=code)
+        pp_set = session.participant_set
+        if participant_labels is not None:
+            pp_set = pp_set.filter(label__in=participant_labels)
+        pdata = []
+        for id_in_session, code, label, payoff in pp_set.values_list(
+            'id_in_session', 'code', 'label', 'payoff',
+        ):
+            pdata.append(
+                dict(
+                    id_in_session=id_in_session,
+                    code=code,
+                    label=label,
+                    payoff_in_real_world_currency=payoff.to_real_world_currency(
+                        session
+                    ),
+                )
+            )
+
+        payload = dict(
+            # we need the session config for mturk settings and participation fee
+            # technically, other parts of session config might not be JSON serializable
+            config=session.config,
+            num_participants=session.num_participants,
+            REAL_WORLD_CURRENCY_CODE=settings.REAL_WORLD_CURRENCY_CODE,
+            participants=pdata,
+            **get_session_urls(session, self.request),
+        )
+
+        mturk_settings = session.config.get('mturk_hit_settings')
+        if mturk_settings:
+            # apparently the .template is needed
+            payload['mturk_template_html'] = get_template(
+                mturk_settings['template']
+            ).template.source
+
+        # need custom json_dumps for currency values
+        return HttpResponse(json_dumps(payload))
+
+
+class RESTSessionConfigs(BaseRESTView):
+    url_pattern = 'api/session_configs'
+
+    def inner_get(self):
+        return HttpResponse(json_dumps(list(SESSION_CONFIGS_DICT.values())))
+
+
+class RESTOTreeVersion(BaseRESTView):
+    url_pattern = 'api/otree_version'
+
+    def inner_get(self):
+        return JsonResponse(dict(version=otree.__version__))
 
 
 class RESTCreateSessionLegacy(RESTCreateSession):

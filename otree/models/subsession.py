@@ -65,7 +65,9 @@ class BaseSubsession(models.OTreeModel, SubsessionIDMapMixin):
     def get_players(self):
         return list(self.player_set.order_by('pk'))
 
-    def get_group_matrix(self):
+    def get_group_matrix(self, **kwargs):
+        # we add the **kwargs so it can take the extra arg for compat with oTree Lite,
+        # even though it is a no-op
         players_prefetch = Prefetch(
             'player_set',
             queryset=self._PlayerClass().objects.order_by('id_in_group'),
@@ -81,7 +83,6 @@ class BaseSubsession(models.OTreeModel, SubsessionIDMapMixin):
     def set_group_matrix(self, matrix):
         """
         warning: this deletes the groups and any data stored on them
-        TODO: we should indicate this in docs
         """
 
         try:

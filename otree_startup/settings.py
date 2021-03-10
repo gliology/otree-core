@@ -104,8 +104,6 @@ def get_default_settings(user_settings: dict):
         },
     }
 
-    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
-
     if 'devserver_inner' in sys.argv:
         if os.environ.get('DATABASE_URL'):
             # otherwise, people will get a different DB when they use other management commands like 'otree shell'
@@ -126,21 +124,6 @@ def get_default_settings(user_settings: dict):
         AWS_SECRET_ACCESS_KEY=os.environ.get('AWS_SECRET_ACCESS_KEY'),
         AUTH_LEVEL=os.environ.get('OTREE_AUTH_LEVEL'),
         DATABASES={'default': default_db},
-        HUEY={
-            'name': 'otree-huey',
-            'connection': {'url': REDIS_URL},
-            'always_eager': False,
-            # I need a result store to retrieve the results of browser-bots
-            # tasks and pinging, even if the result is evaluated immediately
-            # (otherwise, calling the task returns None.
-            'result_store': False,
-            'consumer': {
-                'workers': 1,
-                # 'worker_type': 'thread',
-                'scheduler_interval': 5,
-                'loglevel': 'warning',
-            },
-        },
         STATIC_ROOT='__temp_static_root',
         STATIC_URL='/static/',
         STATICFILES_STORAGE='whitenoise.storage.CompressedManifestStaticFilesStorage',
@@ -158,8 +141,9 @@ def get_default_settings(user_settings: dict):
         USE_L10N=True,
         SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'),
         ASGI_APPLICATION="otree.channels.routing.application",
-        CHANNEL_LAYERS={'default': {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
-        REDIS_URL=REDIS_URL,
+        CHANNEL_LAYERS={
+            'default': {"BACKEND": "channels.layers.InMemoryChannelLayer"},
+        },
         MTURK_NUM_PARTICIPANTS_MULTIPLE=2,
         LOCALE_PATHS=['locale'],
         BOTS_CHECK_HTML=True,
@@ -268,7 +252,6 @@ def augment_settings(settings: dict):
         # have {% load static %}
         'django.contrib.staticfiles',
         'channels',
-        'huey.contrib.djhuey',
     ]
 
     if os.environ.get('OTREE_SECRET_KEY'):
@@ -287,7 +270,7 @@ def augment_settings(settings: dict):
     for unmaintained_extension in UNMAINTAINED_APPS:
         if unmaintained_extension in EXTENSION_APPS:
             msg = (
-                f'{unmaintained_extension} does not work with recent versions of oTree. '
+                f'{unmaintained_extension} uses undocumented APIs and therefore does not work with recent versions of oTree. '
                 'You should remove it from your settings.py.'
             )
             sys.exit(msg)

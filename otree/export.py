@@ -1,14 +1,12 @@
 import collections
 from typing import List
 import csv
-import itertools
 import logging
 import numbers
 from collections import OrderedDict
 from collections import defaultdict
 from decimal import Decimal
 
-import xlsxwriter
 from django.db.models import BinaryField, ForeignKey
 from django.db.models import Max
 from django.utils.encoding import force_text
@@ -439,52 +437,32 @@ def get_rows_for_data_tab_app(session, app_name):
         yield table
 
 
-def export_wide(fp, file_extension, session_code=None):
+def export_wide(fp, session_code=None):
     rows = get_rows_for_wide_csv(session_code=session_code)
-    _export_csv_or_xlsx(fp, rows, file_extension)
+    _export_csv(fp, rows)
 
 
-def export_app(app_name, fp, file_extension):
+def export_app(app_name, fp):
     rows = get_rows_for_csv(app_name)
-    _export_csv_or_xlsx(fp, rows, file_extension)
+    _export_csv(fp, rows)
 
 
-def custom_export_app(app_name, fp, file_extension):
+def custom_export_app(app_name, fp):
     models_module = get_models_module(app_name)
     qs = models_module.Player.objects.select_related(
         'participant', 'group', 'subsession', 'session'
     ).order_by('id')
     rows = models_module.custom_export(qs)
-    # convert to strings so we don't get errors especially in xlsx write
+    # convert to strings so we don't get errors especially for Excel
     str_rows = []
     for row in rows:
         str_rows.append([str(ele) for ele in row])
-    _export_csv_or_xlsx(fp, str_rows, file_extension)
-
-
-def _export_csv_or_xlsx(fp, rows, file_extension):
-    if file_extension == 'xlsx':
-        _export_xlsx(fp, rows)
-    else:
-        _export_csv(fp, rows)
+    _export_csv(fp, str_rows)
 
 
 def _export_csv(fp, rows):
     writer = csv.writer(fp)
     writer.writerows(rows)
-
-
-def _export_xlsx(fp, rows):
-    '''
-    CSV often does not open properly in Excel, e.g. unicode
-    '''
-    workbook = xlsxwriter.Workbook(fp, {'in_memory': True})
-    worksheet = workbook.add_worksheet()
-
-    for row_num, row in enumerate(rows):
-        for col_num, cell_value in enumerate(row):
-            worksheet.write(row_num, col_num, cell_value)
-    workbook.close()
 
 
 def export_page_times(fp):
