@@ -174,9 +174,11 @@ _REQS_DEFAULT_FMT = f'''\
 # IF YOU MODIFY THIS FILE, remove these comments. 
 # otherwise, oTree will automatically overwrite it.
 otree%s>={otree_version},<5
-psycopg2>=2.8.4
+psycopg2>=2.8,<2.9
 sentry-sdk==0.7.9
 '''
+# psycopg2 2.9 causes issues:
+# https://stackoverflow.com/questions/68024060/assertionerror-database-connection-isnt-set-to-utc
 
 REQS_DEFAULT = _REQS_DEFAULT_FMT % ''
 REQS_DEFAULT_MTURK = _REQS_DEFAULT_FMT % '[mturk]'

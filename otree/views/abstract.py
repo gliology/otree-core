@@ -1136,8 +1136,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             # but this is not reliable because next page might be skipped anyway,
             # and we don't know what page will actually be shown next to the user.
             otree.tasks.ensure_pages_visited(
-                participant_pks=participant_pks,
-                delay=10,
+                participant_pks=participant_pks, delay=10,
             )
 
         if self.group_by_arrival_time:
@@ -1298,7 +1297,7 @@ REST_KEY_HEADER = 'otree-rest-key'
 
 @method_decorator(csrf_exempt, name='dispatch')
 class BaseRESTView(vanilla.View):
-    def post(self, request):
+    def dispatch(self, request, *args, **kwargs):
         # hack to force plain text 500 page (Django checks .is_ajax())
         request.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
         if settings.AUTH_LEVEL in ['DEMO', 'STUDY']:
@@ -1316,8 +1315,11 @@ class BaseRESTView(vanilla.View):
                 return HttpResponseForbidden(
                     f'HTTP Request Header {REST_KEY_HEADER} is incorrect'
                 )
-        payload = json.loads(request.body.decode("utf-8"))
-        return self.inner_post(**payload)
+        self.payload = json.loads(request.body.decode("utf-8"))
+        return super().dispatch(request, *args, **kwargs)
 
-    def inner_post(self, **kwargs):
-        raise NotImplementedError
+    def post(self, request):
+        return self.inner_post(**self.payload)
+
+    def get(self, request):
+        return self.inner_get(**self.payload)
