@@ -10,9 +10,21 @@ class PageTimeBatch(models.Model):
     text = models.TextField()
 
 
-
-
 class CompletedGroupWaitPage(models.Model):
+    '''
+    separate model from GBAT because here we can use group_id which allows more efficient lookup.
+    '''
+
+    class Meta:
+        app_label = "otree"
+        index_together = ['page_index', 'session', 'group_id']
+
+    page_index = models.PositiveIntegerField()
+    session = models.ForeignKey('otree.Session', on_delete=models.CASCADE)
+    group_id = models.PositiveIntegerField()
+
+
+class CompletedGBATWaitPage(models.Model):
     class Meta:
         app_label = "otree"
         index_together = ['page_index', 'session', 'id_in_subsession']
@@ -108,5 +120,3 @@ class ChatMessage(models.Model):
     # are already used by channels
     body = models.TextField()
     timestamp = models.FloatField(default=time.time)
-
-

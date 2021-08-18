@@ -25,6 +25,7 @@ from otree.models import Participant, Session
 from otree.models_concrete import (
     CompletedGroupWaitPage,
     CompletedSubsessionWaitPage,
+    CompletedGBATWaitPage,
     ChatMessage,
 )
 from otree.models_concrete import ParticipantRoomVisit, BrowserBotsLauncherSessionCode
@@ -150,25 +151,17 @@ class SubsessionWaitPage(BaseWaitPage):
 
 class GroupWaitPage(BaseWaitPage):
 
-    kwarg_names = SubsessionWaitPage.kwarg_names + ('group_id_in_subsession',)
+    kwarg_names = SubsessionWaitPage.kwarg_names + ('group_id',)
 
-    def group_name(
-        self, session_pk, page_index, group_id_in_subsession, participant_id
-    ):
-        return channel_utils.group_wait_page_name(
-            session_pk, page_index, group_id_in_subsession
-        )
+    def group_name(self, session_pk, page_index, group_id, participant_id):
+        return channel_utils.group_wait_page_name(session_pk, page_index, group_id)
 
     def completion_exists(self, **kwargs):
         return CompletedGroupWaitPage.objects.filter(**kwargs).exists()
 
-    async def post_connect(
-        self, session_pk, page_index, group_id_in_subsession, participant_id
-    ):
+    async def post_connect(self, session_pk, page_index, group_id, participant_id):
         if await database_sync_to_async(self.completion_exists)(
-            page_index=page_index,
-            id_in_subsession=group_id_in_subsession,
-            session_id=session_pk,
+            page_index=page_index, group_id=group_id, session_id=session_pk
         ):
             await self.wait_page_ready()
 
@@ -232,7 +225,7 @@ class GroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
             .get()
         )
 
-        return CompletedGroupWaitPage.objects.filter(
+        return CompletedGBATWaitPage.objects.filter(
             page_index=page_index,
             id_in_subsession=int(group_id_in_subsession),
             session_id=session_pk,

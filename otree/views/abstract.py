@@ -50,6 +50,7 @@ from otree.models_concrete import (
     PageTimeBatch,
     CompletedSubsessionWaitPage,
     CompletedGroupWaitPage,
+    CompletedGBATWaitPage,
     UndefinedFormModel,
 )
 
@@ -342,19 +343,6 @@ class FormPageOrInGameWaitPage(vanilla.View):
         except:
             raise ResponseForException
 
-    # @property
-    # def participant(self) -> Participant:
-    #     return Participant.objects.get(pk=self._participant_pk)
-
-    # @property
-    # def player(self) -> BasePlayer:
-    #     '''take advantage of queryset laziness'''
-    #     qs = self._qs
-    #     if not qs._result_cache:
-    #         len(qs)
-    #         assert qs._result_cache
-    #     return self._qs[0]
-
     @property
     def group(self) -> BaseGroup:
         '''can't cache self._group_pk because group can change'''
@@ -382,9 +370,6 @@ class FormPageOrInGameWaitPage(vanilla.View):
         self.PlayerClass = getattr(models_module, 'Player')
         self.GroupClass = getattr(models_module, 'Group')
         self.SubsessionClass = getattr(models_module, 'Subsession')
-        # self._qs = models_module.Player.objects.filter(
-        #     participant=participant, round_number=lookup.round_number
-        # ).select_related('group', 'subsession', 'session')
         self.player = self.PlayerClass.objects.get(
             participant=participant, round_number=lookup.round_number
         )
@@ -487,9 +472,6 @@ class FormPageOrInGameWaitPage(vanilla.View):
     def is_displayed(self):
         return True
 
-    def app_after_this_page(self, upcoming_apps):
-        pass
-
     def _get_next_page_index_if_skipping_apps(self):
         # don't run it if the page is not displayed, because:
         # (1) it's consistent with other functions like before_next_page, vars_for_template
@@ -500,13 +482,16 @@ class FormPageOrInGameWaitPage(vanilla.View):
         # has app_after_this_page? does it override the first one?
         if not self._is_displayed():
             return
+        app_after_this_page = getattr(self, 'app_after_this_page', None)
+        if not app_after_this_page:
+            return
 
         current_app = self.participant._current_app_name
         app_sequence = self.session.config['app_sequence']
         current_app_index = app_sequence.index(current_app)
         upcoming_apps = app_sequence[current_app_index + 1 :]
 
-        app_to_skip_to = self.app_after_this_page(upcoming_apps)
+        app_to_skip_to = app_after_this_page(upcoming_apps)
         if app_to_skip_to:
             if app_to_skip_to not in upcoming_apps:
                 msg = f'"{app_to_skip_to}" is not in the upcoming_apps list'
@@ -1041,8 +1026,8 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         ## EARLY EXITS
         if CompletedGroupWaitPage.objects.filter(
             page_index=self._index_in_pages,
-            id_in_subsession=self.group.id_in_subsession,
-            session=self.session,
+            group_id=self.player.group_id,
+            session_id=self._session_pk,
         ).exists():
             return self._response_when_ready()
 
@@ -1072,7 +1057,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         return self._response_when_ready()
 
     def inner_dispatch_gbat(self):
-        if CompletedGroupWaitPage.objects.filter(
+        if CompletedGBATWaitPage.objects.filter(
             page_index=self._index_in_pages,
             id_in_subsession=self.group.id_in_subsession,
             session=self.session,
@@ -1154,10 +1139,13 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         if self.wait_for_all_groups:
             CompletedSubsessionWaitPage.objects.create(**base_kwargs)
             obj = self.subsession
-        else:
-            CompletedGroupWaitPage.objects.create(
+        elif self.group_by_arrival_time:
+            CompletedGBATWaitPage.objects.create(
                 **base_kwargs, id_in_subsession=group.id_in_subsession
             )
+            obj = group
+        else:
+            CompletedGroupWaitPage.objects.create(**base_kwargs, group_id=group.id)
             obj = group
 
         player_values = obj.player_set.values(
@@ -1194,7 +1182,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 )
             else:
                 channels_group_name = channel_utils.group_wait_page_name(
-                    **base_kwargs, group_id_in_subsession=group.id_in_subsession
+                    **base_kwargs, group_id=group.id
                 )
 
             channel_utils.sync_group_send_wrapper(
@@ -1224,7 +1212,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
                 session_pk=session_pk,
                 page_index=page_index,
                 participant_id=participant_id,
-                group_id_in_subsession=self.group.id_in_subsession,
+                group_id=self.player.group_id,
             )
 
     def _tally_unvisited(self):

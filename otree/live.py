@@ -6,7 +6,7 @@ from otree.lookup import get_page_lookup
 
 
 def live_payload_function(participant_code, page_name, payload):
-    '''in separate function for easier testing'''
+
     participant = Participant.objects.get(code=participant_code)
     lookup = get_page_lookup(participant._session_code, participant._index_in_pages)
     app_name = lookup.app_name
@@ -54,7 +54,9 @@ def live_payload_function(participant_code, page_name, payload):
         if payload is not None:
             pcode_retval[pcode] = payload
 
-    _live_send_back(participant._session_code, participant._index_in_pages, pcode_retval)
+    _live_send_back(
+        participant._session_code, participant._index_in_pages, pcode_retval
+    )
 
 
 class LiveMethodBadReturnValue(Exception):

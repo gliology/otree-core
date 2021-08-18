@@ -77,7 +77,7 @@ def get_default_settings(user_settings: dict):
                 'formatter': 'simple',
             },
             'sql': {
-                'level': 'INFO',
+                'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
                 'formatter': 'simple',
             },

@@ -2,6 +2,8 @@
 # even if the user closes their browser
 from huey.contrib.djhuey.management.commands.run_huey import Command as HueyCommand
 import redis.exceptions
+import os
+import sys
 
 
 class Command(HueyCommand):
@@ -13,11 +15,12 @@ class Command(HueyCommand):
         # to ensure the database is flushed in all circumstances.
         from huey.contrib.djhuey import HUEY
 
+        if not os.environ.get('REDIS_URL'):
+            sys.exit('REDIS_URL env var must be defined')
+
         try:
             HUEY.flush()
         except redis.exceptions.ConnectionError as exc:
-            import sys
-
             sys.exit(f'Could not connect to Redis: {exc}')
 
         super().handle(*args, **options)

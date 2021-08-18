@@ -54,23 +54,11 @@ class Participant(models.OTreeModel):
     )
 
     # useful when we don't want to load the whole session just to get the code
-    _session_code = djmodels.CharField(
-        max_length=16,
-    )
+    _session_code = djmodels.CharField(max_length=16)
 
     visited = models.BooleanField(
         default=False, db_index=True, doc="""Whether this user's start URL was opened"""
     )
-
-    # deprecated on 2019-10-16. eventually get rid of this
-    @property
-    def ip_address(self):
-        return 'deprecated'
-
-    @ip_address.setter
-    def ip_address(self, value):
-        if value:
-            raise ValueError('Do not store anything into participant.ip_address')
 
     # stores when the page was first visited
     _last_page_timestamp = models.PositiveIntegerField(null=True)

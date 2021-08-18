@@ -1,3 +1,4 @@
+import json
 from collections import OrderedDict
 from collections import defaultdict
 from decimal import Decimal
@@ -283,14 +284,13 @@ def create_session(
                 ).format(session_config['name'], num_participants, session_lcm)
                 raise ValueError(msg)
 
-
-        session = Session.objects.create(
+        session: Session = Session.objects.create(
             config=session_config,
             label=label,
             is_demo=is_demo,
             num_participants=num_participants,
             is_mturk=is_mturk,
-        )  # type: Session
+        )
 
         session_code = session.code
 
@@ -307,7 +307,7 @@ def create_session(
 
         participant_values = session.participant_set.order_by('id').values('code', 'id')
 
-        page_index = 0
+        num_pages = 0
 
         for app_name in session_config['app_sequence']:
 
@@ -317,6 +317,8 @@ def create_session(
             num_subsessions += Constants.num_rounds
 
             round_numbers = list(range(1, Constants.num_rounds + 1))
+
+            num_pages += Constants.num_rounds * len(views_module.page_sequence)
 
             Subsession = models_module.Subsession
             Group = models_module.Group
@@ -391,32 +393,7 @@ def create_session(
             # Create players
             Player.objects.bulk_create(players_to_create)
 
-            players_flat = Player.objects.filter(session=session).values(
-                'id',
-                'participant__code',
-                'participant__id',
-                'subsession__id',
-                'round_number',
-            )
-
-            players_by_round = [[] for _ in range(Constants.num_rounds)]
-            for p in players_flat:
-                players_by_round[p['round_number'] - 1].append(p)
-
-            for round_number, round_players in enumerate(players_by_round, start=1):
-                for View in views_module.page_sequence:
-                    page_index += 1
-                    for p in round_players:
-
-                        participant_code = p['participant__code']
-
-                        url = View.get_url(
-                            participant_code=participant_code,
-                            name_in_url=Constants.name_in_url,
-                            page_index=page_index,
-                        )
-
-        session.participant_set.update(_max_page_index=page_index)
+        session.participant_set.update(_max_page_index=num_pages)
 
         with otree.db.idmap.use_cache():
             # possible optimization: check if

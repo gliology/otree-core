@@ -1,9 +1,8 @@
 from functools import lru_cache
-from typing import Dict
+from typing import Dict, Tuple
 from otree.models import Session
 from collections import namedtuple
 from otree.common import get_pages_module, get_models_module
-
 
 PageLookup = namedtuple(
     'PageInfo',
@@ -45,7 +44,7 @@ def _get_session_lookups(session_code) -> Dict[int, PageLookup]:
                     # TODO: remove session ID, just use code everywhere
                     session_pk=session.pk,
                     name_in_url=models.Constants.name_in_url,
-                    is_first_in_round=is_first_in_round
+                    is_first_in_round=is_first_in_round,
                 )
                 is_first_in_round = False
                 idx += 1
@@ -72,3 +71,4 @@ def url_i_should_be_on(participant_code, session_code, index_in_pages) -> str:
         name_in_url=lookup.name_in_url,
         page_index=idx,
     )
+

@@ -20,10 +20,10 @@ def group_send_wrapper(*, type: str, group: str, event: dict):
     return _group_send(group, {'type': type, **event})
 
 
-def group_wait_page_name(session_id, page_index, group_id_in_subsession):
+def group_wait_page_name(session_id, page_index, group_id):
 
     return 'wait-page-{}-page{}-{}'.format(
-        session_id, page_index, group_id_in_subsession
+        session_id, page_index, group_id
     )
 
 
