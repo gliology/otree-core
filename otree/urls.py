@@ -138,9 +138,6 @@ def get_urlpatterns():
         Route("/favicon.ico", endpoint=Favicon),
         Route('/', endpoint=HomeRedirect),
     ]
-    # you can add an asgi_routes.py to your own project, to add custom pages & websockets
-    if Path('asgi_routes.py').exists():
-        routes += import_module('asgi_routes').routes
 
     return routes
 
