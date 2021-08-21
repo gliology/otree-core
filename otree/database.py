@@ -362,9 +362,12 @@ class AnyModel(DeclarativeBase):
     @classmethod
     def get_folder_name(cls):
         """this works for models.py format and no-self format"""
-        for part in reversed(cls.__module__.split('.')):
-            if part != 'models':
-                return part
+        # 2021-08-21: previously i used a more complex algo, not sure
+        # if i'm missing something?
+        # this seems to work fine for user-defined models and built-in models
+        # their table name will now be otree_xyz rather than models_concrete_xyz
+        # i don't see any problem with that.
+        return cls.__module__.split('.')[0]
 
     def _clone(self):
         return type(self).objects_get(id=self.id)
