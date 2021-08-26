@@ -3,9 +3,10 @@ from otree.common import in_round, in_rounds
 from otree.db import models
 from otree.models.fieldchecks import ensure_field
 from django.db import models as djmodels
+from otree.db.idmap import PlayerIDMapMixin
 
 
-class BasePlayer(models.OTreeModel):
+class BasePlayer(models.OTreeModel, PlayerIDMapMixin):
     """
     Base class for all players.
     """

@@ -79,7 +79,6 @@ class _PickleField(models.TextField):
 
 
 class VarsMixin:
-
     def _vars_hash(self):
         return hash(str(self.vars))
 

@@ -10,12 +10,10 @@ from otree.models.fieldchecks import ensure_field
 import django.core.exceptions
 from django.db import models as djmodels
 from otree.constants import BaseConstants, get_role, get_roles
+from otree.db.idmap import GroupIDMapMixin
 
 
-class BaseGroup(models.OTreeModel):
-    """Base class for all Groups.
-    """
-
+class BaseGroup(models.OTreeModel, GroupIDMapMixin):
     class Meta:
         abstract = True
         index_together = ['session', 'id_in_subsession']

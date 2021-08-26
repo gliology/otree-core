@@ -5,9 +5,9 @@ import otree.common
 from otree.common import random_chars_8
 from otree.db import models
 from otree.lookup import url_i_should_be_on, get_page_lookup
+from otree.db.idmap import ParticipantIDMapMixin
 
-
-class Participant(models.OTreeModel, models.VarsMixin):
+class Participant(models.OTreeModel, models.VarsMixin, ParticipantIDMapMixin):
     class Meta:
         ordering = ['pk']
         app_label = "otree"

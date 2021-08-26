@@ -144,6 +144,7 @@ def get_urlpatterns():
         urls.url(r'^$', RedirectView.as_view(url='/demo', permanent=True)),
         urls.url(r'^accounts/login/$', LoginView.as_view(), name='login'),
         urls.url(r'^accounts/logout/$', LogoutView.as_view(), name='logout'),
+        urls.url(r'^favicon\.ico$', RedirectView.as_view(url='/static/favicon.ico')),
     ]
 
     urlpatterns += staticfiles_urlpatterns()

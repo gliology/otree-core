@@ -269,7 +269,6 @@ def augment_settings(settings: dict):
         'django.contrib.staticfiles',
         'channels',
         'huey.contrib.djhuey',
-        'idmap',
     ]
 
     if os.environ.get('OTREE_SECRET_KEY'):

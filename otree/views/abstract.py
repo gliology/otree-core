@@ -3,13 +3,11 @@ import json
 import logging
 import os
 import time
-from typing import Optional, List
+from typing import Optional
 
 from functools import lru_cache
-import idmap
 import otree.common2
 import vanilla
-from django.db.models import F
 from django.conf import settings
 from django.core import signals
 from django.core.exceptions import PermissionDenied, SuspiciousOperation
@@ -35,10 +33,10 @@ import otree.bots.browser as browser_bots
 import otree.channels.utils as channel_utils
 import otree.common
 import otree.constants
-import otree.db.idmap
+from otree.db import idmap
 import otree.forms
 import otree.models
-import otree.timeout.tasks
+import otree.tasks
 from otree.bots.bot import bot_prettify_post_data, ExpectError
 from otree.common import (
     get_app_label_from_import_path,
@@ -48,12 +46,9 @@ from otree.common import (
     BotError,
     ResponseForException,
 )
-from otree import common
-from otree.common2 import TIME_SPENT_COLUMNS
 from otree.lookup import get_min_idx_for_app, get_page_lookup
-from otree.models import Participant, Session, BasePlayer, BaseGroup, BaseSubsession
+from otree.models import Participant, Session, BaseGroup, BaseSubsession
 from otree.models_concrete import (
-    PageTimeBatch,
     CompletedSubsessionWaitPage,
     CompletedGroupWaitPage,
     CompletedGBATWaitPage,
@@ -221,7 +216,7 @@ class FormPageOrInGameWaitPage(vanilla.View):
         cache_control(must_revalidate=True, max_age=0, no_cache=True, no_store=True)
     )
     def dispatch(self, request, participant_code, **kwargs):
-        with otree.db.idmap.use_cache():
+        with idmap.use_cache():
             try:
                 participant = Participant.objects.get(code=participant_code)
             except Participant.DoesNotExist:
@@ -256,8 +251,6 @@ class FormPageOrInGameWaitPage(vanilla.View):
                 # this is still necessary, e.g. if an attribute on the page
                 # is invalid, like form_fields, form_model, etc.
                 response = response_for_exception(self.request, exc)
-
-            otree.db.idmap.save_objects()
 
         return response
 
@@ -901,7 +894,7 @@ class Page(FormPageOrInGameWaitPage):
             # submits by the timeout_happened flag), it will "skip ahead"
             # and therefore confuse the bot system.
             if not self.participant.is_browser_bot:
-                otree.timeout.tasks.submit_expired_url.schedule(
+                otree.tasks.submit_expired_url.schedule(
                     (
                         self.participant.code,
                         self.request.build_absolute_uri('/'),
@@ -1008,7 +1001,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
 
     def inner_dispatch(self, *args, **kwargs):
         # necessary because queries are made directly from DB
-        otree.db.idmap.save_objects()
+
         if self.wait_for_all_groups == True:
             resp = self.inner_dispatch_subsession()
         elif self.group_by_arrival_time:
@@ -1185,7 +1178,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
             # if the next page has a timeout, or if it's a wait page
             # but this is not reliable because next page might be skipped anyway,
             # and we don't know what page will actually be shown next to the user.
-            otree.timeout.tasks.ensure_pages_visited.schedule(
+            otree.tasks.ensure_pages_visited.schedule(
                 kwargs=dict(
                     participant_pks=participant_pks,
                     base_url=self.request.build_absolute_uri('/'),
@@ -1288,8 +1281,9 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
         OR
         - The player skips this page
         '''
-        self.participant.is_on_wait_page = False
-        self.participant._monitor_note = None
+        participant = self.participant
+        participant.is_on_wait_page = False
+        participant._monitor_note = None
         self._increment_index_in_pages()
         return self._redirect_to_page_the_user_should_be_on()
 

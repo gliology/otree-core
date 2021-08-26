@@ -19,7 +19,7 @@ from django.template.response import TemplateResponse
 from django.utils.translation import ugettext as _
 from otree.common import make_hash, BotError
 import otree.channels.utils as channel_utils
-import otree.db.idmap
+from otree.db import idmap
 from otree.models import Participant, Session
 from otree.models_concrete import (
     ParticipantRoomVisit,
@@ -88,10 +88,10 @@ class InitializeParticipant(vanilla.UpdateView):
             participant.time_started = now
             participant._last_page_timestamp = time.time()
             participant.save()
-            with otree.db.idmap.use_cache():
+            with idmap.use_cache():
                 player = participant._get_current_player()
                 player.start()
-                otree.db.idmap.save_objects()
+
 
         first_url = participant._url_i_should_be_on()
         return HttpResponseRedirect(first_url)

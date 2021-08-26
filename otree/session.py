@@ -9,7 +9,7 @@ from django.db import transaction
 
 import otree.bots.browser
 import otree.common
-import otree.db.idmap
+from otree.db import idmap
 from otree import common
 from otree.common import (
     get_models_module,
@@ -398,15 +398,13 @@ def create_session(
 
         session.participant_set.update(_max_page_index=num_pages)
 
-        with otree.db.idmap.use_cache():
+        with idmap.use_cache():
             # make creating_session use the current session,
             # so that session.save() below doesn't overwrite everything
             # set earlier
             Session.cache_instance(session)
             for subsession in session.get_subsessions():
                 subsession.creating_session()
-
-            otree.db.idmap.save_objects()
 
         # 2017-09-27: moving this inside the transaction
         session._set_admin_report_app_names()

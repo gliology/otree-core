@@ -9,6 +9,7 @@ import copy
 from otree.common import has_group_by_arrival_time
 from django.apps import apps
 from django.db import models as djmodels
+from otree.db.idmap import SubsessionIDMapMixin
 
 
 class GroupMatrixError(ValueError):
@@ -19,7 +20,7 @@ class RoundMismatchError(GroupMatrixError):
     pass
 
 
-class BaseSubsession(models.OTreeModel):
+class BaseSubsession(models.OTreeModel, SubsessionIDMapMixin):
     """Base class for all Subsessions.
     """
 
@@ -152,7 +153,6 @@ class BaseSubsession(models.OTreeModel):
                 session=self.session,
                 round_number=self.round_number,
             )
-
             group.set_players(row)
 
     def group_like_round(self, round_number):

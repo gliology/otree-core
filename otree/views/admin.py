@@ -15,7 +15,7 @@ from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from otree import forms
+from otree import forms, tasks
 from otree.currency import RealWorldCurrency
 from otree.common import (
     missing_db_tables,
@@ -28,7 +28,6 @@ from otree.models import Participant, Session
 from otree.session import SESSION_CONFIGS_DICT, SessionConfig
 from otree.views.abstract import AdminSessionPageMixin
 from django.db.models import Case, Value, When
-from otree.timeout import tasks
 import otree.channels.utils as channel_utils
 
 

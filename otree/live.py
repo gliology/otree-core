@@ -4,6 +4,8 @@ from otree.channels import utils as channel_utils
 from otree.models import Participant
 from otree.lookup import get_page_lookup
 import logging
+from otree.db import idmap
+
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,7 @@ def live_payload_function(participant_code, page_name, payload):
         return
     live_method_name = PageClass.live_method
 
-    with otree.db.idmap.use_cache():
+    with idmap.use_cache():
         player = models_module.Player.objects.get(
             round_number=lookup.round_number, participant=participant
         )
@@ -44,7 +46,6 @@ def live_payload_function(participant_code, page_name, payload):
         else:
             method = getattr(player, live_method_name)
             retval = method(payload)
-        otree.db.idmap.save_objects()
 
     if not retval:
         return
