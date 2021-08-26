@@ -361,7 +361,11 @@ class AnyModel(DeclarativeBase):
 
     @classmethod
     def get_folder_name(cls):
-        """this works for models.py format and no-self format"""
+        """
+        should be renamed to get_app_name, since we no longer care about
+        folders in otree-core. we treat all otree-core models as being in the
+        same namespace.
+        """
         # 2021-08-21: previously i used a more complex algo, not sure
         # if i'm missing something?
         # this seems to work fine for user-defined models and built-in models
