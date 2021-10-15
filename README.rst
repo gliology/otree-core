@@ -42,10 +42,12 @@ then run this from the project root:
     cd oTree
     otree devserver
 
+i18n
+~~~~
 
-|Build Status|
+t may produce the issue `here <https://github.com/python-babel/babel/issues/665>`__::
+
+    pybabel compile -d otree/locale -f -D django
+
 
 .. _Homepage: http://www.otree.org/
-
-.. |Build Status| image:: https://travis-ci.org/oTree-org/otree-core.svg?branch=master
-   :target: https://travis-ci.org/oTree-org/otree-core

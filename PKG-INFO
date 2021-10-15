@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: otree
-Version: 5.4.3
+Version: 5.4.4
 Summary: oTree is a toolset that makes it easy to create and administer web-based social science experiments.
 Home-page: http://otree.org/
 Author: chris@otree.org
@@ -50,12 +50,15 @@ Description: `Homepage`_
             cd oTree
             otree devserver
         
+        i18n
+        ~~~~
         
-        |Build Status|
+        t may produce the issue `here <https://github.com/python-babel/babel/issues/665>`__::
+        
+            pybabel compile -d otree/locale -f -D django
+        
         
         .. _Homepage: http://www.otree.org/
         
-        .. |Build Status| image:: https://travis-ci.org/oTree-org/otree-core.svg?branch=master
-           :target: https://travis-ci.org/oTree-org/otree-core
 Platform: UNKNOWN
 Provides-Extra: mturk

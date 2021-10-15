@@ -90,7 +90,7 @@ msgstr "Benvenuto/a"
 
 #. Translators: If the user enters an invalid participant label
 #: .\templates\otree\RoomInputLabel.html:13
-msgid "Invalid entry; try again."
+msgid "Participant label not found"
 msgstr "Il codice inserito non è corretto, riprova."
 
 #: .\templates\otree\RoomInputLabel.html:15
