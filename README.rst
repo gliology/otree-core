@@ -45,9 +45,22 @@ then run this from the project root:
 i18n
 ~~~~
 
-t may produce the issue `here <https://github.com/python-babel/babel/issues/665>`__::
+To generate .pot and update .po files::
+
+    cd tests
+    pybabel extract "../otree" -o "../otree/locale/django.pot" -F "..\otree\locale\babel.ini" -k core_gettext -c Translators:
+    cd ..
+    pybabel update -D django -i otree/locale/django.pot -d otree/locale
+
+To compile .po to .mo::
 
     pybabel compile -d otree/locale -f -D django
 
+Note, beware of the issue
+`here <https://github.com/python-babel/babel/issues/665>`__
+
+To add a new language (e.g. Polish)::
+
+    pybabel init -D django -i otree/locale/django.pot -d otree/locale -l pl
 
 .. _Homepage: http://www.otree.org/
