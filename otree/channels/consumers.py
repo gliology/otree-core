@@ -83,8 +83,8 @@ class _OTreeAsyncJsonWebsocketConsumer(WebSocketEndpoint):
         return
 
     async def on_connect(self, websocket: WebSocket) -> None:
-        # patch the instance
-        websocket.send = channel_utils.wrap_websocket_send(websocket.send)
+        AUTH_LEVEL = settings.AUTH_LEVEL
+
         # need to accept no matter what, so we can at least send
         # an error message
         await websocket.accept()
