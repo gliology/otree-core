@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List
 from typing import Optional
 
+import starlette.exceptions
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData as StarletteFormData
 from starlette.requests import Request
@@ -106,10 +107,15 @@ class FormPageOrInGameWaitPage:
         else:
             self.set_attributes(participant)
             # need to await the form from async function, otherwise run into complicated RuntimeError
-            if request.method == 'POST':
-                self._form_data = await self.request.form()
-            response = await run_in_threadpool(self.inner_dispatch, request)
-            # response = self.inner_dispatch(request)
+            try:
+                if request.method == 'POST':
+                    self._form_data = await self.request.form()
+            except starlette.requests.ClientDisconnect:
+                # just make an empty response, to avoid
+                # "RuntimeError: No response returned"
+                response = starlette.responses.Response()
+            else:
+                response = await run_in_threadpool(self.inner_dispatch, request)
         await response(self.scope, self.receive, self.send)
 
     template_name = None

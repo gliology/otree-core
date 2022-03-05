@@ -3,11 +3,23 @@ import asyncio
 from collections import defaultdict
 from typing import DefaultDict, Dict
 from urllib.parse import urlencode
-
+import websockets.exceptions
 from starlette.websockets import WebSocket
 
 from otree.common import signer_sign
 from otree.currency import json_dumps
+
+
+def wrap_websocket_send(original_send):
+    async def send(message):
+        try:
+            await original_send(message)
+        except websockets.exceptions.ConnectionClosed:
+            # "You can catch and handle ConnectionClosed to prevent it from being logged."
+            # https://websockets.readthedocs.io/en/latest/howto/faq.html#what-does-connectionclosederror-no-close-frame-received-or-sent-mean
+            pass
+
+    return send
 
 
 class ChannelLayer:
@@ -32,7 +44,6 @@ class ChannelLayer:
 
     def sync_send(self, group, data):
         asyncio.run(self.send(group, data))
-        # async_to_sync(self.send)(group, data)
 
 
 channel_layer = ChannelLayer()

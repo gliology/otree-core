@@ -8,7 +8,7 @@ from otree.database import save_sqlite_db
 from . import middleware
 from . import settings
 from .errorpage import OTreeServerErrorMiddleware
-from starlette.exceptions import ExceptionMiddleware
+from .patch import ExceptionMiddleware
 from .urls import routes
 
 
@@ -28,12 +28,9 @@ class OTreeStarlette(Starlette):
         # By default Starlette puts ServerErrorMiddleware outside of all user middleware,
         # but I need to reverse that, because if we roll back the transaction before the error page
         # is displayed, it will show incorrect field values for a model instance's __repr__.
-        # 2022-02-19: actually i tested with vars_for_template and put player.age = 42, followed by 1/0
-        # and the error page still says 42. and the 42 is not saved to the database (according to the monitor page).
-        # so it seems OK.
         middlewares = [
-            Middleware(OTreeServerErrorMiddleware, handler=error_handler, debug=debug),
             Middleware(middleware.CommitTransactionMiddleware),
+            Middleware(OTreeServerErrorMiddleware, handler=error_handler, debug=debug),
             Middleware(middleware.PerfMiddleware),
             Middleware(middleware.SessionMiddleware, secret_key=middleware._SECRET),
             Middleware(ExceptionMiddleware, handlers=exception_handlers, debug=debug),
