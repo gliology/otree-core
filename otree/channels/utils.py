@@ -33,10 +33,15 @@ class ChannelLayer:
         self._subs = defaultdict(dict)
 
     def add(self, group: str, websocket: WebSocket):
+        print(self._subs)
         self._subs[group][id(websocket)] = websocket
 
     def discard(self, group, websocket):
-        self._subs[group].pop(id(websocket), None)
+        group_dict = self._subs[group]
+        group_dict.pop(id(websocket), None)
+        # prune it so this global var doesn't grow indefinitely
+        if not group_dict:
+            del self._subs[group]
 
     async def send(self, group, data):
         for socket in self._get_sockets(group):
