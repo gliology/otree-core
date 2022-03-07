@@ -33,7 +33,6 @@ class ChannelLayer:
         self._subs = defaultdict(dict)
 
     def add(self, group: str, websocket: WebSocket):
-        print(self._subs)
         self._subs[group][id(websocket)] = websocket
 
     def discard(self, group, websocket):
