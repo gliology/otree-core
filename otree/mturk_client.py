@@ -37,10 +37,13 @@ def call_api(operation: str, request_parameters: dict, *, use_sandbox: bool) -> 
     # POST requests use a content type header. For DynamoDB,
     # the content is JSON.
     content_type = 'application/x-amz-json-1.1'
+    # DynamoDB requires an x-amz-target header that has this format:
+    #     DynamoDB_<API version>.<operationName>
+    # amz_target = 'DynamoDB_20120810.CreateTable'
     amz_target = f'MTurkRequesterServiceV20170117.{operation}'
 
     # Create a date for headers and the credential string
-    t = datetime.utcnow()
+    t = datetime.datetime.utcnow()
     amz_date = t.strftime('%Y%m%dT%H%M%SZ')
     date_stamp = t.strftime('%Y%m%d')  # Date w/o time, used in credential scope
 

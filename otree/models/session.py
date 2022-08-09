@@ -67,19 +67,12 @@ class Session(MixinVars, otree.database.SSPPGModel):
     mturk_expiration = Column(st.Float, nullable=True)
     mturk_qual_id = Column(st.String(50), default='')
 
-    archived = Column(
-        st.Boolean,
-        default=False,
-        index=True,
-    )
+    archived = Column(st.Boolean, default=False, index=True,)
 
     comment = Column(st.Text)
 
     _anonymous_code = Column(
-        st.String(20),
-        default=random_chars_join_code,
-        nullable=False,
-        index=True,
+        st.String(20), default=random_chars_join_code, nullable=False, index=True,
     )
 
     is_demo = Column(st.Boolean, default=False)
@@ -89,20 +82,18 @@ class Session(MixinVars, otree.database.SSPPGModel):
 
     num_participants = Column(st.Integer)
 
-    # better to use int because it's portable and no ambiguity
-    # about timezone. when you do dt.timestamp() it might give
-    # the wrong result if it's in the wrong timezone.
-    _created = Column(st.Integer, default=time.time)
+    _created = Column(st.DateTime, default=datetime.utcnow)
 
     def _created_readable(self):
-        now = time.time()
+        now = datetime.utcnow()
         delta = now - self._created
-        days = delta // (24 * 60 * 60)
+        days = delta.days
+        seconds = delta.seconds
         if days > 1:
             return f'{days} days ago'
         if days == 1:
             return '1 day ago'
-        num_hours = delta // (60 * 60)
+        num_hours = seconds // (60 * 60)
         if num_hours >= 1:
             return f'{num_hours} hours ago'
         return '< 1 hour ago'

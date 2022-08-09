@@ -138,11 +138,6 @@ def session_scope():
 
 
 def save_sqlite_db():
-    if not IN_MEMORY:
-        # if it's not in memory, then we shouldn't dump, because
-        # the sqlite memory connection will be empty and we overwrite the
-        # real database.
-        return
     global _dumped
     if _dumped:
         return

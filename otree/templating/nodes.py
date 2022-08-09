@@ -384,9 +384,9 @@ class IfNode(Node):
         self.condition_groups = [
             [
                 self.parse_condition(condstr)
-                for condstr in utils.splitre(or_block, (r'\s+and\s+',))
+                for condstr in utils.splitre(or_block, (r'\s+and\s+', r'&&'))
             ]
-            for or_block in utils.splitre(conditions, (r'\s+or\s+',))
+            for or_block in utils.splitre(conditions, (r'\s+or\s+', r'\|\|'))
         ]
 
     def parse_condition(self, condstr):
@@ -435,15 +435,15 @@ class IfNode(Node):
             return self.false_branch.render(context)
 
     def exit_scope(self):
-        before_elif, first_elif, after_first_elif = self.split_children(ElifNode)
-        if first_elif:
-            self.true_branch = Node(None, before_elif)
-            self.false_branch = IfNode(first_elif.token, after_first_elif)
+        if_nodes, elif_node, elif_nodes = self.split_children(ElifNode)
+        if elif_node:
+            self.true_branch = Node(None, if_nodes)
+            self.false_branch = IfNode(elif_node.token, elif_nodes)
             self.false_branch.exit_scope()
             return
-        before_else, _, after_first_else = self.split_children(ElseNode)
-        self.true_branch = Node(None, before_else)
-        self.false_branch = Node(None, after_first_else)
+        if_nodes, _, else_nodes = self.split_children(ElseNode)
+        self.true_branch = Node(None, if_nodes)
+        self.false_branch = Node(None, else_nodes)
 
 
 # Delimiter node to implement if/elif branching.
@@ -455,12 +455,7 @@ class ElifNode(Node):
 # Delimiter node to implement if/else branching.
 @register('else')
 class ElseNode(Node):
-    def process_token(self, token):
-        # prevent people from mistakenly using {{ else if }} instead of {{ elif }}
-        content = token.text.strip()
-        if content != token.keyword:
-            msg = f"""Invalid 'else' tag: "{content}"."""
-            raise errors.TemplateSyntaxError(msg, token) from None
+    pass
 
 
 class BaseIncludeNode(Node):

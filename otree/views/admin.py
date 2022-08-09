@@ -177,7 +177,7 @@ class SessionEditPropertiesForm(wtforms.Form):
     participation_fee = wtforms.DecimalField()
     real_world_currency_per_point = wtforms.DecimalField(places=6)
     label = wtforms.StringField()
-    comment = wtforms.TextAreaField(render_kw=dict(rows='3', cols='40'))
+    comment = wtforms.StringField()
 
     field_names = [
         'participation_fee',
@@ -274,11 +274,7 @@ class SessionData(AdminSessionPage):
             field_headers[app_name] = pfields + gfields + sfields
 
             for round_number in range(1, num_rounds + 1):
-                table = dict(
-                    pfields=pfields,
-                    gfields=gfields,
-                    sfields=sfields,
-                )
+                table = dict(pfields=pfields, gfields=gfields, sfields=sfields,)
                 tables.append(table)
 
                 app_names_by_subsession.append(app_name)
@@ -322,9 +318,7 @@ class SessionDescription(AdminSessionPage):
 
 
 class AdminReportForm(wtforms.Form):
-    app_name = wtforms.SelectField(
-        render_kw={'class': 'form-control'},
-    )
+    app_name = wtforms.SelectField(render_kw={'class': 'form-control'},)
     # use h5fields to get type='number' (but otree hides the spinner)
     round_number = h5fields.IntegerField(
         validators=[wtvalidators.Optional(), wtvalidators.NumberRange(min=1)],
@@ -399,9 +393,7 @@ class AdminReport(AdminSessionPage):
 
         Constants = otree.common.get_constants(app_name)
         context = super().get_context_data(
-            subsession=subsession,
-            user_template=user_template,
-            **kwargs,
+            subsession=subsession, user_template=user_template, **kwargs,
         )
         context[Constants.__name__] = Constants
         # it's passed by parent class
@@ -452,8 +444,9 @@ class ServerCheck(AdminView):
     url_pattern = '/server_check'
 
     def get_context_data(self, **kwargs):
+        # is_sqlite = engine.url.database
         backend_name = otree.database.engine.url.get_backend_name()
-        is_postgres = 'postgres' in backend_name.lower()
+        is_postgres = backend_name == 'postgres'
         return super().get_context_data(
             debug=settings.DEBUG,
             auth_level=settings.AUTH_LEVEL,

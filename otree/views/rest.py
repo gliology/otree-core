@@ -12,7 +12,7 @@ from otree import settings
 from otree.channels import utils as channel_utils
 from otree.common import GlobalState, get_models_module
 from otree.currency import json_dumps
-from otree.database import db, dbq
+from otree.database import db
 from otree.models import Session, Participant
 from otree.models_concrete import ParticipantVarsFromREST
 from otree.room import ROOM_DICT
@@ -86,10 +86,7 @@ class RESTParticipantVarsByRoom(BaseRESTView):
             if participant:
                 participant.vars.update(vars)
                 return JSONResponse({})
-        kwargs = dict(
-            participant_label=participant_label,
-            room_name=room_name,
-        )
+        kwargs = dict(participant_label=participant_label, room_name=room_name,)
         _json_data = json.dumps(vars)
         obj = ParticipantVarsFromREST.objects_first(**kwargs)
         if obj:
@@ -100,17 +97,9 @@ class RESTParticipantVarsByRoom(BaseRESTView):
         return JSONResponse({})
 
 
-class RESTSessions(BaseRESTView):
+class RESTCreateSession(BaseRESTView):
 
     url_pattern = '/api/sessions'
-
-    def get(self):
-        sessions = []
-        for session in dbq(Session).filter_by(is_demo=False).order_by('id'):
-            session_dict = session_attrs_for_list(session)
-            session_dict.update(get_session_urls(session, self.request))
-            sessions.append(session_dict)
-        return JSONResponse(sessions)
 
     def post(self, **kwargs):
         try:
@@ -144,36 +133,10 @@ def get_session_urls(session: Session, request: Request) -> dict:
     return d
 
 
-def session_attrs_for_list(session: Session):
-    # this should include fields that help you distinguish it from other sessions
-
-    return dict(
-        code=session.code,
-        num_participants=session.num_participants,
-        created_at=session._created,
-        label=session.label,
-        config_name=session.config['name'],
-    )
-
-
-def session_attrs_for_detail(session: Session):
-    return dict(
-        # we need the session config for mturk settings and participation fee
-        # technically, other parts of session config might not be JSON serializable
-        config=session.config,
-        REAL_WORLD_CURRENCY_CODE=settings.REAL_WORLD_CURRENCY_CODE,
-    )
-
-
 class RESTGetSessionInfo(BaseRESTView):
-    # it's more of GET semantics but we need to use POST because we pass request.body
-    url_pattern = '/api/get_session/{code}'
+    url_pattern = '/api/sessions/{code}'
 
-    def post(self, participant_labels=None, participant_vars=None, session_vars=None):
-        if participant_vars is None:
-            participant_vars = []
-        if session_vars is None:
-            session_vars = []
+    def get(self, participant_labels=None):
         code = self.request.path_params['code']
         session = db.get_or_404(Session, code=code)
         pp_set = session.pp_set
@@ -187,49 +150,19 @@ class RESTGetSessionInfo(BaseRESTView):
                 label=pp.label,
                 payoff_in_real_world_currency=pp.payoff.to_real_world_currency(session),
             )
-            # special case participant field.
-            # if
             if 'finished' in settings.PARTICIPANT_FIELDS:
                 pdata['finished'] = pp.vars.get('finished', False)
-            # shouldn't raise an error if the field is not found,
-            # e.g. because oTree Hub may check if some things are defined to provide
-            # extra functionality.
-            # there is no silent failure because we will just not include that key
-            # in the output, so it will be obvious.
-            for field in participant_vars:
-                if field in pp.vars:
-                    val = pp.vars[field]
-                    try:
-                        json_dumps(val)
-                    except TypeError:
-                        return Response(
-                            f"participant.vars['{field}'] is not JSON serializable",
-                            status_code=400,
-                        )
-                    pdata[field] = val
-
             pdata_list.append(pdata)
 
-        payload = session_attrs_for_list(session)
-        payload.update(session_attrs_for_detail(session))
-        payload.update(get_session_urls(session, self.request))
-        payload.update(
+        payload = dict(
+            # we need the session config for mturk settings and participation fee
+            # technically, other parts of session config might not be JSON serializable
             config=session.config,
-            participants=pdata_list,
+            num_participants=session.num_participants,
             REAL_WORLD_CURRENCY_CODE=settings.REAL_WORLD_CURRENCY_CODE,
+            participants=pdata_list,
+            **get_session_urls(session, self.request),
         )
-
-        for field in session_vars:
-            if field in session.vars:
-                val = session.vars[field]
-                try:
-                    json_dumps(val)
-                except TypeError:
-                    return Response(
-                        f"session.vars['{field}'] is not JSON serializable",
-                        status_code=400,
-                    )
-                payload[field] = val
 
         mturk_settings = session.config.get('mturk_hit_settings')
         if mturk_settings:
@@ -241,13 +174,6 @@ class RESTGetSessionInfo(BaseRESTView):
         return Response(json_dumps(payload))
 
 
-class RESTGetSessionInfoLegacy(BaseRESTView):
-    # for compat.
-    # it used to be GET, but since it uses request.body changed to POST.
-    url_pattern = '/api/sessions/{code}'
-    get = RESTGetSessionInfo.post
-
-
 launcher_session_code = None
 
 
@@ -255,10 +181,7 @@ class CreateBrowserBotsSession(BaseRESTView):
     url_pattern = '/create_browser_bots_session'
 
     def post(
-        self,
-        num_participants,
-        session_config_name,
-        case_number,
+        self, num_participants, session_config_name, case_number,
     ):
         session = create_session(
             session_config_name=session_config_name, num_participants=num_participants
