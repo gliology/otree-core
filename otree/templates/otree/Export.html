@@ -140,20 +140,11 @@
 
       var socket;
 
-      function removeProgressElement(link_id) {
-          $(`#${link_id} > progress`).remove();
-      }
-
       function initWebSocket() {
           socket = makeReconnectingWebSocket('/export');
           socket.onmessage = function (e) {
               var content = JSON.parse(e.data);
-              if (content.error) {
-                  window.alert(content.error);
-                  removeProgressElement(content.link_id);
-              } else {
-                  saveReceivedFile(content);
-              }
+              saveReceivedFile(content);
           };
       }
 
@@ -196,7 +187,7 @@
                   window.URL.revokeObjectURL(url);
               }, 0);
           }
-          removeProgressElement(c.link_id);
+          $('#' + c.link_id + ' > ' + 'progress').remove();
       }
   </script>
 

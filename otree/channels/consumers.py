@@ -133,8 +133,17 @@ class _OTreeAsyncJsonWebsocketConsumer(WebSocketEndpoint):
         await self.websocket.send_json(data)
 
 
+async def mark_waitpage_is_connected(participant_id, is_connected):
+    # use for-loop in case the participant was deleted.
+    for pp in Participant.objects_filter(id=participant_id):
+        if pp._waitpage_is_connected != is_connected:
+            pp._waitpage_is_connected = is_connected
+            await pp._update_monitor_table_async()
+
+
 class BaseWaitPage(_OTreeAsyncJsonWebsocketConsumer):
     kwarg_names: list
+    participant_id: int
 
     def clean_kwargs(self):
         d = parse_querystring(self.scope['query_string'])
@@ -142,6 +151,20 @@ class BaseWaitPage(_OTreeAsyncJsonWebsocketConsumer):
         for k in self.kwarg_names:
             kwargs[k] = int(d[k])
         return kwargs
+
+    async def pre_disconnect(self, participant_id, **kwargs):
+        await mark_waitpage_is_connected(participant_id, False)
+
+    async def post_receive_json(self, content, **kwargs):
+        if 'tab_hidden' in content:
+            await self.mark_waitpage_tab_hidden(content['tab_hidden'])
+
+    async def mark_waitpage_tab_hidden(self, tab_hidden):
+        # need to use for-loop in case the participant is deleted.
+        for pp in Participant.objects_filter(id=self.participant_id):
+            if pp._waitpage_tab_hidden != tab_hidden:
+                pp._waitpage_tab_hidden = tab_hidden
+                await pp._update_monitor_table_async()
 
 
 class WSSubsessionWaitPage(BaseWaitPage):
@@ -155,8 +178,10 @@ class WSSubsessionWaitPage(BaseWaitPage):
         return CompletedSubsessionWaitPage.objects_exists(**kwargs)
 
     async def post_connect(self, session_pk, page_index, participant_id):
+        self.participant_id = participant_id
         if self.completion_exists(page_index=page_index, session_id=session_pk):
             await self.websocket.send_json({'status': 'ready'})
+        await mark_waitpage_is_connected(participant_id, True)
 
 
 class WSGroupWaitPage(BaseWaitPage):
@@ -170,37 +195,15 @@ class WSGroupWaitPage(BaseWaitPage):
         return CompletedGroupWaitPage.objects_exists(**kwargs)
 
     async def post_connect(self, session_pk, page_index, group_id, participant_id):
+        self.participant_id = participant_id
         if self.completion_exists(
             page_index=page_index, group_id=group_id, session_id=session_pk
         ):
             await self.websocket.send_json({'status': 'ready'})
+        await mark_waitpage_is_connected(participant_id, True)
 
 
-class LiveConsumer(_OTreeAsyncJsonWebsocketConsumer):
-    def group_name(self, session_code, page_index, participant_code, **kwargs):
-        return channel_utils.live_group(session_code, page_index, participant_code)
-
-    def clean_kwargs(self):
-        return parse_querystring(self.scope['query_string'])
-
-    def browser_bot_exists(self, participant_code):
-        # for browser bots, block liveSend calls that get triggered on page load.
-        # instead, everything must happen through call_live_method in a controlled way.
-        return Participant.objects_exists(code=participant_code, is_browser_bot=True)
-
-    async def post_receive_json(self, content, participant_code, page_name, **kwargs):
-        if self.browser_bot_exists(participant_code):
-            return
-        await live_payload_function(
-            participant_code=participant_code, page_name=page_name, payload=content
-        )
-
-    @classmethod
-    async def encode_json(cls, content):
-        return json_dumps(content)
-
-
-class WSGroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
+class WSGroupByArrivalTime(BaseWaitPage):
 
     app_name: str
     player_id: int
@@ -238,16 +241,6 @@ class WSGroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
             session_id=session_pk,
         )
 
-    def mark_gbat_is_connected(self, is_connected):
-        Participant.objects_filter(id=self.participant_id).update(
-            {Participant._gbat_is_connected: is_connected}
-        )
-
-    def mark_gbat_tab_hidden(self, tab_hidden):
-        Participant.objects_filter(id=self.participant_id).update(
-            {Participant._gbat_tab_hidden: tab_hidden}
-        )
-
     async def post_connect(
         self, app_name, player_id, page_index, session_pk, participant_id
     ):
@@ -272,16 +265,31 @@ class WSGroupByArrivalTime(_OTreeAsyncJsonWebsocketConsumer):
         # but the flaw is that WS disconnect seems to fire AFTER dispatch
         # so add some redundancy here because i'm pretty sure connect() must run
         # after disconnect() of the previous page load.
-        self.mark_gbat_is_connected(True)
+        await mark_waitpage_is_connected(participant_id, True)
 
-    async def pre_disconnect(
-        self, app_name, player_id, page_index, session_pk, participant_id
-    ):
-        self.mark_gbat_is_connected(False)
 
-    async def post_receive_json(self, content, **kwargs):
-        if 'tab_hidden' in content:
-            self.mark_gbat_tab_hidden(content['tab_hidden'])
+class LiveConsumer(_OTreeAsyncJsonWebsocketConsumer):
+    def group_name(self, session_code, page_index, participant_code, **kwargs):
+        return channel_utils.live_group(session_code, page_index, participant_code)
+
+    def clean_kwargs(self):
+        return parse_querystring(self.scope['query_string'])
+
+    def browser_bot_exists(self, participant_code):
+        # for browser bots, block liveSend calls that get triggered on page load.
+        # instead, everything must happen through call_live_method in a controlled way.
+        return Participant.objects_exists(code=participant_code, is_browser_bot=True)
+
+    async def post_receive_json(self, content, participant_code, page_name, **kwargs):
+        if self.browser_bot_exists(participant_code):
+            return
+        await live_payload_function(
+            participant_code=participant_code, page_name=page_name, payload=content
+        )
+
+    @classmethod
+    async def encode_json(cls, content):
+        return json_dumps(content)
 
 
 class DetectAutoAdvance(_OTreeAsyncJsonWebsocketConsumer):
@@ -646,33 +654,28 @@ class WSExportData(_OTreeAsyncJsonWebsocketConsumer):
         is_custom = content.get('is_custom')
 
         iso_date = datetime.date.today().isoformat()
-        try:
-            with io.StringIO() as fp:
-                # Excel requires BOM; otherwise non-english characters are garbled
-                if content.get('for_excel'):
-                    fp.write(BOM)
-                if app_name:
-                    if is_custom:
-                        fxn = custom_export_app
-                    else:
-                        fxn = export_app
-                    fxn(app_name, fp)
-                    file_name_prefix = app_name
+        with io.StringIO() as fp:
+            # Excel requires BOM; otherwise non-english characters are garbled
+            if content.get('for_excel'):
+                fp.write(BOM)
+            if app_name:
+                if is_custom:
+                    fxn = custom_export_app
                 else:
-                    export_wide(fp)
-                    file_name_prefix = 'all_apps_wide'
-                data = fp.getvalue()
-        except Exception:
-            content.update(
-                error="Error exporting data. Check the server logs for details."
-            )
-            await self.send_json(content)
-            raise
-        else:
-            file_name = f'{file_name_prefix}_{iso_date}.csv'
-            content.update(file_name=file_name, data=data, mime_type='text/csv')
-            # note, this doesn't go through channel layer currently
-            await self.send_json(content)
+                    fxn = export_app
+                fxn(app_name, fp)
+                file_name_prefix = app_name
+            else:
+                export_wide(fp)
+                file_name_prefix = 'all_apps_wide'
+            data = fp.getvalue()
+
+        file_name = f'{file_name_prefix}_{iso_date}.csv'
+
+        content.update(file_name=file_name, data=data, mime_type='text/csv')
+        # this doesn't go through channel layer, so it is probably safer
+        # in terms of sending large data
+        await self.send_json(content)
 
     def group_name(self, **kwargs):
         return None

@@ -1,5 +1,5 @@
 from pathlib import Path
-import os
+
 import otree
 from otree import settings
 from starlette.responses import HTMLResponse
@@ -54,8 +54,7 @@ class FileReloader(FileLoader):
 
 
 def get_ibis_loader():
-    # should it be based on debug? or prodserver vs devserver?
-    loader_class = FileReloader if os.getenv('USE_TEMPLATE_RELOADER') else FileLoader
+    loader_class = FileReloader if settings.DEBUG else FileLoader
 
     dirs = [
         Path('.'),  # for noself

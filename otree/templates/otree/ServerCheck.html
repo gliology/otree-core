@@ -6,6 +6,7 @@
 
 {% block content %}
 
+
     {% if pypi_results.installed == pypi_results.newest %}
       <div class="alert alert-success">
       You have the latest version of oTree ({{ pypi_results.installed }}).
@@ -54,6 +55,7 @@
       Postgres is configured.
     </div>
   {% endif %}
+
 
 
 {% endblock %}

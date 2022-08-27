@@ -177,7 +177,7 @@ class SessionEditPropertiesForm(wtforms.Form):
     participation_fee = wtforms.DecimalField()
     real_world_currency_per_point = wtforms.DecimalField(places=6)
     label = wtforms.StringField()
-    comment = wtforms.TextAreaField(render_kw=dict(rows='3', cols='40'))
+    comment = wtforms.StringField()
 
     field_names = [
         'participation_fee',
@@ -296,6 +296,8 @@ class SessionMonitor(AdminSessionPage):
     def vars_for_template(self):
         field_names = export.get_fields_for_monitor()
 
+        # the order of the field is defined by the field_names functions.
+        # the websocket endpoint passes (ordered) dicts as JSON to the client.
         display_names = dict(
             _numeric_label='',
             code='Code',
@@ -452,8 +454,9 @@ class ServerCheck(AdminView):
     url_pattern = '/server_check'
 
     def get_context_data(self, **kwargs):
+        # is_sqlite = engine.url.database
         backend_name = otree.database.engine.url.get_backend_name()
-        is_postgres = 'postgres' in backend_name.lower()
+        is_postgres = backend_name == 'postgres'
         return super().get_context_data(
             debug=settings.DEBUG,
             auth_level=settings.AUTH_LEVEL,

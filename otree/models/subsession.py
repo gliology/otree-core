@@ -155,8 +155,8 @@ class BaseSubsession(SPGModel, MixinSessionFK):
         # count how many are re-grouped
         waiting_players = list(
             self.player_set.join(Participant).filter(
-                Participant._gbat_is_connected == True,
-                Participant._gbat_tab_hidden == False,
+                Participant._waitpage_is_connected == True,
+                Participant._waitpage_tab_hidden == False,
                 Participant._index_in_pages == page_index,
                 Participant._gbat_grouped == False,
                 # this is just a failsafe
@@ -220,7 +220,7 @@ class BaseSubsession(SPGModel, MixinSessionFK):
 
         for participant in participants:
             participant._gbat_grouped = True
-            participant._gbat_is_connected = False
+            participant._waitpage_is_connected = False
 
         return this_round_new_group
 

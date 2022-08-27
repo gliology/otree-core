@@ -372,14 +372,23 @@ def get_rows_for_monitor(participants) -> list:
     field_names = get_fields_for_monitor()
     callable_fields = {'_numeric_label', '_current_page'}
     rows = []
-    for participant in participants:
+    for pp in participants:
         row = {}
         for field_name in field_names:
-            value = getattr(participant, field_name)
+            value = getattr(pp, field_name)
             if field_name in callable_fields:
                 value = value()
             row[field_name] = value
-        row['id_in_session'] = participant.id_in_session
+        row['id_in_session'] = pp.id_in_session
+        if pp.is_on_wait_page:
+            if pp._waitpage_is_connected:
+                if pp._waitpage_tab_hidden:
+                    icon = '🟡'
+                else:
+                    icon = '🟢'
+            else:
+                icon = '⚪'
+            row['_current_page_name'] += ' ' + icon
         rows.append(row)
     return rows
 
