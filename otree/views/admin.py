@@ -306,6 +306,7 @@ class SessionMonitor(AdminSessionPage):
             _current_app_name='App',
             _round_number='Round',
             _current_page_name='Page name',
+            _presence_icon="",
             _monitor_note='Waiting for',
             _last_page_timestamp='Time',
         )

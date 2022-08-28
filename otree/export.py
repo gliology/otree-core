@@ -88,6 +88,7 @@ def _get_table_fields(Model, for_export=False):
                 '_current_app_name',
                 '_round_number',
                 '_current_page_name',
+                '_presence_icon',
                 '_monitor_note',
                 '_last_page_timestamp',
             ]
@@ -370,7 +371,7 @@ def get_rows_for_csv(app_name):
 
 def get_rows_for_monitor(participants) -> list:
     field_names = get_fields_for_monitor()
-    callable_fields = {'_numeric_label', '_current_page'}
+    callable_fields = {'_numeric_label', '_current_page', '_presence_icon'}
     rows = []
     for pp in participants:
         row = {}
@@ -380,15 +381,6 @@ def get_rows_for_monitor(participants) -> list:
                 value = value()
             row[field_name] = value
         row['id_in_session'] = pp.id_in_session
-        if pp.is_on_wait_page:
-            if pp._waitpage_is_connected:
-                if pp._waitpage_tab_hidden:
-                    icon = '🟡'
-                else:
-                    icon = '🟢'
-            else:
-                icon = '⚪'
-            row['_current_page_name'] += ' ' + icon
         rows.append(row)
     return rows
 

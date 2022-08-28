@@ -252,3 +252,12 @@ class Participant(MixinVars, otree.database.SSPPGModel):
 
     def _get_finished(self):
         return self.vars.get('finished', False)
+
+    def _presence_icon(self):
+        if not self.is_on_wait_page:
+            return ''
+        if self._waitpage_is_connected:
+            if self._waitpage_tab_hidden:
+                return '🟡'
+            return '🟢'
+        return '⚪'
