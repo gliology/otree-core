@@ -188,7 +188,7 @@ class FormPageOrInGameWaitPage:
 
         if has_trial:
             Trial = self.trial_model
-            use_roundtrip_mode = json_dumps(hasattr(self, 'evaluate_trial'))
+            use_roundtrip_mode = hasattr(self, 'evaluate_trial')
             if use_roundtrip_mode:
                 trials = []
             else:
@@ -197,7 +197,7 @@ class FormPageOrInGameWaitPage:
                     for t in Trial.filter(player=self.player)
                 ]
             context['trials_json'] = json_dumps(trials)
-            context['_trials_use_roundtrip_mode'] = use_roundtrip_mode
+            context['_trials_use_roundtrip_mode'] = json_dumps(use_roundtrip_mode)
 
         vars_for_template.update(user_vars)
 
