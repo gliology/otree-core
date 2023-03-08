@@ -25,6 +25,7 @@ ALWAYS_UNRESTRICTED = {
     'WSSubsessionWaitPage',
     'WSGroupWaitPage',
     'LiveConsumer',
+    'TrialConsumer',
     'WSGroupByArrivalTime',
     'DetectAutoAdvance',
     'WSRoomParticipant',

@@ -55,11 +55,7 @@ class Participant(MixinVars, otree.database.SSPPGModel):
     # useful when we don't want to load the whole session just to get the code
     _session_code = Column(st.String(16))
 
-    visited = Column(
-        st.Boolean,
-        default=False,
-        index=True,
-    )
+    visited = Column(st.Boolean, default=False, index=True,)
 
     # stores when the page was first visited
     _last_page_timestamp = Column(st.Integer, nullable=True)
@@ -78,9 +74,7 @@ class Participant(MixinVars, otree.database.SSPPGModel):
 
     _current_form_page_url = Column(st.String(500))
 
-    _max_page_index = Column(
-        st.Integer,
-    )
+    _max_page_index = Column(st.Integer,)
 
     _SETATTR_NO_FIELD_HINT = ' You can define it in the PARTICIPANT_FIELDS setting.'
 
@@ -90,18 +84,12 @@ class Participant(MixinVars, otree.database.SSPPGModel):
     is_browser_bot = Column(st.Boolean, default=False)
 
     _timeout_expiration_time = otree.database.FloatField()
-    _timeout_page_index = Column(
-        st.Integer,
-    )
+    _timeout_page_index = Column(st.Integer,)
 
-    _waitpage_is_connected = Column(st.Boolean, default=False)
-    _waitpage_tab_hidden = Column(st.Boolean, default=False)
-    _gbat_page_index = Column(
-        st.Integer,
-    )
-    _gbat_grouped = Column(
-        st.Boolean,
-    )
+    _gbat_is_connected = Column(st.Boolean, default=False)
+    _gbat_tab_hidden = Column(st.Boolean, default=False)
+    _gbat_page_index = Column(st.Integer,)
+    _gbat_grouped = Column(st.Boolean,)
 
     def set_label(self, label):
         if not label:
@@ -192,19 +180,13 @@ class Participant(MixinVars, otree.database.SSPPGModel):
             )
             common2.write_row_to_page_buffer(row)
 
-    def _get_update_monitor_table_message(self):
+    def _update_monitor_table(self):
         from otree import export
 
-        return dict(
+        channel_utils.sync_group_send(
             group=channel_utils.session_monitor_group_name(self._session_code),
             data=dict(rows=export.get_rows_for_monitor([self])),
         )
-
-    def _update_monitor_table(self):
-        channel_utils.sync_group_send(**self._get_update_monitor_table_message())
-
-    async def _update_monitor_table_async(self):
-        await channel_utils.group_send(**self._get_update_monitor_table_message())
 
     def _get_page_instance(self):
         if self._index_in_pages > self._max_page_index:
@@ -252,12 +234,3 @@ class Participant(MixinVars, otree.database.SSPPGModel):
 
     def _get_finished(self):
         return self.vars.get('finished', False)
-
-    def _presence_icon(self):
-        if not self.is_on_wait_page:
-            return ''
-        if self._waitpage_is_connected:
-            if self._waitpage_tab_hidden:
-                return '🟡'
-            return '🟢'
-        return '⚪'

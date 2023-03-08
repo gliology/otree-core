@@ -15,6 +15,7 @@ websocket_routes = [
     WSR('/browser_bots_client/{session_code}', cs.WSBrowserBotsLauncher),
     WSR('/browser_bot_wait', cs.WSBrowserBot),
     WSR('/live', cs.LiveConsumer),
+    WSR('/trial', cs.TrialConsumer),
     WSR('/chat', cs.WSChat),
     WSR('/export', cs.WSExportData),
 ]

@@ -46,6 +46,7 @@ from otree.models_concrete import (
     CompletedGroupWaitPage,
     CompletedGBATWaitPage,
 )
+import otree.trial
 from otree.templating import render
 
 logger = logging.getLogger(__name__)
@@ -137,6 +138,8 @@ class FormPageOrInGameWaitPage:
     @classmethod
     def get_url(cls, participant_code, name_in_url, page_index):
         '''need this because reverse() is too slow in create_session'''
+        # if i change this URL pattern, i should also change assert_correct_page()
+        # in bot.py
         return f'/p/{participant_code}/{name_in_url}/{cls.__name__}/{page_index}'
 
     @classmethod
@@ -148,6 +151,7 @@ class FormPageOrInGameWaitPage:
         return RedirectResponse(self.participant._url_i_should_be_on(), status_code=302)
 
     def get_context_data(self, **context):
+        has_trial = bool(getattr(self, 'trial_model', None))
         context.update(
             view=self,
             object=getattr(self, 'object', None),
@@ -159,6 +163,7 @@ class FormPageOrInGameWaitPage:
             timer_text=getattr(self, 'timer_text', None),
             current_page_name=self.__class__.__name__,
             has_live_method=bool(getattr(self, 'live_method', None)),
+            has_trial=has_trial,
         )
 
         Constants = self._Constants
@@ -180,6 +185,19 @@ class FormPageOrInGameWaitPage:
             context['js_vars'] = json_dumps(js_vars)
         except TypeError as exc:
             raise TypeError(f'js_vars contains an invalid value; {exc}') from None
+
+        if has_trial:
+            Trial = self.trial_model
+            use_roundtrip_mode = json_dumps(hasattr(self, 'evaluate_trial'))
+            if use_roundtrip_mode:
+                trials = []
+            else:
+                trials = [
+                    otree.trial.encode_trial(t, self.trial_stimulus_fields)
+                    for t in Trial.filter(player=self.player)
+                ]
+            context['trials_json'] = json_dumps(trials)
+            context['_trials_use_roundtrip_mode'] = use_roundtrip_mode
 
         vars_for_template.update(user_vars)
 
@@ -405,7 +423,13 @@ class FormPageOrInGameWaitPage:
             page_name=type(self).__name__,
             page_index=self._index_in_pages,
             session_code=self.participant._session_code,
-            live_method_name=self.live_method,
+        )
+
+    def trial_url(self):
+        return channel_utils.trial_path(
+            participant_code=self.participant.code,
+            page_name=type(self).__name__,
+            page_index=self._index_in_pages,
         )
 
     live_method = ''
@@ -963,7 +987,7 @@ class WaitPage(FormPageOrInGameWaitPage, GenericWaitPageMixin):
 
         participant = self.participant
 
-        participant._waitpage_is_connected = True
+        participant._gbat_is_connected = True
         participant._gbat_page_index = self._index_in_pages
         participant._gbat_grouped = False
         # _last_request_timestamp is already set in set_attributes,

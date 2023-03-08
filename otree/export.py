@@ -88,7 +88,6 @@ def _get_table_fields(Model, for_export=False):
                 '_current_app_name',
                 '_round_number',
                 '_current_page_name',
-                '_presence_icon',
                 '_monitor_note',
                 '_last_page_timestamp',
             ]
@@ -371,16 +370,16 @@ def get_rows_for_csv(app_name):
 
 def get_rows_for_monitor(participants) -> list:
     field_names = get_fields_for_monitor()
-    callable_fields = {'_numeric_label', '_current_page', '_presence_icon'}
+    callable_fields = {'_numeric_label', '_current_page'}
     rows = []
-    for pp in participants:
+    for participant in participants:
         row = {}
         for field_name in field_names:
-            value = getattr(pp, field_name)
+            value = getattr(participant, field_name)
             if field_name in callable_fields:
                 value = value()
             row[field_name] = value
-        row['id_in_session'] = pp.id_in_session
+        row['id_in_session'] = participant.id_in_session
         rows.append(row)
     return rows
 

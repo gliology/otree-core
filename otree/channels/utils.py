@@ -147,6 +147,14 @@ def live_path(**kwargs):
     return f'/live?' + urlencode(kwargs)
 
 
+def trial_group(pcode, page_index):
+    return f'trial-{pcode}-{page_index}'
+
+
+def trial_path(**kwargs):
+    return f'/trial?' + urlencode(kwargs)
+
+
 def chat_path(channel, participant_id):
     return '/chat?' + urlencode(
         {

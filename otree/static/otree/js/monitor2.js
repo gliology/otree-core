@@ -21,7 +21,6 @@ function initWebSocket(socketUrl, $tbody, visitedParticipants, $msgRefreshed) {
     }
 }
 
-
 function recentlyActiveParticipantsMsg(newIds) {
     if (newIds.length === 0) return '';
     let d = recentlyActiveParticipants;
@@ -69,8 +68,6 @@ function updateNotes(tbody, ids, note) {
     }
 }
 
-let pendingPresenceIconChanges = {};
-
 function updateNthRow(tbody, n, row) {
     let didUpdate = false;
     let nthBodyRow = tbody.querySelector(getNthBodyRowSelector(n));
@@ -81,22 +78,9 @@ function updateNthRow(tbody, n, row) {
         let dataSetVal = makeCellDatasetValue(cur);
         if (prev !== dataSetVal) {
             cellToUpdate.dataset.value = dataSetVal;
-            if (fieldName === '_presence_icon') {
-                // this is to avoid the icon flickering gray every time a page reloads
-                // schedule the color to be changed, but wait a few moments to see
-                // if a new color change happens.
-                let timeoutID = setTimeout(function () {
-                    cellToUpdate.innerHTML = makeCellDisplayValue(cur, fieldName);
-                    delete pendingPresenceIconChanges[n];
-                }, 2000);
-                let previousPendingTimeout = pendingPresenceIconChanges[n];
-                if (previousPendingTimeout) clearTimeout(previousPendingTimeout);
-                pendingPresenceIconChanges[n] = timeoutID;
-            } else {
-                cellToUpdate.innerHTML = makeCellDisplayValue(cur, fieldName);
-                flashGreen($(cellToUpdate));
-                didUpdate = true;
-            }
+            cellToUpdate.innerHTML = makeCellDisplayValue(cur, fieldName);
+            flashGreen($(cellToUpdate));
+            didUpdate = true;
         }
     }
     return didUpdate;

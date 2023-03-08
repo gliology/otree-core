@@ -40,7 +40,7 @@ def call_api(operation: str, request_parameters: dict, *, use_sandbox: bool) -> 
     amz_target = f'MTurkRequesterServiceV20170117.{operation}'
 
     # Create a date for headers and the credential string
-    t = datetime.datetime.utcnow()
+    t = datetime.utcnow()
     amz_date = t.strftime('%Y%m%dT%H%M%SZ')
     date_stamp = t.strftime('%Y%m%d')  # Date w/o time, used in credential scope
 
@@ -143,7 +143,9 @@ def call_api(operation: str, request_parameters: dict, *, use_sandbox: bool) -> 
     try:
         resp = urlopen(request, data=request_body)
     except HTTPError as exc:
-        msg = json.loads(exc.read().decode('utf8'))['Message']
+        # 2022-12-05: I used to use ['Message'],
+        # but it seems this key is not always present.
+        msg = json.loads(exc.read().decode('utf8'))
         raise MTurkError(msg)
     res_body = resp.read()
     return json.loads(res_body.decode("utf-8"))
