@@ -176,8 +176,8 @@ class WSGroupWaitPage(BaseWaitPage):
 
 
 class LiveConsumer(_OTreeAsyncJsonWebsocketConsumer):
-    def group_name(self, page_index, participant_code, **kwargs):
-        return channel_utils.live_group(page_index, participant_code)
+    def group_name(self, session_code, page_index, participant_code, **kwargs):
+        return channel_utils.live_group(session_code, page_index, participant_code)
 
     def clean_kwargs(self):
         return parse_querystring(self.scope['query_string'])

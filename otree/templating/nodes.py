@@ -5,6 +5,7 @@ import operator
 import re
 import types
 import os.path
+from pathlib import Path
 
 import wtforms.fields as wtfields
 from otree.chat import chat_template_tag
@@ -490,7 +491,20 @@ class BaseIncludeNode(Node):
     def wrender(self, context):
         template_name = self.template_expr.eval(context)
         if isinstance(template_name, str):
-            template = ibis_loader.load(self.expand_template_name(template_name))
+            path = self.expand_template_name(template_name)
+            try:
+                template = ibis_loader.load(path)
+            except errors.TemplateLoadError as exc:
+                if ('/' not in path and '\\' not in path) or ('.' not in path):
+                    # prevent mistakes like:
+                    # {{ include 'x.html' }}
+                    # {{ include_sibling 'x' }}
+                    msg = (
+                        f"""Loader cannot locate the template file '{path}'. """
+                        "Ensure that the template exists and that you used the syntax "
+                        "{{ include_sibling 'xyz.html' }} or {{ include 'my_app/xyz.html' }}"
+                    )
+                    raise errors.TemplateLoadError(msg) from None
             context.push()
             for name, expr in self.variables.items():
                 context[name] = expr.eval(context)
@@ -528,7 +542,11 @@ class IncludeSiblingNode(BaseIncludeNode):
                 "Argument to 'include_sibling' must be a file name with no path parts",
                 self.token,
             )
-        return os.path.join(os.path.dirname(self.token.template_id), name)
+
+        # as_posix is useful because if the template is not found, it reports that it was looking for
+        # 'a/xyz.html' instead of 'a\xyz.html' which might confuse people who might think the backslash was
+        # the source of the problem and wonder where it came from.
+        return Path(self.token.template_id).parent.joinpath(name).as_posix()
 
 
 # ExtendNodes implement template inheritance. They indicate that the current template inherits
