@@ -61,7 +61,9 @@ i removed many linebreaks to make output HTML cleaner
 
 {% block trial %}
   {% if has_trial %}
-    <script>var _TRIALS = {{ trials_json }}; var _trials_use_roundtrip_mode = {{ _trials_use_roundtrip_mode }}</script>
-    <script src="{% static 'otree/js/trial.js' %}" id="otree-trial" data-socket-url="{{ view.trial_url() }}"></script>
+    <script>var TRIALS = {{ trials_json }}; var _TRIALS_SSE = {{ _trials_use_roundtrip_mode }}</script>
+    <script src="{% static 'otree/js/trial-setup.js' %}" id="otree-trial" data-socket-url="{{ view.trial_url() }}"></script>
+    <script src="{% static 'otree/js/otree-front.js' %}"></script>
+    <script src="{% static 'otree/js/trial-default.js' %}"></script>
   {% endif %}
 {% endblock %}

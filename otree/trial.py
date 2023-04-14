@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 async def trial_payload_function(participant_code, page_name, msg):
-
     try:
         participant = Participant.objects_get(code=participant_code)
     except NoResultFound:
@@ -31,7 +30,6 @@ async def trial_payload_function(participant_code, page_name, msg):
     )
     Trial = PageClass.trial_model
     trial = get_current_trial(Trial, player)
-
     resp = dict(is_page_load=msg['type'] == 'load')
     if trial and msg['type'] == 'response':
         assert trial.id == msg['trial_id']
@@ -52,7 +50,6 @@ async def trial_payload_function(participant_code, page_name, msg):
     else:
         resp.update(trial=None)
     resp.update(progress=get_progress(Trial, player))
-
     await _send_back(
         participant.code,
         participant._index_in_pages,
