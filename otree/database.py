@@ -22,6 +22,7 @@ from sqlalchemy.orm import (
     mapper,
     relationship,
 )
+from sqlalchemy.sql.functions import func
 from sqlalchemy.orm import sessionmaker, configure_mappers
 from sqlalchemy.orm.exc import NoResultFound  # noqa
 from sqlalchemy.sql import sqltypes as st
@@ -926,6 +927,58 @@ class ExtraModel(AnyModel):
                 # this could be huge, maybe should truncate
                 items.append((name, repr(getattr(self, name))))
         return dict(items)
+
+
+class BaseTrial(ExtraModel):
+    """
+    We should have a class for this because:
+    - makes it easier to enforce correctness
+    - we may need to add stuff to it in the future.
+    - less code to loop and create trials in the regular case
+    - if someone forgets to assign queue_positions, then all queue positions will be None
+      and it will skip right past the trials page, which will be confusing.
+    - if doing infinite iteration, the trials will not all be created at the same time.
+      therefore, it's hard to know what the previous queue_position was.
+      need to store it somewhere, which is a pain.
+    """
+
+    __abstract__ = True
+
+    # can't use autoincrement=True because that only has an effect
+    # if the field is part of the primary key.
+    queue_position = Column(st.Integer)
+
+    @declared_attr
+    def player_id(cls):
+        app_name = cls.get_folder_name()
+        # needs to be nullable so re-grouping can happen
+        return Column(st.Integer, ForeignKey(f'{app_name}_player.id'), nullable=True)
+
+    @declared_attr
+    def player(cls):
+        # back_populates=f'{cls.__name__}_set'
+        return relationship(
+            f'{cls.__module__}.Player',
+        )
+
+    @classmethod
+    def create(cls, **kwargs):
+        if 'queue_position' not in kwargs:
+            global _incrementing_queue_position
+            if _incrementing_queue_position is None:
+                _incrementing_queue_position = (
+                    dbq(func.max(cls.queue_position)).scalar() or 0
+                )
+            _incrementing_queue_position += 1
+            kwargs['queue_position'] = _incrementing_queue_position
+        return super().create(**kwargs)
+
+
+# queue position doesn't need to always contain the global max, but it must consistently increment
+# for a given player, even between server restarts (because you might create trials on the fly).
+# it's OK if 1 app passes queue_position explicitly, and another app auto-increments.
+# because those queue positions will never get compared to each other.
+_incrementing_queue_position = None
 
 
 @event.listens_for(mapper, "instrument_class")

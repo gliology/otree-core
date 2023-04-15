@@ -267,6 +267,11 @@ class ExtraModel:
 
     id: int
 
+class BaseTrial(ExtraModel):
+    player: PlayerTV
+    queue_position: int
+
+
 class WaitPage:
     wait_for_all_groups = False
     group_by_arrival_time = False
@@ -377,6 +382,7 @@ __all__ = [
     "BaseGroup",
     "BasePlayer",
     "ExtraModel",
+    "BaseTrial",
     "WaitPage",
     "Page",
     "Bot",

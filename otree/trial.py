@@ -16,11 +16,15 @@ async def trial_payload_function(participant_code, page_name, msg):
     except NoResultFound:
         logger.warning(f'Participant not found: {participant_code}')
         return
-    send_error = _send_back(
-        participant_code,
-        participant._index_in_pages,
-        dict(type='error'),
-    )
+
+    def send_error():
+        """need to put it in a function, otherwise we get a warning
+        that the coroutine wasn't awaited."""
+        return _send_back(
+            participant_code,
+            participant._index_in_pages,
+            dict(type='error'),
+        )
 
     lookup = get_page_lookup(participant._session_code, participant._index_in_pages)
     app_name = lookup.app_name
@@ -31,7 +35,7 @@ async def trial_payload_function(participant_code, page_name, msg):
             f'Ignoring message from {participant_code} because '
             f'they are on page {PageClass.__name__}, not {page_name}.'
         )
-        await send_error
+        await send_error()
 
     player = models_module.Player.objects_get(
         round_number=lookup.round_number, participant=participant
@@ -43,7 +47,7 @@ async def trial_payload_function(participant_code, page_name, msg):
     resp = dict(is_page_load=is_page_load, type=msg_type)
     if trial and msg_type == 'response':
         if trial.id != msg['trial_id']:
-            await send_error
+            await send_error()
             msg = (
                 "Trials: server and client are out of sync. "
                 "Check if there were any errors earlier."
@@ -54,14 +58,14 @@ async def trial_payload_function(participant_code, page_name, msg):
             try:
                 feedback = PageClass.evaluate_trial(trial, response)
             except Exception:
-                await send_error
+                await send_error()
                 raise
         else:
             server_fields = set(PageClass.trial_response_fields)
             client_fields = response.keys()
             server_only = server_fields - client_fields
             if server_only:
-                await send_error
+                await send_error()
                 msg = (
                     "The following fields are in trial_response_fields, "
                     f"but were not sent from sendTrialResponse: {server_only}"
@@ -69,7 +73,7 @@ async def trial_payload_function(participant_code, page_name, msg):
                 raise Exception(msg)
             client_only = client_fields - server_fields
             if client_only:
-                await send_error
+                await send_error()
                 msg = (
                     "The following fields were sent from the sendTrialResponse, "
                     f"but are not in trial_response_fields: {client_only}"
@@ -81,7 +85,7 @@ async def trial_payload_function(participant_code, page_name, msg):
                 for attr in PageClass.trial_response_fields:
                     setattr(trial, attr, response[attr])
             except Exception:
-                await send_error
+                await send_error()
                 raise
             trial.queue_position = None
             feedback = {}
