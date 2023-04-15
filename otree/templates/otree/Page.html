@@ -14,6 +14,11 @@ i removed many linebreaks to make output HTML cleaner
             {% include 'otree/includes/TimeLimit.html'  %}
           {% endwith %}
         {% endif %}
+        {% if is_defined('_trials_incomplete') and _trials_incomplete %}
+            <div class="otree-form-errors alert alert-danger">
+                {{ "Cannot proceed to the next page until trials are completed."|gettext }}
+            </div>
+        {% endif %}
         {% if form.errors %}
             <div class="otree-form-errors alert alert-danger">
               {% if form.non_field_error %}

@@ -19,20 +19,22 @@
     {% block global_styles %}{% endblock %}
     {% block app_styles %}{% endblock %}
     {% block styles %}{% endblock %}
+    <script src="{% static 'otree/js/reconnecting-websocket-iife.min.js' %}"></script>
+    <script src="{% static 'otree/js/common.js' %}"></script>
+    {# trial must be before body. because otherwise we would need to put reconnecting-websocket  #}
+    {% block trial %}{% endblock %}
 </head>
 <body>
 {% block body_main %}{% endblock %}
 
 {% block internal_scripts %}
   <script src="{% static 'otree/js/internet-explorer.js' %}"></script>
-  <script src="{% static 'otree/js/reconnecting-websocket-iife.min.js' %}"></script>
     {% block bootstrap_scripts %}
     <script src="{% static 'bootstrap5/js/bootstrap.bundle.min.js' %}"></script>
     {% endblock %}
-    <script src="{% static 'otree/js/common.js' %}"></script>
+
 {% endblock %}
 {% block live %}{% endblock %}
-{% block trial %}{% endblock %}
 {# these blocks are for public API #}
 {% block global_scripts %}{% endblock %}
 {% block app_scripts %}{% endblock %}

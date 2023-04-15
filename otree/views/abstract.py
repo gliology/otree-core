@@ -150,8 +150,12 @@ class FormPageOrInGameWaitPage:
     def _redirect_to_page_the_user_should_be_on(self):
         return RedirectResponse(self.participant._url_i_should_be_on(), status_code=302)
 
+    @classmethod
+    def has_trial(cls):
+        return bool(getattr(cls, 'trial_model', None))
+
     def get_context_data(self, **context):
-        has_trial = bool(getattr(self, 'trial_model', None))
+
         context.update(
             view=self,
             object=getattr(self, 'object', None),
@@ -163,7 +167,7 @@ class FormPageOrInGameWaitPage:
             timer_text=getattr(self, 'timer_text', None),
             current_page_name=self.__class__.__name__,
             has_live_method=bool(getattr(self, 'live_method', None)),
-            has_trial=has_trial,
+            has_trial=self.has_trial(),
         )
 
         Constants = self._Constants
@@ -186,6 +190,7 @@ class FormPageOrInGameWaitPage:
         except TypeError as exc:
             raise TypeError(f'js_vars contains an invalid value; {exc}') from None
 
+        has_trial = self.has_trial()
         if has_trial:
             Trial = self.trial_model
             use_roundtrip_mode = hasattr(self, 'evaluate_trial')
@@ -501,16 +506,19 @@ class Page(FormPageOrInGameWaitPage):
         # 2020-07-10: maybe we should call vars_for_template before instantiating the form
         # so that you can set initial value for a field in vars_for_template?
         # No, i don't want to commit to that.
-        if self.has_form():
-            obj = self.get_object()
-            form = self.get_form(instance=obj)
-        else:
-            form = MockForm()
+        form = self.get_form_or_mockform()
 
         context = self.get_context_data(form=form)
         response = self.render_to_response(context)
         self.browser_bot_stuff(response)
         return response
+
+    def get_form_or_mockform(self):
+        if self.has_form():
+            obj = self.get_object()
+            return self.get_form(instance=obj)
+        else:
+            return MockForm()
 
     def get_template_name(self):
         if self.template_name is not None:
@@ -563,6 +571,23 @@ class Page(FormPageOrInGameWaitPage):
 
         return response
 
+    def must_complete_trials(self):
+        if self.timeout_happened:
+            return False
+        if self.has_trial():
+            Trial = self.trial_model
+            return bool(otree.trial.get_current_trial(Trial, self.player))
+        return False
+
+    def trials_incomplete_handler(self, form):
+        context = self.get_context_data(form=form, _trials_incomplete=True)
+        response = self.render_to_response(context)
+        response.headers[
+            otree.constants.redisplay_with_errors_http_header
+        ] = otree.constants.get_param_truth_value
+
+        return response
+
     def _check_submission_must_fail(self, is_bot, post_data):
         if is_bot and post_data.get('must_fail'):
             msg = (
@@ -579,6 +604,9 @@ class Page(FormPageOrInGameWaitPage):
         obj = self.get_object()
         form = self.get_form(formdata=post_data, instance=obj)
         self.form = form
+
+        if self.must_complete_trials():
+            return self.trials_incomplete_handler(form)
 
         if self.timeout_happened:
             self._process_auto_submitted_form(form, obj)
@@ -651,6 +679,8 @@ class Page(FormPageOrInGameWaitPage):
             resp = self.post_handle_form(post_data)
             if resp:
                 return resp
+        elif self.must_complete_trials():
+            return self.trials_incomplete_handler(form=MockForm())
         elif hasattr(self, 'error_message') and not self.timeout_happened:
             # if the page has no form, we should still run error_message.
             # this is useful for live pages.

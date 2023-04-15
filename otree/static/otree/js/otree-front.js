@@ -872,9 +872,11 @@ var ot = (function (exports) {
     function init$1() {
       window._trialSocket.onmessage = function (message) {
         let data = JSON.parse(message.data);
-        if (_TRIALS_SSE) {
+        if (data.type === 'error') {
+          console.error("An error occurred processing a trial on the server.");
+        } else if (_TRIALS_SSE) {
           _onServerRecvSSE(data);
-        } else {
+        } else if (data.type === 'load') {
           _onServerRecvCSE(data);
         }
       };
@@ -886,9 +888,7 @@ var ot = (function (exports) {
       let {
         progress
       } = _ref;
-      page.nextIterationInfo = {
-        progress
-      };
+      page.progress = progress;
       emitEvent('load');
     }
     function _onServerRecvSSE(_ref2) {
@@ -898,10 +898,8 @@ var ot = (function (exports) {
         trial,
         progress
       } = _ref2;
-      page.nextIterationInfo = {
-        progress,
-        trial
-      };
+      page.nextTrial = trial;
+      page.progress = progress;
       if (is_page_load) {
         emitEvent('load');
       } else {
@@ -910,6 +908,7 @@ var ot = (function (exports) {
       }
     }
     function sendTrialResponse(data) {
+      freezeInputs();
       var msg = {
         type: 'response',
         response: data,
@@ -917,8 +916,9 @@ var ot = (function (exports) {
       };
       window._trialSocket.send(JSON.stringify(msg));
       if (!_TRIALS_SSE) {
-        completeTrial();
         page.progress.completed++;
+        page.progress.remaining--;
+        completeTrial();
       }
     }
     function getPlayableTrial() {
@@ -926,26 +926,13 @@ var ot = (function (exports) {
       // the trial received from the server is non-null.
       // in non-roundrip mode, we look at the progress.completed attribute.
 
-      let nextTrial = null;
-
-      // evaluate_trial_defined is a global var that is set by otree-core
       if (_TRIALS_SSE) {
-        let {
-          trial,
-          progress
-        } = page.nextIterationInfo;
-        page.progress = progress;
-        nextTrial = trial;
+        return page.nextTrial;
       } else {
-        //
-        if (!page.progress) {
-          page.progress = page.nextIterationInfo.progress;
-        }
         if (page.progress.completed < TRIALS.length) {
-          nextTrial = TRIALS[page.progress.completed];
+          return TRIALS[page.progress.completed];
         }
       }
-      return nextTrial;
     }
 
     const handlers = {};
@@ -1596,8 +1583,8 @@ var ot = (function (exports) {
       init$1();
       init$2();
 
-      // the loading should be done in initRecv.
-      //emitEvent("load");
+      // the loading should be done when trialSocket receives a message.
+      // emitEvent("load");
     });
 
     exports.AssignExpr = AssignExpr;

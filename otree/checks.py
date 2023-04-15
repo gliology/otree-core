@@ -4,12 +4,20 @@ from importlib import import_module
 from pathlib import Path
 import sys
 from otree import common
-from otree.api import BasePlayer, BaseGroup, BaseSubsession, Currency, WaitPage, Page
+from otree.api import BasePlayer, BaseGroup, BaseSubsession, Currency, WaitPage, ExtraModel
+from otree.views.abstract import Page
 from otree import settings
 from otree.common import get_pages_module, get_models_module, get_builtin_constant
 from collections import namedtuple
 
-Error = namedtuple('Error', ['title', 'id', 'app_name',])
+Error = namedtuple(
+    'Error',
+    [
+        'title',
+        'id',
+        'app_name',
+    ],
+)
 Warning = namedtuple('Warning', ['title', 'id', 'app_name'])
 
 print_function = print
@@ -212,7 +220,6 @@ def pages_function(helper: AppCheckHelper, app_name):
             if ViewCls.__name__ == 'WaitPage' and app_name != 'trust':
                 msg = "page_sequence cannot contain a class called 'WaitPage'."
                 helper.add_error(msg, numeric_id=221)
-
             if issubclass(ViewCls, WaitPage):
                 if ViewCls.group_by_arrival_time:
                     if i > 0:
@@ -239,7 +246,10 @@ def pages_function(helper: AppCheckHelper, app_name):
                             numeric_id=25,
                         )
             elif issubclass(ViewCls, Page):
-                pass  # ok
+                if ViewCls.has_trial():
+                    Trial = ViewCls.trial_model
+                    #if not isinstance(Trial, ExtraModel):
+                    #    helper.add_error()
             else:
                 msg = '"{}" is not a valid page'.format(ViewCls)
                 helper.add_error(msg, numeric_id=26)

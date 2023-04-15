@@ -106,11 +106,24 @@ class OTreeStaticFiles(StaticFiles):
                 return
         raise FileNotFoundError(path)
 
+    def urls_of_static_files(self, dirpath, extension):
+        from otree.asgi import app
+
+        if extension.startswith('.'):
+            raise Exception("Extension should not contain a dot")
+
+        for root in self.all_directories:
+            _dir = Path(root, dirpath)
+            if _dir.is_dir():
+                for _file in _dir.glob(f'*.{extension}'):
+                    relpath = _file.relative_to(root)
+                    yield app.router.url_path_for('static', path=relpath)
+
 
 existing_filenames_cache = set()
 
 
-def url_of_static(path):
+def url_of_static_file(path):
     """
     naming:
     - it shouldn't start with
@@ -129,6 +142,23 @@ def url_of_static(path):
 
     static_files_app.assert_file_exists(path)
     return app.router.url_path_for('static', path=path)
+
+
+def urls_of_static_files(dir, extension):
+    """
+    e.g.:
+    >>> urls_of_static_files('emojis', 'png')
+    ['/static/emojis/1.png', '/static/emojis/2.png']
+
+    I don't know how useful this would be because usually people have (a) some metadata about the file,
+    such as what it contains. also for DB storage & record-keeping,
+    people would want to store the filename, e.g. '1.png',
+    rather than the full URL path, e.g. '/static/emojis/1.png'
+
+    But if we see a lot of people just trying to include all images in a dir,
+    then we can add this to API.
+    """
+    return static_files_app.urls_of_static_files(dir, extension)
 
 
 static_files_app = OTreeStaticFiles(

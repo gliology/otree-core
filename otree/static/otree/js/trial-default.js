@@ -13,7 +13,6 @@ ot.onIteration(function () {
     if (nextTrial) {
         ot.startTrial(nextTrial);
     } else {
-        console.log('completePage');
         ot.completePage();
     }
 });
@@ -29,5 +28,6 @@ ot.onTrial(function (trial) {
 ot.onComplete(function () {
     ot.delay(window.TRIAL_DELAY || 0, function () {
         ot.startIteration();
+        console.log('did startIteration', ot.page.progress.completed);
     });
 });

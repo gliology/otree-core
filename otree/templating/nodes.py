@@ -10,7 +10,7 @@ from pathlib import Path
 import wtforms.fields as wtfields
 from otree.chat import chat_template_tag
 from otree.common import CSRF_TOKEN_NAME, FULL_DECIMAL_PLACES
-from otree.common2 import url_of_static
+from otree.common2 import url_of_static_file
 from otree.i18n import format_number
 from gettext import gettext
 from otree.forms.fields import CheckboxField
@@ -888,7 +888,7 @@ class StaticNode(Node):
 
     def wrender(self, context):
         path = self.path_expr.eval(context)
-        return url_of_static(path)
+        return url_of_static_file(path)
 
 
 @register('url')

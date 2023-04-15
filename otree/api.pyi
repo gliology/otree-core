@@ -298,6 +298,9 @@ class Page:
     timer_text: str
     form_model: str
     form_fields: List[str]
+    trial_model: type
+    trial_stimulus_fields: List[str]
+    trial_response_fields: List[str]
     @staticmethod
     def live_method(player: Player, data):
         pass
@@ -324,6 +327,9 @@ class Page:
         pass
     @staticmethod
     def app_after_this_page(player: Player, upcoming_apps):
+        pass
+    @staticmethod
+    def evaluate_trial(trial: Trial, response):
         pass
 
 class Bot:
@@ -357,6 +363,9 @@ app_models = Union[Type[ExtraModel], Type[BasePlayer], Type[BaseGroup], Type[Bas
 def read_csv(path: str, type_model: app_models) -> List[dict]:
     pass
 
+def url_of_static_file(path) -> str:
+    pass
+
 __all__ = [
     "Currency",
     "cu",
@@ -375,4 +384,5 @@ __all__ = [
     "SubmissionMustFail",
     "expect",
     "read_csv",
+    # "url_of_static_file",
 ]
