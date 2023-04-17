@@ -125,18 +125,23 @@ existing_filenames_cache = set()
 
 def url_of_static_file(path):
     """
+    - better than hardcoding '/static/', which will fail silently if the file
+    doesn't exist.
+    - there is the {{ static }} tag in templates.
+      good to have this in python code for consistency,
+      rather than making people construct it manually.
+    - useful for:
+        - Trials, which are generated on the server side.
+          this would be useful for 2 situations:
+        - live pages, where {% static %} can't be used because the template was already rendered
+        - js_vars (don't want {% static %} mixed in with JS code)
+
     naming:
     - it shouldn't start with
     'static' because that would distract from @staticmethod in autocomplete,
     which is much more important.
     - url_of_static is more specific than url_for_static (which looks like vars_for_template but works differently)
 
-    better than hardcoding '/static/', which will fail silently if the file
-    doesn't exist.
-
-    this would be useful for 2 situations:
-    - live pages, where {% static %} can't be used because the template was already rendered
-    - for use with js_vars (don't want {% static %} mixed in with JS code)
     """
     from otree.asgi import app
 

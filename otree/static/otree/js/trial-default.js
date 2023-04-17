@@ -6,8 +6,11 @@ ot.onLoad(function () {
 
 ot.onIteration(function () {
     delete ot.page.trial;
-    delete ot.page.response;
     delete ot.page.feedback;
+    // should we automatically delete response? doesn't seem good
+    // to special-case this variable name.
+    delete ot.page.response;
+
 
     let nextTrial = ot.getPlayableTrial();
     if (nextTrial) {
@@ -28,6 +31,5 @@ ot.onTrial(function (trial) {
 ot.onComplete(function () {
     ot.delay(window.TRIAL_DELAY || 0, function () {
         ot.startIteration();
-        console.log('did startIteration', ot.page.progress.completed);
     });
 });

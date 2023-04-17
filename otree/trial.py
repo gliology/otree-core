@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 async def trial_payload_function(participant_code, page_name, msg):
 
-    # print('in trial_payload_function', msg)
+    print('in trial_payload_function', msg)
     try:
         participant = Participant.objects_get(code=participant_code)
     except NoResultFound:
@@ -68,7 +68,8 @@ async def trial_payload_function(participant_code, page_name, msg):
                 await send_error()
                 msg = (
                     "The following fields are in trial_response_fields, "
-                    f"but were not sent from sendTrialResponse: {server_only}"
+                    f"but were not received from sendTrialResponse: {server_only}. "
+                    "If this key was indeed sent, make sure its value is non-null."
                 )
                 raise Exception(msg)
             client_only = client_fields - server_fields

@@ -4,7 +4,14 @@ from importlib import import_module
 from pathlib import Path
 import sys
 from otree import common
-from otree.api import BasePlayer, BaseGroup, BaseSubsession, Currency, WaitPage, ExtraModel
+from otree.api import (
+    BasePlayer,
+    BaseGroup,
+    BaseSubsession,
+    Currency,
+    WaitPage,
+    ExtraModel,
+)
 from otree.views.abstract import Page
 from otree import settings
 from otree.common import get_pages_module, get_models_module, get_builtin_constant
@@ -13,12 +20,19 @@ from collections import namedtuple
 Error = namedtuple(
     'Error',
     [
+        'app_name',
         'title',
         'id',
-        'app_name',
     ],
 )
-Warning = namedtuple('Warning', ['title', 'id', 'app_name'])
+Warning = namedtuple(
+    'Warning',
+    [
+        'app_name',
+        'title',
+        'id',
+    ],
+)
 
 print_function = print
 
@@ -31,10 +45,12 @@ class AppCheckHelper:
         self.warnings = []
 
     def add_error(self, title, numeric_id: int):
-        self.errors.append(Error(title, id=numeric_id, app_name=self.app_name))
+        self.errors.append(Error(title=title, id=numeric_id, app_name=self.app_name))
 
     def add_warning(self, title, numeric_id: int):
-        self.warnings.append(Warning(title, id=numeric_id, app_name=self.app_name))
+        self.warnings.append(
+            Warning(title=title, id=numeric_id, app_name=self.app_name)
+        )
 
     def get_template_names(self):
         templates_dir = self.path / 'templates'
@@ -248,7 +264,16 @@ def pages_function(helper: AppCheckHelper, app_name):
             elif issubclass(ViewCls, Page):
                 if ViewCls.has_trial():
                     Trial = ViewCls.trial_model
-                    #if not isinstance(Trial, ExtraModel):
+                    for fn in ViewCls.trial_stimulus_fields + getattr(
+                        ViewCls, 'trial_response_fields', []
+                    ):
+                        if not hasattr(Trial, fn):
+                            helper.add_error(
+                                f"Page '{ViewCls.__name__}' includes '{fn}' in its trial fields, "
+                                f"but this is not a field on the '{Trial.__name__}' model.",
+                                numeric_id=27,
+                            )
+                    # if not isinstance(Trial, ExtraModel):
                     #    helper.add_error()
             else:
                 msg = '"{}" is not a valid page'.format(ViewCls)

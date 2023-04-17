@@ -390,5 +390,5 @@ __all__ = [
     "SubmissionMustFail",
     "expect",
     "read_csv",
-    # "url_of_static_file",
+    "url_of_static_file",
 ]

@@ -871,6 +871,8 @@ var ot = (function (exports) {
 
     function init$1() {
       window._trialSocket.onmessage = function (message) {
+        console.log('trialSocket received', message.data);
+        console.log({_TRIALS_SSE});
         let data = JSON.parse(message.data);
         if (data.type === 'error') {
           console.error("An error occurred processing a trial on the server.");
@@ -898,8 +900,11 @@ var ot = (function (exports) {
         trial,
         progress
       } = _ref2;
-      page.nextTrial = trial;
+      // users might use .nextTrial with some slightly different semantics,
+      // don't want to clash with that.
+      page._nextTrial = trial;
       page.progress = progress;
+      console.log('server recv', _ref2);
       if (is_page_load) {
         emitEvent('load');
       } else {
@@ -927,7 +932,7 @@ var ot = (function (exports) {
       // in non-roundrip mode, we look at the progress.completed attribute.
 
       if (_TRIALS_SSE) {
-        return page.nextTrial;
+        return page._nextTrial;
       } else {
         if (page.progress.completed < TRIALS.length) {
           return TRIALS[page.progress.completed];
